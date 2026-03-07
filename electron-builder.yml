@@ -1,0 +1,35 @@
+# electron-builder configuration
+# Full packaging configuration will be added in Phase 6 (Polish + Release)
+appId: com.blankitsolutions.aidrelay
+productName: aidrelay
+copyright: Copyright 2026 Christian Blank
+
+directories:
+  buildResources: resources
+  output: dist
+
+files:
+  - out/**/*
+  - node_modules/**/*
+  - package.json
+
+win:
+  target:
+    - target: nsis
+      arch: x64
+  icon: resources/icon.ico
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  installerIcon: resources/icon.ico
+  uninstallerIcon: resources/icon.ico
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+
+mac:
+  target: dmg
+  category: public.app-category.developer-tools
+
+linux:
+  target: AppImage
