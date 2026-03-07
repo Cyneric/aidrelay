@@ -34,6 +34,7 @@ import {
   FlaskConical,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import { ServerEditor } from '@/components/servers/ServerEditor'
 import { ToggleMatrix } from '@/components/servers/ToggleMatrix'
@@ -56,6 +57,7 @@ const ServersPage = () => {
   const { servers, loading, error, load, delete: deleteServer, toggleEnabled } = useServersStore()
   const { clients, detectAll } = useClientsStore()
   const serverTestingEnabled = useFeatureGate('serverTesting')
+  const { t } = useTranslation()
   const [sorting, setSorting] = useState<SortingState>([])
   const [globalFilter, setGlobalFilter] = useState('')
   const [editingServer, setEditingServer] = useState<McpServer | undefined>(undefined)
@@ -268,7 +270,7 @@ const ServersPage = () => {
         <header className="flex items-center justify-between gap-4">
           <div>
             <h1 id="servers-heading" className="text-2xl font-bold tracking-tight">
-              Servers
+              {t('servers.title')}
             </h1>
             <p className="text-sm text-muted-foreground mt-0.5">
               {servers.length} server{servers.length !== 1 ? 's' : ''} in the registry
@@ -288,7 +290,7 @@ const ServersPage = () => {
                 className={syncingAll ? 'animate-spin' : ''}
                 aria-hidden="true"
               />
-              {syncingAll ? 'Syncing…' : 'Sync all'}
+              {syncingAll ? t('common.loading') : t('servers.syncAll')}
             </button>
             <button
               type="button"
@@ -297,7 +299,7 @@ const ServersPage = () => {
               data-testid="add-server-button"
             >
               <Plus size={14} aria-hidden="true" />
-              Add server
+              {t('servers.add')}
             </button>
           </div>
         </header>
@@ -318,9 +320,9 @@ const ServersPage = () => {
             type="search"
             value={globalFilter}
             onChange={(e) => setGlobalFilter(e.target.value)}
-            placeholder="Search servers…"
+            placeholder={t('servers.search')}
             className="w-full max-w-sm rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-            aria-label="Search servers"
+            aria-label={t('servers.search')}
             data-testid="servers-search"
           />
         </div>

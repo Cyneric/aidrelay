@@ -15,6 +15,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { RefreshCw } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { ActivityLogTable } from '@/components/log/ActivityLogTable'
 import type { ActivityLogEntry } from '@shared/channels'
 import type { ClientId } from '@shared/types'
@@ -26,6 +27,7 @@ import type { ClientId } from '@shared/types'
  * client, and date range. Refreshes on mount and via a manual button.
  */
 const ActivityLogPage = () => {
+  const { t } = useTranslation()
   const [entries, setEntries] = useState<ActivityLogEntry[]>([])
   const [loading, setLoading] = useState(false)
   const [actionFilter, setActionFilter] = useState('')
@@ -75,7 +77,7 @@ const ActivityLogPage = () => {
       <header className="flex items-center justify-between gap-4">
         <div>
           <h1 id="log-heading" className="text-2xl font-bold tracking-tight">
-            Activity Log
+            {t('activityLog.title')}
           </h1>
           <p className="text-sm text-muted-foreground mt-0.5">
             {entries.length} entr{entries.length !== 1 ? 'ies' : 'y'} matching current filters
@@ -102,7 +104,7 @@ const ActivityLogPage = () => {
         {/* Action type */}
         <div className="flex flex-col gap-1">
           <label htmlFor="log-action-filter" className="text-xs font-medium text-muted-foreground">
-            Action
+            {t('activityLog.action')}
           </label>
           <input
             id="log-action-filter"
@@ -118,7 +120,7 @@ const ActivityLogPage = () => {
         {/* Client */}
         <div className="flex flex-col gap-1">
           <label htmlFor="log-client-filter" className="text-xs font-medium text-muted-foreground">
-            Client
+            {t('activityLog.client')}
           </label>
           <select
             id="log-client-filter"
@@ -127,7 +129,7 @@ const ActivityLogPage = () => {
             className="rounded-md border border-input bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             data-testid="log-client-filter"
           >
-            <option value="">All clients</option>
+            <option value="">{t('activityLog.allClients')}</option>
             {CLIENT_IDS.map((id) => (
               <option key={id} value={id}>
                 {id}

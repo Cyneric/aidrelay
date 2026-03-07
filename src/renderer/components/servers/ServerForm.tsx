@@ -14,7 +14,7 @@
  * switching between the form and JSON tabs.
  */
 
-import { useFieldArray, useForm } from 'react-hook-form'
+import { useFieldArray, useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Plus, Trash2 } from 'lucide-react'
@@ -26,19 +26,44 @@ import type { CreateServerInput } from '@shared/channels'
 // ─── Schema ───────────────────────────────────────────────────────────────────
 
 /** Zod schema for the server form fields. */
-const serverSchema = z.object({
-  name: z
-    .string()
-    .min(1, 'Name is required')
-    .regex(/^[a-z0-9_-]+$/i, 'Only letters, numbers, hyphens, and underscores allowed'),
-  type: z.enum(['stdio', 'sse', 'http']),
-  command: z.string().min(1, 'Command is required'),
-  args: z.array(z.object({ value: z.string() })),
-  env: z.record(z.string(), z.string()),
-  secretEnvKeys: z.array(z.string()),
-  notes: z.string(),
-  tags: z.string(),
-})
+const serverSchema = z
+  .object({
+    name: z
+      .string()
+      .min(1, 'Name is required')
+      .regex(/^[a-z0-9_-]+$/i, 'Only letters, numbers, hyphens, and underscores allowed'),
+    type: z.enum(['stdio', 'sse', 'http']),
+    url: z.string(),
+    command: z.string(),
+    args: z.array(z.object({ value: z.string() })),
+    env: z.record(z.string(), z.string()),
+    secretEnvKeys: z.array(z.string()),
+    notes: z.string(),
+    tags: z.string(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.type === 'stdio' && data.command.length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Command is required',
+        path: ['command'],
+      })
+    }
+    if ((data.type === 'sse' || data.type === 'http') && data.url.length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'URL is required for this transport type',
+        path: ['url'],
+      })
+    }
+    if ((data.type === 'sse' || data.type === 'http') && data.url.length > 0) {
+      try {
+        new URL(data.url)
+      } catch {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Must be a valid URL', path: ['url'] })
+      }
+    }
+  })
 
 type ServerFormValues = z.infer<typeof serverSchema>
 
@@ -67,6 +92,7 @@ interface ServerFormProps {
 const serverToFormValues = (server: McpServer): ServerFormValues => ({
   name: server.name,
   type: server.type,
+  url: server.url ?? '',
   command: server.command,
   args: server.args.map((v) => ({ value: v })),
   env: { ...server.env },
@@ -78,6 +104,7 @@ const serverToFormValues = (server: McpServer): ServerFormValues => ({
 const defaultFormValues = (): ServerFormValues => ({
   name: '',
   type: 'stdio',
+  url: '',
   command: '',
   args: [],
   env: {},
@@ -115,10 +142,14 @@ const ServerForm = ({ defaultValues, onSubmit, onCancel, saving = false }: Serve
     name: 'args',
   })
 
+  const selectedType = useWatch({ control, name: 'type' })
+  const isNetworkTransport = selectedType === 'sse' || selectedType === 'http'
+
   const submit = (data: ServerFormValues) => {
     onSubmit({
       name: data.name,
       type: data.type,
+      ...(data.url ? { url: data.url } : {}),
       command: data.command,
       args: data.args.map((a) => a.value),
       env: data.env,
@@ -185,13 +216,51 @@ const ServerForm = ({ defaultValues, onSubmit, onCancel, saving = false }: Serve
         </select>
       </div>
 
+      {/* URL — only for SSE / HTTP transports */}
+      {isNetworkTransport && (
+        <div className="flex flex-col gap-1">
+          <label htmlFor="server-url" className="text-sm font-medium">
+            Endpoint URL{' '}
+            <span aria-hidden="true" className="text-destructive">
+              *
+            </span>
+          </label>
+          <input
+            id="server-url"
+            type="url"
+            placeholder={
+              selectedType === 'sse' ? 'https://example.com/sse' : 'https://example.com/mcp'
+            }
+            {...register('url')}
+            className={cn(
+              'rounded-md border bg-background px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-ring',
+              errors.url ? 'border-destructive' : 'border-input',
+            )}
+            data-testid="server-url-input"
+            aria-invalid={!!errors.url}
+            aria-describedby={errors.url ? 'server-url-error' : undefined}
+          />
+          {errors.url && (
+            <span id="server-url-error" role="alert" className="text-xs text-destructive">
+              {errors.url.message}
+            </span>
+          )}
+        </div>
+      )}
+
       {/* Command */}
       <div className="flex flex-col gap-1">
         <label htmlFor="server-command" className="text-sm font-medium">
-          Command{' '}
-          <span aria-hidden="true" className="text-destructive">
-            *
-          </span>
+          {isNetworkTransport ? (
+            'Command'
+          ) : (
+            <>
+              Command{' '}
+              <span aria-hidden="true" className="text-destructive">
+                *
+              </span>
+            </>
+          )}
         </label>
         <input
           id="server-command"

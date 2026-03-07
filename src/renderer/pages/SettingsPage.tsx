@@ -18,6 +18,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { toast } from 'sonner'
+import { useTranslation } from 'react-i18next'
 import { Save, RotateCcw, Key, Globe, Info, Download } from 'lucide-react'
 import { useLicense } from '@/lib/useLicense'
 
@@ -392,20 +393,23 @@ const AboutSection = () => {
 /**
  * Full settings page grouping all preference sections into a scrollable layout.
  */
-const SettingsPage = () => (
-  <main className="flex flex-col gap-6 max-w-2xl" data-testid="settings-page">
-    <div>
-      <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
-      <p className="text-sm text-muted-foreground mt-1">
-        Configure aidrelay preferences and integrations.
-      </p>
-    </div>
+const SettingsPage = () => {
+  const { t } = useTranslation()
+  return (
+    <main className="flex flex-col gap-6 max-w-2xl" data-testid="settings-page">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">{t('nav.settings')}</h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          Configure aidrelay preferences and integrations.
+        </p>
+      </div>
 
-    <GeneralSection />
-    <LicensingSection />
-    <GitRemoteSection />
-    <AboutSection />
-  </main>
-)
+      <GeneralSection />
+      <LicensingSection />
+      <GitRemoteSection />
+      <AboutSection />
+    </main>
+  )
+}
 
 export { SettingsPage }

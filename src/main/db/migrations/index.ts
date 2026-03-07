@@ -10,6 +10,10 @@
  * @description Exports all SQLite migration scripts as typed string constants.
  * Keeping them here avoids file-path resolution issues across dev, test, and
  * packaged Electron builds — no readFileSync or path gymnastics needed.
+ *
+ * Migration history:
+ *   001 — Initial schema (servers, rules, profiles, backups, activity_log, settings)
+ *   002 — Add `url` column to servers (for SSE and HTTP transport types)
  */
 
 /**
@@ -101,4 +105,13 @@ CREATE TABLE settings (
 CREATE INDEX idx_activity_log_timestamp ON activity_log(timestamp);
 CREATE INDEX idx_activity_log_action ON activity_log(action);
 CREATE INDEX idx_backups_client ON backups(client_id);
+`
+
+/**
+ * Migration 002 — Adds the `url` column to the `servers` table.
+ * Required for SSE and HTTP transport types where the server is reached via
+ * a network endpoint rather than a spawned process.
+ */
+export const MIGRATION_002 = /* sql */ `
+ALTER TABLE servers ADD COLUMN url TEXT NOT NULL DEFAULT '';
 `

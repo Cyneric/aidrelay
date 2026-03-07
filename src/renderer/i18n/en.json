@@ -3,8 +3,12 @@
     "dashboard": "Dashboard",
     "servers": "Servers",
     "rules": "Rules",
+    "clients": "Clients",
     "profiles": "Profiles",
+    "registry": "Registry",
+    "stacks": "Stacks",
     "activityLog": "Activity Log",
+    "history": "History",
     "settings": "Settings"
   },
   "dashboard": {

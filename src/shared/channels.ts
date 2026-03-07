@@ -39,6 +39,8 @@ export interface CreateServerInput {
   readonly name: string
   readonly type: McpServer['type']
   readonly command: string
+  /** Endpoint URL — required for `sse` and `http` transport types, unused for `stdio`. */
+  readonly url?: string
   readonly args?: readonly string[]
   readonly env?: Readonly<Record<string, string>>
   readonly secretEnvKeys?: readonly string[]
