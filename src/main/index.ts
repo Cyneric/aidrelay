@@ -16,6 +16,8 @@ import { app, BrowserWindow, shell } from 'electron'
 import { join } from 'path'
 import log from 'electron-log'
 import { is } from '@electron-toolkit/utils'
+import { registerIpcHandlers } from './ipc/index'
+import { closeDatabase } from './db/connection'
 
 log.transports.file.level = 'info'
 log.transports.console.level = 'debug'
@@ -31,7 +33,7 @@ if (is.dev) {
  * Disables nodeIntegration and enables contextIsolation to prevent
  * renderer process from having direct Node.js access.
  *
- * @returns The created BrowserWindow instance
+ * @returns The created BrowserWindow instance.
  */
 const createWindow = (): BrowserWindow => {
   const win = new BrowserWindow({
@@ -74,6 +76,7 @@ const createWindow = (): BrowserWindow => {
 
 void app.whenReady().then(() => {
   log.info('aidrelay starting up')
+  registerIpcHandlers()
   createWindow()
 
   app.on('activate', () => {
@@ -89,4 +92,8 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit()
   }
+})
+
+app.on('will-quit', () => {
+  closeDatabase()
 })
