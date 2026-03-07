@@ -24,6 +24,10 @@ import type {
   SyncResult,
   LicenseStatus,
   ConfigChangedPayload,
+  GitSyncStatus,
+  GitPushResult,
+  GitPullResult,
+  ManualGitConfig,
 } from '../shared/types'
 import type {
   CreateServerInput,
@@ -354,6 +358,53 @@ const api = {
   logQuery: (filters: LogFilters): Promise<ActivityLogEntry[]> =>
     ipcRenderer.invoke('log:query', filters),
 
+  // ── Git Sync ──────────────────────────────────────────────────────────────
+
+  /**
+   * Returns the current git sync connection status and config.
+   *
+   * @returns Status object indicating whether git sync is configured.
+   */
+  gitSyncStatus: (): Promise<GitSyncStatus> => ipcRenderer.invoke('git-sync:status'),
+
+  /**
+   * Runs the GitHub OAuth quick setup flow. Opens the system browser, waits
+   * for the callback, creates/reuses the private sync repo, and clones it.
+   *
+   * @returns The updated sync status after a successful connection.
+   */
+  gitSyncConnectGitHub: (): Promise<GitSyncStatus> => ipcRenderer.invoke('git-sync:connect-github'),
+
+  /**
+   * Configures git sync using a manually provided remote URL and auth token.
+   *
+   * @param config - Remote URL, optional branch, and auth token.
+   * @returns The updated sync status after a successful connection.
+   */
+  gitSyncConnectManual: (config: ManualGitConfig): Promise<GitSyncStatus> =>
+    ipcRenderer.invoke('git-sync:connect-manual', config),
+
+  /**
+   * Disconnects git sync and removes the local clone and stored credentials.
+   */
+  gitSyncDisconnect: (): Promise<void> => ipcRenderer.invoke('git-sync:disconnect'),
+
+  /**
+   * Exports the current registry to JSON files, commits, and pushes to the
+   * configured remote.
+   *
+   * @returns Push result with success flag and commit hash.
+   */
+  gitSyncPush: (): Promise<GitPushResult> => ipcRenderer.invoke('git-sync:push'),
+
+  /**
+   * Fetches the remote, force-resets the local branch, and imports all
+   * entities from the pulled JSON files into the local DB.
+   *
+   * @returns Pull result with imported entity counts and conflict count.
+   */
+  gitSyncPull: (): Promise<GitPullResult> => ipcRenderer.invoke('git-sync:pull'),
+
   // ── Push events (main → renderer) ─────────────────────────────────────────
 
   /**
@@ -372,9 +423,6 @@ const api = {
     return () => ipcRenderer.removeListener('clients:config-changed', wrapped)
   },
 } as const
-
-// Expose the typed bridge to the renderer process
-contextBridge.exposeInMainWorld('api', api)
 
 // Expose the typed bridge to the renderer process
 contextBridge.exposeInMainWorld('api', api)
