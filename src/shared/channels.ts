@@ -12,7 +12,6 @@
  * this file, ensuring channel names and signatures stay in sync.
  *
  * Channels follow the `{domain}:{action}` naming pattern defined in CLAUDE.md.
- * This file is a stub — channels are populated as each domain is implemented.
  */
 
 import type {
@@ -44,10 +43,18 @@ export interface CreateServerInput {
 }
 
 /**
- * Partial update payload for an existing MCP server.
+ * Partial update payload for an existing MCP server. Includes all fields from
+ * `CreateServerInput` plus the fields that are managed separately after creation
+ * (`enabled` and per-client override toggles).
  */
-export type UpdateServerInput = Partial<Omit<CreateServerInput, 'name'>> & {
-  readonly name?: string
+export type UpdateServerInput = Partial<CreateServerInput> & {
+  /** Global enable/disable toggle for this server. */
+  readonly enabled?: boolean
+  /**
+   * Per-client toggle overrides. Merges into the existing map — only the
+   * provided client keys are changed, all others are left as-is.
+   */
+  readonly clientOverrides?: Readonly<Record<string, { readonly enabled: boolean }>>
 }
 
 /**
