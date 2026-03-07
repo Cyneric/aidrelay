@@ -173,6 +173,38 @@ Every file must include a header block in the following format:
 
 ---
 
+## Development Tooling
+
+### Chrome DevTools MCP (Renderer Inspection)
+
+The `chrome-devtools-mcp` server is configured in `~/.cursor/mcp.json` and connects to the Electron renderer via CDP on `http://localhost:9222`.
+
+**Prerequisite:** `pnpm dev` must be running before using any of these tools. The remote debugging port is enabled automatically in dev mode via `app.commandLine.appendSwitch('remote-debugging-port', '9222')` in `src/main/index.ts`.
+
+**When to use it proactively:**
+
+- After any change to renderer source files (`src/renderer/**`) — take a screenshot to visually verify the result before declaring the task done
+- When debugging layout issues, unexpected rendering, or component state problems
+- When checking for console errors or unhandled promise rejections after a change
+- When verifying that Tailwind utility classes and shadcn/ui components render correctly
+
+**Available tools:**
+
+- `screenshot` — capture the current state of the Electron window
+- `evaluate` — run JavaScript in the renderer context (useful for inspecting component state, DOM structure)
+- `console_messages` — read browser console output including errors and warnings
+- `network_requests` — inspect any network calls made by the renderer
+
+**Workflow:**
+
+1. Run `pnpm dev` (keep it running)
+2. Make renderer code changes
+3. Electron hot-reloads automatically
+4. Use `screenshot` to confirm the UI looks correct
+5. Use `console_messages` to confirm no errors were introduced
+
+---
+
 ## Project-Specific Patterns
 
 ### Client Adapter Pattern

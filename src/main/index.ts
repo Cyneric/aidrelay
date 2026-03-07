@@ -20,6 +20,12 @@ import { is } from '@electron-toolkit/utils'
 log.transports.file.level = 'info'
 log.transports.console.level = 'debug'
 
+// Enable CDP remote debugging so the chrome-devtools MCP can connect to
+// the renderer process during development. Never enabled in production.
+if (is.dev) {
+  app.commandLine.appendSwitch('remote-debugging-port', '9222')
+}
+
 /**
  * Creates the main application window with enforced security policies.
  * Disables nodeIntegration and enables contextIsolation to prevent
