@@ -24,6 +24,10 @@ import type {
   SyncResult,
   LicenseStatus,
   ValidationResult,
+  GitSyncStatus,
+  GitPushResult,
+  GitPullResult,
+  ManualGitConfig,
 } from './types'
 
 // ─── Input Types (used in create/update calls) ────────────────────────────────
@@ -258,4 +262,12 @@ export interface IpcChannels {
 
   // Validation
   'clients:validate-config': (clientId: ClientId) => Promise<ValidationResult>
+
+  // Git Sync
+  'git-sync:status': () => Promise<GitSyncStatus>
+  'git-sync:connect-github': () => Promise<GitSyncStatus>
+  'git-sync:connect-manual': (config: ManualGitConfig) => Promise<GitSyncStatus>
+  'git-sync:disconnect': () => Promise<void>
+  'git-sync:push': () => Promise<GitPushResult>
+  'git-sync:pull': () => Promise<GitPullResult>
 }

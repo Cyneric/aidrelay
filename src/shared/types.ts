@@ -199,6 +199,65 @@ export interface ConfigChangedPayload {
   readonly modified: readonly string[]
 }
 
+// ─── Git Sync Types ───────────────────────────────────────────────────────────
+
+/**
+ * Supported Git providers for cloud sync.
+ */
+export type GitSyncProvider = 'github' | 'generic'
+
+/**
+ * Persisted configuration for the git-based cloud sync feature.
+ * Stored as a JSON value in the settings repository under `git-sync:config`.
+ * The auth token is stored separately in keytar, never here.
+ */
+export interface GitSyncConfig {
+  readonly provider: GitSyncProvider
+  readonly remoteUrl: string
+  readonly branch: string
+  readonly lastPushAt?: string
+  readonly lastPullAt?: string
+}
+
+/**
+ * Runtime status of the git sync connection, returned to the renderer.
+ */
+export interface GitSyncStatus {
+  readonly connected: boolean
+  readonly config?: GitSyncConfig
+}
+
+/**
+ * Result of a git push operation.
+ */
+export interface GitPushResult {
+  readonly success: boolean
+  readonly commitHash?: string
+  readonly error?: string
+}
+
+/**
+ * Result of a git pull and registry import operation.
+ */
+export interface GitPullResult {
+  readonly success: boolean
+  readonly serversImported: number
+  readonly rulesImported: number
+  readonly profilesImported: number
+  /** Count of local entries overwritten by the remote (last-write-wins). */
+  readonly conflicts: number
+  readonly error?: string
+}
+
+/**
+ * Input for manually configuring a git remote (any HTTPS provider).
+ */
+export interface ManualGitConfig {
+  readonly remoteUrl: string
+  readonly branch?: string
+  readonly authToken: string
+}
+
 // ─── Sync / Result Types ──────────────────────────────────────────────────────
 
 /**
