@@ -8,8 +8,10 @@
  * @copyright 2026
  *
  * @description Repository for AI rule records. Handles all CRUD operations
- * against the `rules` table, mapping between the DB's snake_case rows and
- * the shared `AiRule` domain type. JSON columns are serialized transparently.
+ * against the `rules` table, mapping between the DB's snake_case rows and the
+ * shared `AiRule` domain type. JSON columns are serialized transparently.
+ * The `update()` method supports `enabled`, `clientOverrides` (merge-patch),
+ * and `tokenEstimate` in addition to the content fields.
  */
 
 import type Database from 'better-sqlite3'
@@ -155,12 +157,19 @@ export class RulesRepo {
 
     const now = new Date().toISOString()
 
+    // Merge clientOverrides patch into the existing map so a partial update
+    // (e.g. toggling just one client) does not wipe other clients' state.
+    const mergedOverrides =
+      updates.clientOverrides !== undefined
+        ? { ...existing.clientOverrides, ...updates.clientOverrides }
+        : existing.clientOverrides
+
     this.db
       .prepare(
         `UPDATE rules SET
           name = ?, description = ?, content = ?, category = ?, tags = ?,
-          priority = ?, scope = ?, project_path = ?, file_globs = ?,
-          always_apply = ?, updated_at = ?
+          enabled = ?, priority = ?, scope = ?, project_path = ?, file_globs = ?,
+          always_apply = ?, client_overrides = ?, token_estimate = ?, updated_at = ?
          WHERE id = ?`,
       )
       .run(
@@ -169,11 +178,14 @@ export class RulesRepo {
         updates.content ?? existing.content,
         updates.category ?? existing.category,
         JSON.stringify(updates.tags ?? existing.tags),
+        updates.enabled !== undefined ? (updates.enabled ? 1 : 0) : existing.enabled ? 1 : 0,
         updates.priority ?? existing.priority,
         updates.scope ?? existing.scope,
         updates.projectPath ?? existing.projectPath ?? null,
         JSON.stringify(updates.fileGlobs ?? existing.fileGlobs),
         (updates.alwaysApply ?? existing.alwaysApply) ? 1 : 0,
+        JSON.stringify(mergedOverrides),
+        updates.tokenEstimate ?? existing.tokenEstimate,
         now,
         id,
       )

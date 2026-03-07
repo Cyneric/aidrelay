@@ -74,9 +74,26 @@ export interface CreateRuleInput {
 }
 
 /**
- * Partial update payload for an existing AI rule.
+ * Partial update payload for an existing AI rule. Includes all fields from
+ * `CreateRuleInput` plus the fields managed separately after creation
+ * (`enabled`, per-client override toggles, and the auto-calculated token
+ * estimate stored by the main process on every content save).
  */
-export type UpdateRuleInput = Partial<CreateRuleInput>
+export type UpdateRuleInput = Partial<CreateRuleInput> & {
+  /** Global enable/disable toggle for this rule. */
+  readonly enabled?: boolean
+  /**
+   * Per-client toggle overrides. Merges into the existing map — only the
+   * provided client keys are changed, all others are left as-is.
+   */
+  readonly clientOverrides?: Readonly<Record<string, { readonly enabled: boolean }>>
+  /**
+   * Approximate token count calculated by the main process using the
+   * word-count heuristic (words * 1.3, rounded up). Set by IPC handlers on
+   * every create/update — never sent from the renderer directly.
+   */
+  readonly tokenEstimate?: number
+}
 
 /**
  * Fields required to create a new profile.
@@ -224,6 +241,8 @@ export interface IpcChannels {
   'rules:delete': (id: string) => Promise<void>
   'rules:import-from-project': (dirPath: string) => Promise<ImportResult>
   'rules:sync': (clientId: ClientId) => Promise<SyncResult>
+  'rules:sync-all': () => Promise<SyncResult[]>
+  'rules:detect-workspaces': () => Promise<string[]>
   'rules:estimate-tokens': (content: string) => Promise<number>
 
   // Profiles

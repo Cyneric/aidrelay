@@ -14,10 +14,23 @@
  */
 
 import { contextBridge, ipcRenderer } from 'electron'
-import type { ClientId, ClientStatus, McpServer, McpServerMap, SyncResult } from '../shared/types'
+import type {
+  ClientId,
+  ClientStatus,
+  McpServer,
+  McpServerMap,
+  AiRule,
+  Profile,
+  SyncResult,
+} from '../shared/types'
 import type {
   CreateServerInput,
   UpdateServerInput,
+  CreateRuleInput,
+  UpdateRuleInput,
+  ImportResult,
+  CreateProfileInput,
+  UpdateProfileInput,
   ActivityLogEntry,
   LogFilters,
 } from '../shared/channels'
@@ -102,6 +115,148 @@ const api = {
    * @param id - UUID of the server to delete.
    */
   serversDelete: (id: string): Promise<void> => ipcRenderer.invoke('servers:delete', id),
+
+  // ── Rules ─────────────────────────────────────────────────────────────────
+
+  /**
+   * Returns all AI rule records from the local registry.
+   *
+   * @returns Array of all `AiRule` entries ordered by category, then name.
+   */
+  rulesList: (): Promise<AiRule[]> => ipcRenderer.invoke('rules:list'),
+
+  /**
+   * Returns a single rule by its UUID, or `null` if not found.
+   *
+   * @param id - The rule UUID to look up.
+   */
+  rulesGet: (id: string): Promise<AiRule | null> => ipcRenderer.invoke('rules:get', id),
+
+  /**
+   * Creates a new AI rule in the local registry. Token estimate is calculated
+   * automatically by the main process and persisted to the database.
+   *
+   * @param input - Fields required to create the rule.
+   * @returns The persisted `AiRule` with a populated `tokenEstimate`.
+   */
+  rulesCreate: (input: CreateRuleInput): Promise<AiRule> =>
+    ipcRenderer.invoke('rules:create', input),
+
+  /**
+   * Applies a partial update to an existing rule. If `content` is included,
+   * the token estimate is recalculated and persisted automatically.
+   *
+   * @param id - UUID of the rule to update.
+   * @param updates - The fields to change.
+   * @returns The updated `AiRule`.
+   */
+  rulesUpdate: (id: string, updates: UpdateRuleInput): Promise<AiRule> =>
+    ipcRenderer.invoke('rules:update', id, updates),
+
+  /**
+   * Permanently removes a rule from the local registry.
+   *
+   * @param id - UUID of the rule to delete.
+   */
+  rulesDelete: (id: string): Promise<void> => ipcRenderer.invoke('rules:delete', id),
+
+  /**
+   * Estimates the token count for a piece of Markdown content using the
+   * word-count heuristic (words × 1.3, rounded up). Used by the editor for
+   * live feedback without persisting anything to the database.
+   *
+   * @param content - The raw Markdown text to estimate.
+   * @returns Estimated token count.
+   */
+  rulesEstimateTokens: (content: string): Promise<number> =>
+    ipcRenderer.invoke('rules:estimate-tokens', content),
+
+  /**
+   * Syncs all enabled rules to a single client's config paths.
+   *
+   * @param clientId - The client to sync rules to.
+   * @returns Sync result with success flag and rule file count.
+   */
+  rulesSyncToClient: (clientId: ClientId): Promise<SyncResult> =>
+    ipcRenderer.invoke('rules:sync', clientId),
+
+  /**
+   * Syncs all enabled rules to every installed client's config paths.
+   *
+   * @returns Array of sync results, one per synced client.
+   */
+  rulesSyncAll: (): Promise<SyncResult[]> => ipcRenderer.invoke('rules:sync-all'),
+
+  /**
+   * Scans VS Code and Cursor workspace history to suggest recent project
+   * directories for the rule import dialog.
+   *
+   * @returns Array of absolute directory paths, deduplicated.
+   */
+  rulesDetectWorkspaces: (): Promise<string[]> => ipcRenderer.invoke('rules:detect-workspaces'),
+
+  /**
+   * Bulk-imports rules from an existing project directory. Scans for
+   * `.cursor/rules/*.mdc`, `CLAUDE.md`, `AGENTS.md`, `.windsurfrules`, etc.
+   *
+   * @param dirPath - Absolute path to the project root to scan.
+   * @returns Import result with counts of imported, skipped, and errored rules.
+   */
+  rulesImportFromProject: (dirPath: string): Promise<ImportResult> =>
+    ipcRenderer.invoke('rules:import-from-project', dirPath),
+
+  // ── Profiles ──────────────────────────────────────────────────────────────
+
+  /**
+   * Returns all profiles ordered by name.
+   *
+   * @returns Array of all profiles.
+   */
+  profilesList: (): Promise<Profile[]> => ipcRenderer.invoke('profiles:list'),
+
+  /**
+   * Returns a single profile by ID, or `null` if not found.
+   *
+   * @param id - Profile UUID.
+   */
+  profilesGet: (id: string): Promise<Profile | null> => ipcRenderer.invoke('profiles:get', id),
+
+  /**
+   * Creates a new profile.
+   *
+   * @param input - Name and optional metadata for the new profile.
+   * @returns The newly created profile.
+   */
+  profilesCreate: (input: CreateProfileInput): Promise<Profile> =>
+    ipcRenderer.invoke('profiles:create', input),
+
+  /**
+   * Updates an existing profile's fields.
+   *
+   * @param id      - UUID of the profile to update.
+   * @param updates - Fields to change.
+   * @returns The updated profile.
+   */
+  profilesUpdate: (id: string, updates: UpdateProfileInput): Promise<Profile> =>
+    ipcRenderer.invoke('profiles:update', id, updates),
+
+  /**
+   * Deletes a profile by ID.
+   * Throws if the profile is currently active.
+   *
+   * @param id - UUID of the profile to delete.
+   */
+  profilesDelete: (id: string): Promise<void> => ipcRenderer.invoke('profiles:delete', id),
+
+  /**
+   * Activates a profile: marks it active, applies server and rule overrides,
+   * then syncs all installed clients.
+   *
+   * @param id - UUID of the profile to activate.
+   * @returns Sync results for each client that was synced.
+   */
+  profilesActivate: (id: string): Promise<SyncResult[]> =>
+    ipcRenderer.invoke('profiles:activate', id),
 
   // ── Activity Log ──────────────────────────────────────────────────────────
 
