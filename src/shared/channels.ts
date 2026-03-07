@@ -203,6 +203,22 @@ export interface McpStack {
 }
 
 /**
+ * Options for the native open dialog (directory/file picker).
+ */
+export interface ShowOpenDialogOptions {
+  readonly properties?: readonly ('openDirectory' | 'openFile' | 'multiSelections')[]
+  readonly title?: string
+}
+
+/**
+ * Result returned when the user closes the open dialog.
+ */
+export interface ShowOpenDialogResult {
+  readonly canceled: boolean
+  readonly filePaths: readonly string[]
+}
+
+/**
  * Feature gates that control Pro-tier functionality.
  */
 export interface FeatureGates {
@@ -223,9 +239,6 @@ export interface FeatureGates {
 /**
  * Complete map of all typed IPC channels used in aidrelay. Both the preload
  * script and the main-process IPC handlers are typed against this interface.
- *
- * Channels are stubs now — the function bodies are added as each domain
- * is implemented in subsequent phases.
  */
 export interface IpcChannels {
   // Clients
@@ -307,6 +320,12 @@ export interface IpcChannels {
   'settings:get': (key: string) => Promise<unknown>
   'settings:set': (key: string, value: unknown) => Promise<void>
   'settings:delete': (key: string) => Promise<void>
+
+  // Dialog
+  'dialog:show-open': (options?: ShowOpenDialogOptions) => Promise<ShowOpenDialogResult>
+
+  // App
+  'app:version': () => Promise<string>
 
   // Auto-updater
   'updater:check': () => Promise<void>

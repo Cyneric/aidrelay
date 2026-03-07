@@ -9,11 +9,15 @@
  *
  * @description MCP server connection tester. For stdio servers it spawns the
  * server process, sends a JSON-RPC `initialize` request, and verifies that a
- * valid response arrives within a configurable timeout. SSE/HTTP servers are
- * not yet supported and receive a graceful unsupported message.
+ * valid response arrives within a configurable timeout. For sse/http servers it
+ * issues a GET request to the configured URL and treats any HTTP response as
+ * success.
  */
 
 import { spawn } from 'child_process'
+import http from 'node:http'
+import https from 'node:https'
+import { URL } from 'node:url'
 import log from 'electron-log'
 import type { McpServer } from '@shared/types'
 import type { TestResult } from '@shared/channels'
@@ -193,6 +197,64 @@ export class ServerTesterService {
   }
 
   /**
+   * Tests an HTTP/SSE MCP server by issuing a GET request to its URL.
+   * Any HTTP response (2xx, 4xx, 5xx) indicates the server is reachable.
+   *
+   * @param server - The `McpServer` record with type `sse` or `http` and a `url`.
+   * @returns A `TestResult` describing whether the endpoint responded.
+   */
+  private testHttpSseServer(server: McpServer): Promise<TestResult> {
+    return new Promise<TestResult>((resolve) => {
+      const url = server.url?.trim()
+      if (!url) {
+        resolve({ success: false, message: 'No URL configured for HTTP/SSE server' })
+        return
+      }
+
+      const startedAt = Date.now()
+      let parsed: URL
+      try {
+        parsed = new URL(url)
+      } catch {
+        resolve({ success: false, message: `Invalid URL: ${url}` })
+        return
+      }
+
+      const isHttps = parsed.protocol === 'https:'
+      const client = isHttps ? https : http
+
+      const req = client.get(url, { timeout: TIMEOUT_MS }, (res) => {
+        res.resume() // Consume body so the connection can close
+        const responseTimeMs = Date.now() - startedAt
+        // Any HTTP response means the server is reachable.
+        resolve({
+          success: true,
+          message: `Connected — HTTP ${res.statusCode}`,
+          responseTimeMs,
+        })
+      })
+
+      req.on('timeout', () => {
+        req.destroy()
+        resolve({
+          success: false,
+          message: `Timeout: no response after ${TIMEOUT_MS / 1000}s`,
+        })
+      })
+
+      req.on('error', (err: Error) => {
+        const msg = err.message ?? String(err)
+        resolve({
+          success: false,
+          message: msg.includes('ECONNREFUSED')
+            ? 'Connection refused — is the server running?'
+            : msg,
+        })
+      })
+    })
+  }
+
+  /**
    * Tests a single MCP server and returns a descriptive result.
    * Never throws — all errors are captured in the returned `TestResult`.
    *
@@ -202,10 +264,14 @@ export class ServerTesterService {
   async testServer(server: McpServer): Promise<TestResult> {
     log.debug(`[tester] testing "${server.name}" (${server.type})`)
 
+    if (server.type === 'sse' || server.type === 'http') {
+      return this.testHttpSseServer(server)
+    }
+
     if (server.type !== 'stdio') {
       return {
         success: false,
-        message: 'HTTP/SSE server testing is not yet supported.',
+        message: 'Unknown server type — only stdio, sse, and http are supported.',
       }
     }
 

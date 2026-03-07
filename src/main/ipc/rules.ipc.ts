@@ -10,8 +10,8 @@
  * @description IPC handlers for all rule-related channels. Wires the renderer
  * to `RulesRepo` for CRUD operations, calculates token estimates on every
  * content save, and writes activity log entries for every state-changing
- * action. The `rules:import-from-project` and `rules:detect-workspaces`
- * channels are stubbed and replaced with real implementations in Step 28.
+ * action. Import and workspace detection use `RuleImporter` and
+ * `detectRecentWorkspaces` respectively.
  */
 
 import { ipcMain } from 'electron'

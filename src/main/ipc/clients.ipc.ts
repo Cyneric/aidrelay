@@ -55,18 +55,25 @@ export const registerClientsIpc = (): void => {
   ipcMain.handle('clients:detect-all', async (): Promise<ClientStatus[]> => {
     log.debug('[ipc] clients:detect-all')
 
+    const db = getDatabase()
+    const backupsRepo = new BackupsRepo(db)
+
     const results = await Promise.all(
       ADAPTER_IDS.map(async (id): Promise<ClientStatus> => {
         const adapter = ADAPTERS.get(id)!
         try {
           const detection = await adapter.detect()
+          const latestBackup = backupsRepo.findLatestByClient(id)
+          const syncStatus = latestBackup ? 'synced' : 'never-synced'
+          const lastSyncedAt = latestBackup?.createdAt
           return {
             id,
             displayName: adapter.displayName,
             installed: detection.installed,
             configPaths: detection.configPaths,
             serverCount: detection.serverCount,
-            syncStatus: 'never-synced',
+            syncStatus,
+            ...(lastSyncedAt ? { lastSyncedAt } : {}),
           }
         } catch (err) {
           log.warn(`[ipc] detect failed for ${id}: ${String(err)}`)
