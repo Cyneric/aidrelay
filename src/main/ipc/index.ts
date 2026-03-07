@@ -17,6 +17,8 @@ import log from 'electron-log'
 import { registerClientsIpc } from './clients.ipc'
 import { registerServersIpc } from './servers.ipc'
 import { registerLogIpc } from './log.ipc'
+import { registerRulesIpc } from './rules.ipc'
+import { registerProfilesIpc } from './profiles.ipc'
 
 /**
  * Registers all IPC handlers for every implemented domain.
@@ -26,5 +28,7 @@ export const registerIpcHandlers = (): void => {
   registerClientsIpc()
   registerServersIpc()
   registerLogIpc()
+  registerRulesIpc()
+  registerProfilesIpc()
   log.info('[ipc] all handlers registered')
 }

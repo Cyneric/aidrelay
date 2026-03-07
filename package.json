@@ -35,6 +35,8 @@
     "@monaco-editor/react": "^4.7.0",
     "@tanstack/react-router": "^1.166.2",
     "@tanstack/react-table": "^8.21.3",
+    "@uiw/react-markdown-preview": "^5.1.5",
+    "@uiw/react-md-editor": "^4.0.11",
     "better-sqlite3": "^12.6.2",
     "clsx": "^2.1.1",
     "electron-log": "^5.2.4",

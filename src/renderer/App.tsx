@@ -10,7 +10,8 @@
  * @description Root React component. Sets up the TanStack Router with a
  * root route that renders the Shell layout and child routes for each page.
  * Placeholder routes are used for pages not yet implemented so navigation
- * links work end-to-end from the start.
+ * links work end-to-end from the start. Rules page wired in Step 22;
+ * Profiles page wired in Step 30.
  */
 
 import { RouterProvider, createRouter, createRootRoute, createRoute } from '@tanstack/react-router'
@@ -18,7 +19,9 @@ import { Toaster } from 'sonner'
 import { Shell } from '@/components/layout/Shell'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { ServersPage } from '@/pages/ServersPage'
+import { RulesPage } from '@/pages/RulesPage'
 import { ActivityLogPage } from '@/pages/ActivityLogPage'
+import { ProfilesPage } from '@/pages/ProfilesPage'
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
 
@@ -51,7 +54,7 @@ const serversRoute = createRoute({
 const rulesRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/rules',
-  component: () => <PlaceholderPage title="Rules" />,
+  component: RulesPage,
 })
 
 const clientsRoute = createRoute({
@@ -63,7 +66,7 @@ const clientsRoute = createRoute({
 const profilesRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/profiles',
-  component: () => <PlaceholderPage title="Profiles" />,
+  component: ProfilesPage,
 })
 
 const activityRoute = createRoute({
