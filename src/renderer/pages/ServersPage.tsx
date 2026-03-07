@@ -2,7 +2,7 @@
  * @file src/renderer/pages/ServersPage.tsx
  *
  * @created 07.03.2026
- * @modified 07.03.2026
+ * @modified 08.03.2026
  *
  * @author Christian Blank <aidrelay@proton.me>
  * @copyright 2026
@@ -32,6 +32,7 @@ import {
   ChevronRight,
   ArrowUpDown,
   FlaskConical,
+  Download,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
@@ -64,6 +65,7 @@ const ServersPage = () => {
   const [showEditor, setShowEditor] = useState(false)
   const [matrixExpanded, setMatrixExpanded] = useState(false)
   const [syncingAll, setSyncingAll] = useState(false)
+  const [importingFromClients, setImportingFromClients] = useState(false)
   const [testingServerId, setTestingServerId] = useState<string | null>(null)
 
   useEffect(() => {
@@ -124,6 +126,35 @@ const ServersPage = () => {
       setSyncingAll(false)
     }
   }, [])
+
+  const handleImportFromClients = useCallback(async () => {
+    setImportingFromClients(true)
+    try {
+      const result = await window.api.serversImportFromClients()
+      await load()
+      if (result.errors.length > 0) {
+        toast.info(
+          t('servers.importSuccessErrors', {
+            imported: result.imported,
+            skipped: result.skipped,
+            count: result.errors.length,
+          }),
+          { description: result.errors.slice(0, 3).join(' ') },
+        )
+      } else {
+        toast.success(
+          t('servers.importSuccess', {
+            imported: result.imported,
+            skipped: result.skipped,
+          }),
+        )
+      }
+    } catch {
+      toast.error(t('common.error'))
+    } finally {
+      setImportingFromClients(false)
+    }
+  }, [load, t])
 
   // ─── Table columns ──────────────────────────────────────────────────────────
 
@@ -280,6 +311,20 @@ const ServersPage = () => {
           <div className="flex items-center gap-2">
             <button
               type="button"
+              onClick={() => void handleImportFromClients()}
+              disabled={importingFromClients || installedClientCount === 0}
+              className="inline-flex items-center gap-1.5 rounded-md border border-input px-3 py-2 text-sm hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              data-testid="import-from-clients-button"
+            >
+              <Download
+                size={14}
+                className={importingFromClients ? 'animate-pulse' : ''}
+                aria-hidden="true"
+              />
+              {importingFromClients ? t('common.loading') : t('servers.importFromClients')}
+            </button>
+            <button
+              type="button"
               onClick={() => void handleSyncAll()}
               disabled={syncingAll || installedClientCount === 0}
               className="inline-flex items-center gap-1.5 rounded-md border border-input px-3 py-2 text-sm hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
@@ -338,17 +383,28 @@ const ServersPage = () => {
             </div>
           ) : servers.length === 0 ? (
             <div
-              className="flex flex-col items-center justify-center py-16 gap-2"
+              className="flex flex-col items-center justify-center py-16 gap-3"
               data-testid="servers-empty"
             >
               <p className="text-sm text-muted-foreground">No servers yet.</p>
-              <button
-                type="button"
-                onClick={openCreate}
-                className="text-sm text-primary hover:underline"
-              >
-                Add your first server
-              </button>
+              <div className="flex items-center gap-4">
+                <button
+                  type="button"
+                  onClick={() => void handleImportFromClients()}
+                  disabled={importingFromClients || installedClientCount === 0}
+                  className="text-sm text-primary hover:underline disabled:opacity-50"
+                >
+                  {t('servers.importFromClients')}
+                </button>
+                <span className="text-muted-foreground">or</span>
+                <button
+                  type="button"
+                  onClick={openCreate}
+                  className="text-sm text-primary hover:underline"
+                >
+                  Add your first server
+                </button>
+              </div>
             </div>
           ) : (
             <table className="w-full text-sm" data-testid="servers-table">
