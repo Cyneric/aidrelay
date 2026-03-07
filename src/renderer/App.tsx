@@ -11,11 +11,13 @@
  * root route that renders the Shell layout and child routes for each page.
  * Placeholder routes are used for pages not yet implemented so navigation
  * links work end-to-end from the start. Rules page wired in Step 22;
- * Profiles page wired in Step 30; Registry + Stacks pages wired in Step 43/45.
+ * Profiles page wired in Step 30; Registry + Stacks pages wired in Step 43/45;
+ * Settings + History pages wired in Phase 6.
  */
 
+import { useEffect } from 'react'
 import { RouterProvider, createRouter, createRootRoute, createRoute } from '@tanstack/react-router'
-import { Toaster } from 'sonner'
+import { Toaster, toast } from 'sonner'
 import { Shell } from '@/components/layout/Shell'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { ServersPage } from '@/pages/ServersPage'
@@ -24,6 +26,8 @@ import { ActivityLogPage } from '@/pages/ActivityLogPage'
 import { ProfilesPage } from '@/pages/ProfilesPage'
 import { RegistryPage } from '@/pages/RegistryPage'
 import { StacksPage } from '@/pages/StacksPage'
+import { SettingsPage } from '@/pages/SettingsPage'
+import { HistoryPage } from '@/pages/HistoryPage'
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
 
@@ -92,7 +96,13 @@ const stacksRoute = createRoute({
 const settingsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/settings',
-  component: () => <PlaceholderPage title="Settings" />,
+  component: SettingsPage,
+})
+
+const historyRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/history',
+  component: HistoryPage,
 })
 
 const routeTree = rootRoute.addChildren([
@@ -105,6 +115,7 @@ const routeTree = rootRoute.addChildren([
   registryRoute,
   stacksRoute,
   settingsRoute,
+  historyRoute,
 ])
 
 // ─── Router ───────────────────────────────────────────────────────────────────
@@ -122,13 +133,32 @@ declare module '@tanstack/react-router' {
 
 /**
  * Root component rendered by `src/renderer/main.tsx`.
- * Wraps the entire app in the TanStack Router provider.
+ * Wraps the entire app in the TanStack Router provider and listens for
+ * tray-initiated profile switches and update notifications globally.
  */
-const App = () => (
-  <>
-    <RouterProvider router={router} />
-    <Toaster position="bottom-right" richColors />
-  </>
-)
+const App = () => {
+  // Handle profile quick-switch from the system tray
+  useEffect(() => {
+    const handleTrayActivate = (profileId: string): void => {
+      void window.api
+        .profilesActivate(profileId)
+        .then(() => {
+          toast.success('Profile activated from tray.')
+        })
+        .catch(() => {
+          toast.error('Failed to activate profile from tray.')
+        })
+    }
+    const unsub = window.api.onActivateProfileFromTray(handleTrayActivate)
+    return unsub
+  }, [])
+
+  return (
+    <>
+      <RouterProvider router={router} />
+      <Toaster position="bottom-right" richColors />
+    </>
+  )
+}
 
 export { App }

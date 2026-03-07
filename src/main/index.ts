@@ -19,6 +19,8 @@ import { is } from '@electron-toolkit/utils'
 import { registerIpcHandlers } from './ipc/index'
 import { closeDatabase } from './db/connection'
 import { fileWatcherService } from './sync/file-watcher.service'
+import { trayService } from './tray/tray.service'
+import { initUpdater } from './updater/updater.service'
 
 log.transports.file.level = 'info'
 log.transports.console.level = 'debug'
@@ -78,10 +80,17 @@ const createWindow = (): BrowserWindow => {
 void app.whenReady().then(() => {
   log.info('aidrelay starting up')
   registerIpcHandlers()
-  createWindow()
+  const win = createWindow()
+
+  // System tray — lets the user quick-switch profiles and hide/show the window
+  trayService.create(win)
+
   // Start watching client config files for external changes after the window
   // is ready so IPC events can be delivered to the renderer.
   void fileWatcherService.start()
+
+  // Auto-updater — checks for updates 10 s after startup (production only)
+  initUpdater()
 
   app.on('activate', () => {
     // On macOS, re-create a window when the dock icon is clicked and no windows are open
@@ -92,13 +101,15 @@ void app.whenReady().then(() => {
 })
 
 app.on('window-all-closed', () => {
-  // On macOS, keep the app in the dock even when all windows are closed
-  if (process.platform !== 'darwin') {
+  // Keep the app running in the tray even when the window is closed on Windows
+  // so the user can still access the tray icon. Quit only on macOS convention.
+  if (process.platform === 'darwin') {
     app.quit()
   }
 })
 
 app.on('will-quit', () => {
+  trayService.destroy()
   void fileWatcherService.stop()
   closeDatabase()
 })

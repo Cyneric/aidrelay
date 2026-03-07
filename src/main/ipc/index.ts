@@ -24,6 +24,9 @@ import { registerLicenseIpc } from './license.ipc'
 import { registerGitSyncIpc } from './git-sync.ipc'
 import { registerRegistryIpc } from './registry.ipc'
 import { registerStacksIpc } from './stacks.ipc'
+import { registerSettingsIpc } from './settings.ipc'
+import { registerBackupsIpc } from './backups.ipc'
+import { registerUpdaterIpc } from './updater.ipc'
 
 /**
  * Registers all IPC handlers for every implemented domain.
@@ -40,5 +43,8 @@ export const registerIpcHandlers = (): void => {
   registerGitSyncIpc()
   registerRegistryIpc()
   registerStacksIpc()
+  registerSettingsIpc()
+  registerBackupsIpc()
+  registerUpdaterIpc()
   log.info('[ipc] all handlers registered')
 }

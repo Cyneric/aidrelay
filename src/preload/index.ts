@@ -42,6 +42,7 @@ import type {
   FeatureGates,
   RegistryServer,
   TestResult,
+  BackupEntry,
 } from '../shared/channels'
 
 /**
@@ -463,6 +464,67 @@ const api = {
    */
   serversTest: (id: string): Promise<TestResult> => ipcRenderer.invoke('servers:test', id),
 
+  // ── Backups ───────────────────────────────────────────────────────────────
+
+  /**
+   * Lists all backup entries for a given client, newest first.
+   *
+   * @param clientId - The client whose backup history to retrieve.
+   * @returns Array of `BackupEntry` records.
+   */
+  backupsList: (clientId: ClientId): Promise<BackupEntry[]> =>
+    ipcRenderer.invoke('backups:list', clientId),
+
+  /**
+   * Restores a client config from a specific backup file. Creates a safety
+   * backup of the current live config before overwriting.
+   *
+   * @param backupPath - Absolute path to the backup JSON file.
+   * @param clientId   - The client whose config will be restored.
+   */
+  backupsRestore: (backupPath: string, clientId: ClientId): Promise<void> =>
+    ipcRenderer.invoke('backups:restore', backupPath, clientId),
+
+  // ── Settings ──────────────────────────────────────────────────────────────
+
+  /**
+   * Reads a persisted setting value by key.
+   *
+   * @param key - The setting key to look up.
+   * @returns The stored value, or `null` if not set.
+   */
+  settingsGet: (key: string): Promise<unknown> => ipcRenderer.invoke('settings:get', key),
+
+  /**
+   * Writes a setting value (upsert semantics).
+   *
+   * @param key   - The setting key to write.
+   * @param value - Any JSON-serializable value.
+   */
+  settingsSet: (key: string, value: unknown): Promise<void> =>
+    ipcRenderer.invoke('settings:set', key, value),
+
+  /**
+   * Deletes a setting entry by key. No-op if the key does not exist.
+   *
+   * @param key - The setting key to remove.
+   */
+  settingsDelete: (key: string): Promise<void> => ipcRenderer.invoke('settings:delete', key),
+
+  // ── Auto-updater ──────────────────────────────────────────────────────────
+
+  /**
+   * Manually triggers an update check. Results are delivered via push events
+   * (`updater:update-available` or `updater:update-not-available`).
+   */
+  updaterCheck: (): Promise<void> => ipcRenderer.invoke('updater:check'),
+
+  /**
+   * Quits the application and installs the downloaded update. Only valid after
+   * an `updater:update-downloaded` event has been received.
+   */
+  updaterInstall: (): Promise<void> => ipcRenderer.invoke('updater:install'),
+
   // ── Push events (main → renderer) ─────────────────────────────────────────
 
   /**
@@ -479,6 +541,53 @@ const api = {
     ) => handler(payload)
     ipcRenderer.on('clients:config-changed', wrapped)
     return () => ipcRenderer.removeListener('clients:config-changed', wrapped)
+  },
+
+  /**
+   * Registers a handler called when the tray requests a profile switch.
+   * The payload is the profile UUID to activate. Returns a cleanup function.
+   *
+   * @param handler - Callback receiving the profile ID.
+   * @returns A cleanup function that removes the listener.
+   */
+  onActivateProfileFromTray: (handler: (profileId: string) => void): (() => void) => {
+    const wrapped = (
+      _event: Parameters<Parameters<typeof ipcRenderer.on>[1]>[0],
+      profileId: string,
+    ) => handler(profileId)
+    ipcRenderer.on('profiles:activate-from-tray', wrapped)
+    return () => ipcRenderer.removeListener('profiles:activate-from-tray', wrapped)
+  },
+
+  /**
+   * Registers a handler called when an update is available.
+   *
+   * @param handler - Callback receiving version info.
+   * @returns A cleanup function that removes the listener.
+   */
+  onUpdateAvailable: (handler: (info: { version: string }) => void): (() => void) => {
+    const wrapped = (
+      _event: Parameters<Parameters<typeof ipcRenderer.on>[1]>[0],
+      info: { version: string },
+    ) => handler(info)
+    ipcRenderer.on('updater:update-available', wrapped)
+    return () => ipcRenderer.removeListener('updater:update-available', wrapped)
+  },
+
+  /**
+   * Registers a handler called when an update has been downloaded and is ready
+   * to install.
+   *
+   * @param handler - Callback receiving version info.
+   * @returns A cleanup function that removes the listener.
+   */
+  onUpdateDownloaded: (handler: (info: { version: string }) => void): (() => void) => {
+    const wrapped = (
+      _event: Parameters<Parameters<typeof ipcRenderer.on>[1]>[0],
+      info: { version: string },
+    ) => handler(info)
+    ipcRenderer.on('updater:update-downloaded', wrapped)
+    return () => ipcRenderer.removeListener('updater:update-downloaded', wrapped)
   },
 } as const
 

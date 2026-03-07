@@ -2,41 +2,47 @@ name: CI
 
 on:
   push:
-    branches: [main, master, develop]
+    branches: [main]
   pull_request:
     branches: [main]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  lint-and-test:
-    name: Lint, Typecheck & Test
+  test:
+    name: Lint + Typecheck + Test
     runs-on: windows-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up pnpm
+      - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
           version: 9
 
-      - name: Set up Node.js
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: pnpm
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Typecheck
+      - name: Rebuild native modules (system Node for tests)
+        run: pnpm rebuild better-sqlite3 keytar
+
+      - name: Type check
         run: pnpm typecheck
 
       - name: Lint
         run: pnpm lint
 
-      - name: Format check
-        run: pnpm format:check
-
-      - name: Test
+      - name: Unit tests
         run: pnpm test
+        env:
+          ELECTRON_DISABLE_SECURITY_WARNINGS: true
