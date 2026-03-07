@@ -14,8 +14,11 @@
  */
 
 import { RouterProvider, createRouter, createRootRoute, createRoute } from '@tanstack/react-router'
+import { Toaster } from 'sonner'
 import { Shell } from '@/components/layout/Shell'
 import { DashboardPage } from '@/pages/DashboardPage'
+import { ServersPage } from '@/pages/ServersPage'
+import { ActivityLogPage } from '@/pages/ActivityLogPage'
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
 
@@ -42,7 +45,7 @@ const indexRoute = createRoute({
 const serversRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/servers',
-  component: () => <PlaceholderPage title="Servers" />,
+  component: ServersPage,
 })
 
 const rulesRoute = createRoute({
@@ -66,7 +69,7 @@ const profilesRoute = createRoute({
 const activityRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/activity',
-  component: () => <PlaceholderPage title="Activity Log" />,
+  component: ActivityLogPage,
 })
 
 const settingsRoute = createRoute({
@@ -102,6 +105,11 @@ declare module '@tanstack/react-router' {
  * Root component rendered by `src/renderer/main.tsx`.
  * Wraps the entire app in the TanStack Router provider.
  */
-const App = () => <RouterProvider router={router} />
+const App = () => (
+  <>
+    <RouterProvider router={router} />
+    <Toaster position="bottom-right" richColors />
+  </>
+)
 
 export { App }

@@ -147,11 +147,19 @@ export class ServersRepo {
 
     const now = new Date().toISOString()
 
+    // Merge clientOverrides patch into the existing map so a partial update
+    // (e.g. toggling just one client) does not wipe other clients' state.
+    const mergedOverrides =
+      updates.clientOverrides !== undefined
+        ? { ...existing.clientOverrides, ...updates.clientOverrides }
+        : existing.clientOverrides
+
     this.db
       .prepare(
         `UPDATE servers SET
           name = ?, type = ?, command = ?, args = ?, env = ?,
-          secret_env_keys = ?, tags = ?, notes = ?, updated_at = ?
+          secret_env_keys = ?, enabled = ?, client_overrides = ?,
+          tags = ?, notes = ?, updated_at = ?
          WHERE id = ?`,
       )
       .run(
@@ -161,6 +169,8 @@ export class ServersRepo {
         JSON.stringify(updates.args ?? existing.args),
         JSON.stringify(updates.env ?? existing.env),
         JSON.stringify(updates.secretEnvKeys ?? existing.secretEnvKeys),
+        updates.enabled !== undefined ? (updates.enabled ? 1 : 0) : existing.enabled ? 1 : 0,
+        JSON.stringify(mergedOverrides),
         JSON.stringify(updates.tags ?? existing.tags),
         updates.notes ?? existing.notes,
         now,

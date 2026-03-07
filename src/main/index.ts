@@ -45,10 +45,10 @@ const createWindow = (): BrowserWindow => {
     autoHideMenuBar: true,
     titleBarStyle: 'default',
     webPreferences: {
-      preload: join(__dirname, '../preload/index.js'),
+      preload: join(__dirname, '../preload/index.mjs'),
       nodeIntegration: false,
       contextIsolation: true,
-      sandbox: true,
+      sandbox: false,
       webSecurity: true,
     },
   })
