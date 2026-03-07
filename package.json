@@ -1,0 +1,74 @@
+{
+  "name": "aidrelay",
+  "version": "0.1.0",
+  "description": "AI Developer Relay — Centralized MCP server config and AI rules manager",
+  "private": true,
+  "author": {
+    "name": "Christian Blank",
+    "email": "christianblank91@protonmail.com"
+  },
+  "license": "SEE LICENSE IN LICENSE",
+  "type": "module",
+  "main": "./out/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "typecheck": "tsc --noEmit -p tsconfig.main.json && tsc --noEmit -p tsconfig.renderer.json && tsc --noEmit -p tsconfig.shared.json",
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix",
+    "format": "prettier --write \"src/**/*.{ts,tsx,js,json,css}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,js,json,css}\"",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@electron-toolkit/utils": "^4.0.0",
+    "clsx": "^2.1.1",
+    "electron-log": "^5.2.4",
+    "electron-updater": "^6.3.9",
+    "tailwind-merge": "^3.5.0"
+  },
+  "devDependencies": {
+    "@electron-toolkit/eslint-config-ts": "^3.0.0",
+    "@electron-toolkit/tsconfig": "^1.0.1",
+    "@eslint/js": "^9.39.4",
+    "@tailwindcss/vite": "^4.0.12",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/node": "^22.13.10",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "@typescript-eslint/eslint-plugin": "^8.26.1",
+    "@typescript-eslint/parser": "^8.26.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "electron": "^34.3.0",
+    "electron-builder": "^25.1.8",
+    "electron-vite": "^3.1.0",
+    "eslint": "^9.22.0",
+    "eslint-plugin-react": "^7.37.4",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "globals": "^17.4.0",
+    "jsdom": "^26.0.0",
+    "prettier": "^3.5.3",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "tailwindcss": "^4.0.12",
+    "typescript": "^5.8.2",
+    "vite": "^6.2.1",
+    "vitest": "^3.0.9"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "electron",
+      "esbuild"
+    ]
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  }
+}
