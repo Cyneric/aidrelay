@@ -300,4 +300,13 @@ export interface IpcChannels {
   'git-sync:disconnect': () => Promise<void>
   'git-sync:push': () => Promise<GitPushResult>
   'git-sync:pull': () => Promise<GitPullResult>
+
+  // Settings
+  'settings:get': (key: string) => Promise<unknown>
+  'settings:set': (key: string, value: unknown) => Promise<void>
+  'settings:delete': (key: string) => Promise<void>
+
+  // Auto-updater
+  'updater:check': () => Promise<void>
+  'updater:install': () => Promise<void>
 }

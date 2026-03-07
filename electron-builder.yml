@@ -1,35 +1,95 @@
-# electron-builder configuration
-# Full packaging configuration will be added in Phase 6 (Polish + Release)
+# electron-builder configuration for aidrelay
+# https://www.electron.build/configuration/configuration
+
 appId: com.blankitsolutions.aidrelay
 productName: aidrelay
 copyright: Copyright 2026 Christian Blank
+
+# ── Directories ────────────────────────────────────────────────────────────────
 
 directories:
   buildResources: resources
   output: dist
 
+# ── Included files ─────────────────────────────────────────────────────────────
+# Only ship what's needed — exclude dev tooling, test files, and source maps
+# to keep the installer small and avoid leaking source structure.
+
 files:
   - out/**/*
-  - node_modules/**/*
+  - '!out/**/*.map'
   - package.json
+
+# ── Native module rebuild ─────────────────────────────────────────────────────
+# Rebuild better-sqlite3 and keytar against the Electron runtime before
+# packaging so the bundled binaries match Electron's Node.js ABI.
+
+beforeBuild:
+  - npx electron-rebuild -f -w better-sqlite3,keytar
+
+# ── ASAR ──────────────────────────────────────────────────────────────────────
+# Enable ASAR packaging to speed up file I/O and obscure the file tree.
+# Integrity checking (added in Electron 30) verifies the ASAR header hash at
+# startup to detect tampering — configured per-platform below.
+
+asar: true
+asarUnpack:
+  # Native .node addons must live outside the ASAR since they are loaded
+  # via dlopen/LoadLibrary which cannot open files inside the archive.
+  - '**/node_modules/better-sqlite3/build/Release/*.node'
+  - '**/node_modules/keytar/build/Release/*.node'
+
+# ── Windows ───────────────────────────────────────────────────────────────────
 
 win:
   target:
     - target: nsis
-      arch: x64
+      arch:
+        - x64
   icon: resources/icon.ico
+  # requestedExecutionLevel: asInvoker (default) — no UAC elevation needed
+  # Code signing is configured via environment variables at build time:
+  #   CSC_LINK     — path or URL to the .pfx certificate
+  #   CSC_KEY_PASSWORD — certificate password
+  # When CSC_LINK is not set electron-builder skips signing (dev / CI builds).
+  verifyUpdateCodeSignature: false
+
+# ── NSIS installer ────────────────────────────────────────────────────────────
 
 nsis:
   oneClick: false
+  perMachine: false
   allowToChangeInstallationDirectory: true
   installerIcon: resources/icon.ico
   uninstallerIcon: resources/icon.ico
+  installerHeaderIcon: resources/icon.ico
   createDesktopShortcut: true
   createStartMenuShortcut: true
+  shortcutName: aidrelay
+  # License text shown in the installer wizard
+  license: LICENSE
+
+# ── Publish (auto-update via GitHub Releases) ─────────────────────────────────
+# electron-updater reads this block to know where to check for new releases.
+# The GH_TOKEN environment variable must be set when publishing.
+
+publish:
+  provider: github
+  owner: Cyneric
+  repo: aidrelay
+  releaseType: release
+
+# ── macOS (future — stubs for cross-platform readiness) ──────────────────────
 
 mac:
   target: dmg
   category: public.app-category.developer-tools
+  # hardenedRuntime: true
+  # gatekeeperAssess: false
+  # entitlementsInherit: build/entitlements.mac.plist
+
+# ── Linux (future) ────────────────────────────────────────────────────────────
 
 linux:
   target: AppImage
+  category: Development
