@@ -217,6 +217,8 @@ export interface IpcChannels {
   'secrets:set': (serverName: string, key: string, value: string) => Promise<void>
   'secrets:get': (serverName: string, key: string) => Promise<string | null>
   'secrets:delete': (serverName: string, key: string) => Promise<void>
+  'secrets:list-keys': (serverName: string) => Promise<string[]>
+  'secrets:delete-all': (serverName: string) => Promise<void>
 
   // Backups
   'backups:list': (clientId: ClientId) => Promise<BackupEntry[]>
@@ -229,7 +231,8 @@ export interface IpcChannels {
   'registry:search': (query: string) => Promise<RegistryServer[]>
 
   // Licensing
-  'license:validate': (key: string) => Promise<LicenseStatus>
+  'license:activate': (key: string) => Promise<LicenseStatus>
+  'license:deactivate': () => Promise<void>
   'license:status': () => Promise<LicenseStatus>
   'license:feature-gates': () => Promise<FeatureGates>
 

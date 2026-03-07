@@ -19,6 +19,7 @@ import type { CreateServerInput, UpdateServerInput } from '@shared/channels'
 import { getDatabase } from '@main/db/connection'
 import { ServersRepo } from '@main/db/servers.repo'
 import { ActivityLogRepo } from '@main/db/activity-log.repo'
+import { checkGate } from '@main/licensing/feature-gates'
 
 // ─── Service Factory ──────────────────────────────────────────────────────────
 
@@ -56,6 +57,16 @@ export const registerServersIpc = (): void => {
   ipcMain.handle('servers:create', (_event, input: CreateServerInput): McpServer => {
     log.debug(`[ipc] servers:create "${input.name}"`)
     const { servers, log: logRepo } = createRepos()
+
+    // Enforce the per-tier server limit before creating.
+    const maxServers = checkGate('maxServers')
+    const currentCount = servers.findAll().length
+    if (currentCount >= maxServers) {
+      throw new Error(
+        `Server limit reached (${maxServers}). Upgrade to aidrelay Pro for unlimited servers.`,
+      )
+    }
+
     const server = servers.create(input)
     logRepo.insert({
       action: 'server.created',

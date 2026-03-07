@@ -1,0 +1,23 @@
+# Enforce LF line endings for all text files on checkout (overrides core.autocrlf)
+* text=auto eol=lf
+
+# Binaries — no line ending conversion
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.svg binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+*.otf binary
+*.db binary
+*.sqlite binary
+*.node binary
+*.exe binary
+*.dll binary
+*.zip binary
+*.gz binary
+*.tar binary

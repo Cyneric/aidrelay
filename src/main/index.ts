@@ -18,6 +18,7 @@ import log from 'electron-log'
 import { is } from '@electron-toolkit/utils'
 import { registerIpcHandlers } from './ipc/index'
 import { closeDatabase } from './db/connection'
+import { fileWatcherService } from './sync/file-watcher.service'
 
 log.transports.file.level = 'info'
 log.transports.console.level = 'debug'
@@ -78,6 +79,9 @@ void app.whenReady().then(() => {
   log.info('aidrelay starting up')
   registerIpcHandlers()
   createWindow()
+  // Start watching client config files for external changes after the window
+  // is ready so IPC events can be delivered to the renderer.
+  void fileWatcherService.start()
 
   app.on('activate', () => {
     // On macOS, re-create a window when the dock icon is clicked and no windows are open
@@ -95,5 +99,6 @@ app.on('window-all-closed', () => {
 })
 
 app.on('will-quit', () => {
+  void fileWatcherService.stop()
   closeDatabase()
 })

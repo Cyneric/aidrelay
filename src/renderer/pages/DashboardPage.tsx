@@ -14,9 +14,10 @@
 
 import { useEffect, useState } from 'react'
 import { RefreshCw } from 'lucide-react'
+import { toast } from 'sonner'
 import { ClientCard } from '@/components/clients/ClientCard'
 import { useClientsStore } from '@/stores/clients.store'
-import type { ClientStatus } from '@shared/types'
+import type { ClientStatus, ConfigChangedPayload } from '@shared/types'
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -32,6 +33,26 @@ const DashboardPage = () => {
   useEffect(() => {
     void detectAll()
   }, [detectAll])
+
+  // Listen for external config changes detected by the file watcher
+  useEffect(() => {
+    const unsubscribe = window.api.onConfigChanged((payload: ConfigChangedPayload) => {
+      const parts: string[] = []
+      if (payload.added.length > 0) parts.push(`+${payload.added.length} added`)
+      if (payload.removed.length > 0) parts.push(`-${payload.removed.length} removed`)
+      const description = parts.length > 0 ? ` (${parts.join(', ')})` : ''
+
+      toast.info(`${payload.clientId} config changed externally${description}`, {
+        description: 'Import changes to keep aidrelay in sync.',
+        action: {
+          label: 'Import',
+          onClick: () => void syncClient(payload.clientId),
+        },
+        duration: 8000,
+      })
+    })
+    return unsubscribe
+  }, [syncClient])
 
   const handleSync = async (clientId: ClientStatus['id']) => {
     setSyncingId(clientId)

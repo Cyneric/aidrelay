@@ -12,10 +12,23 @@
  * React hooks work as expected.
  */
 
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { renderHook } from '@testing-library/react'
-import { useFeatureGate } from '../useFeatureGate'
+import { useFeatureGate, invalidateGateCache } from '../useFeatureGate'
 import { FREE_GATES } from '@shared/feature-gates'
+
+// Stub window.api.licenseFeatureGates so the hook's IPC call resolves
+// to FREE_GATES — this keeps the tests environment-agnostic.
+beforeEach(() => {
+  invalidateGateCache()
+  Object.defineProperty(window, 'api', {
+    value: {
+      licenseFeatureGates: vi.fn().mockResolvedValue(FREE_GATES),
+    },
+    writable: true,
+    configurable: true,
+  })
+})
 
 describe('useFeatureGate()', () => {
   it('returns the correct maxServers limit', () => {

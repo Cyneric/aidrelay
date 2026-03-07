@@ -19,6 +19,8 @@ import { registerServersIpc } from './servers.ipc'
 import { registerLogIpc } from './log.ipc'
 import { registerRulesIpc } from './rules.ipc'
 import { registerProfilesIpc } from './profiles.ipc'
+import { registerSecretsIpc } from './secrets.ipc'
+import { registerLicenseIpc } from './license.ipc'
 
 /**
  * Registers all IPC handlers for every implemented domain.
@@ -27,8 +29,10 @@ import { registerProfilesIpc } from './profiles.ipc'
 export const registerIpcHandlers = (): void => {
   registerClientsIpc()
   registerServersIpc()
+  registerSecretsIpc()
   registerLogIpc()
   registerRulesIpc()
   registerProfilesIpc()
+  registerLicenseIpc()
   log.info('[ipc] all handlers registered')
 }

@@ -13,13 +13,17 @@
  */
 
 import { resolve } from 'path'
-import { defineConfig, externalizeDepsPlugin } from 'electron-vite'
+import { defineConfig, externalizeDepsPlugin, bytecodePlugin } from 'electron-vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
   main: {
-    plugins: [externalizeDepsPlugin()],
+    // bytecodePlugin compiles the licensing module to V8 bytecode in production
+    // builds, raising the reverse-engineering barrier for license-checking code.
+    // It is intentionally left out of the preload and renderer — only the main
+    // process hosts sensitive license logic.
+    plugins: [externalizeDepsPlugin(), bytecodePlugin()],
     resolve: {
       alias: {
         '@shared': resolve('src/shared'),

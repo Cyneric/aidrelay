@@ -28,6 +28,7 @@ import type { ClientAdapter } from '@main/clients/types'
 import type { ActivityLogRepo } from '@main/db/activity-log.repo'
 import type { ServersRepo } from '@main/db/servers.repo'
 import type { BackupService } from './backup.service'
+import { getSecret } from '@main/secrets/keytar.service'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -47,11 +48,18 @@ interface ClientConfig {
  * (or have no per-client override). Unmanaged servers already in the client
  * config are left alone — they are preserved during the merge step.
  *
- * @param servers - All servers in the aidrelay registry.
+ * Secret env vars are fetched from the Windows Credential Manager and injected
+ * in-place before the config is written. If a secret cannot be retrieved, that
+ * key is omitted from the written env block and a warning is logged.
+ *
+ * @param servers  - All servers in the aidrelay registry.
  * @param clientId - The client being synced.
  * @returns Map of server name → minimal config shape expected by the client.
  */
-const buildManagedMap = (servers: McpServer[], clientId: ClientId): Record<string, unknown> => {
+const buildManagedMap = async (
+  servers: McpServer[],
+  clientId: ClientId,
+): Promise<Record<string, unknown>> => {
   const result: Record<string, unknown> = {}
 
   for (const server of servers) {
@@ -60,10 +68,21 @@ const buildManagedMap = (servers: McpServer[], clientId: ClientId): Record<strin
 
     if (!server.enabled || !enabledForClient) continue
 
+    // Build the env block, injecting secret values from the OS credential store.
+    const envBlock: Record<string, string> = { ...server.env }
+    for (const secretKey of server.secretEnvKeys) {
+      const secretValue = await getSecret(server.name, secretKey)
+      if (secretValue !== null) {
+        envBlock[secretKey] = secretValue
+      } else {
+        log.warn(`[sync] secret "${secretKey}" not found for server "${server.name}" — skipping`)
+      }
+    }
+
     result[server.name] = {
       command: server.command,
       ...(server.args.length > 0 && { args: [...server.args] }),
-      ...(Object.keys(server.env).length > 0 && { env: { ...server.env } }),
+      ...(Object.keys(envBlock).length > 0 && { env: envBlock }),
       ...(server.type !== 'stdio' && { type: server.type }),
     }
   }
@@ -92,7 +111,7 @@ export class SyncService {
    * @returns Sync result indicating success, server count, and timestamp.
    * @throws {Error} If any step in the safety sequence fails.
    */
-  sync(adapter: ClientAdapter, configPath: string): Promise<SyncResult> {
+  async sync(adapter: ClientAdapter, configPath: string): Promise<SyncResult> {
     const clientId = adapter.id
     const syncedAt = new Date().toISOString()
 
@@ -120,7 +139,8 @@ export class SyncService {
 
       // ── Step 4: MERGE ─────────────────────────────────────────────────────
       const allServers = this.serversRepo.findAll()
-      const managedMap = buildManagedMap(allServers, clientId)
+      // Inject secrets from the OS credential store for each server.
+      const managedMap = await buildManagedMap(allServers, clientId)
 
       // Get the currently existing server entries from the client config
       const schemaKey = adapter.schemaKey
@@ -188,7 +208,7 @@ export class SyncService {
       const serversWritten = Object.keys(managedMap).length
       log.info(`[sync] completed for ${clientId}: ${serversWritten} server(s) written`)
 
-      return Promise.resolve({ clientId, success: true, serversWritten, syncedAt })
+      return { clientId, success: true, serversWritten, syncedAt }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
       log.error(`[sync] failed for ${clientId}: ${message}`)
@@ -199,13 +219,13 @@ export class SyncService {
         clientId,
       })
 
-      return Promise.resolve({
+      return {
         clientId,
         success: false,
         serversWritten: 0,
         error: message,
         syncedAt,
-      })
+      }
     }
   }
 }

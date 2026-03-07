@@ -22,6 +22,8 @@ import type {
   AiRule,
   Profile,
   SyncResult,
+  LicenseStatus,
+  ConfigChangedPayload,
 } from '../shared/types'
 import type {
   CreateServerInput,
@@ -33,6 +35,7 @@ import type {
   UpdateProfileInput,
   ActivityLogEntry,
   LogFilters,
+  FeatureGates,
 } from '../shared/channels'
 
 /**
@@ -258,6 +261,88 @@ const api = {
   profilesActivate: (id: string): Promise<SyncResult[]> =>
     ipcRenderer.invoke('profiles:activate', id),
 
+  // ── Secrets ───────────────────────────────────────────────────────────────
+
+  /**
+   * Stores or updates a secret value in Windows Credential Manager.
+   *
+   * @param serverName - The MCP server this secret belongs to.
+   * @param key        - The environment variable key name.
+   * @param value      - The plaintext secret value to store.
+   */
+  secretsSet: (serverName: string, key: string, value: string): Promise<void> =>
+    ipcRenderer.invoke('secrets:set', serverName, key, value),
+
+  /**
+   * Retrieves a secret value from Windows Credential Manager.
+   *
+   * @param serverName - The MCP server this secret belongs to.
+   * @param key        - The environment variable key name.
+   * @returns The stored value, or `null` if not found.
+   */
+  secretsGet: (serverName: string, key: string): Promise<string | null> =>
+    ipcRenderer.invoke('secrets:get', serverName, key),
+
+  /**
+   * Removes a single secret from Windows Credential Manager.
+   *
+   * @param serverName - The MCP server this secret belongs to.
+   * @param key        - The environment variable key name.
+   */
+  secretsDelete: (serverName: string, key: string): Promise<void> =>
+    ipcRenderer.invoke('secrets:delete', serverName, key),
+
+  /**
+   * Lists all env key names that have secrets stored for a given server.
+   *
+   * @param serverName - The MCP server to list secrets for.
+   * @returns Array of env key names.
+   */
+  secretsListKeys: (serverName: string): Promise<string[]> =>
+    ipcRenderer.invoke('secrets:list-keys', serverName),
+
+  /**
+   * Removes all secrets stored for a given server. Call this when deleting
+   * a server to avoid leaving orphaned credentials in the OS store.
+   *
+   * @param serverName - The MCP server whose secrets should all be removed.
+   */
+  secretsDeleteAll: (serverName: string): Promise<void> =>
+    ipcRenderer.invoke('secrets:delete-all', serverName),
+
+  // ── License ───────────────────────────────────────────────────────────────
+
+  /**
+   * Activates a license-provider license key. Validates with the API and caches
+   * the result via `electron.safeStorage`.
+   *
+   * @param key - The license key to activate.
+   * @returns The resulting license status.
+   */
+  licenseActivate: (key: string): Promise<LicenseStatus> =>
+    ipcRenderer.invoke('license:activate', key),
+
+  /**
+   * Deactivates the current license and clears the local cache.
+   */
+  licenseDeactivate: (): Promise<void> => ipcRenderer.invoke('license:deactivate'),
+
+  /**
+   * Returns the cached license status without making a network call.
+   * The main process re-validates in the background when the cache is stale.
+   *
+   * @returns Current license status.
+   */
+  licenseStatus: (): Promise<LicenseStatus> => ipcRenderer.invoke('license:status'),
+
+  /**
+   * Returns the feature gate values for the current license tier.
+   * Components should use `useFeatureGate()` instead of calling this directly.
+   *
+   * @returns Active feature gates object.
+   */
+  licenseFeatureGates: (): Promise<FeatureGates> => ipcRenderer.invoke('license:feature-gates'),
+
   // ── Activity Log ──────────────────────────────────────────────────────────
 
   /**
@@ -268,7 +353,28 @@ const api = {
    */
   logQuery: (filters: LogFilters): Promise<ActivityLogEntry[]> =>
     ipcRenderer.invoke('log:query', filters),
+
+  // ── Push events (main → renderer) ─────────────────────────────────────────
+
+  /**
+   * Registers a handler called when the main process detects an external
+   * change to a watched client config file. Returns a cleanup function.
+   *
+   * @param handler - Callback receiving the change payload.
+   * @returns A cleanup function that removes the listener.
+   */
+  onConfigChanged: (handler: (payload: ConfigChangedPayload) => void): (() => void) => {
+    const wrapped = (
+      _event: Parameters<Parameters<typeof ipcRenderer.on>[1]>[0],
+      payload: ConfigChangedPayload,
+    ) => handler(payload)
+    ipcRenderer.on('clients:config-changed', wrapped)
+    return () => ipcRenderer.removeListener('clients:config-changed', wrapped)
+  },
 } as const
+
+// Expose the typed bridge to the renderer process
+contextBridge.exposeInMainWorld('api', api)
 
 // Expose the typed bridge to the renderer process
 contextBridge.exposeInMainWorld('api', api)
