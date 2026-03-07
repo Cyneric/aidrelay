@@ -5,8 +5,8 @@
   "exclude": ["node_modules"],
   "compilerOptions": {
     "target": "ES2022",
-    "module": "CommonJS",
-    "moduleResolution": "node",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
     "lib": ["ES2022"],
     "outDir": "out/main",
     "baseUrl": ".",
