@@ -15,11 +15,12 @@
 import { ipcMain } from 'electron'
 import log from 'electron-log'
 import type { McpServer } from '@shared/types'
-import type { CreateServerInput, UpdateServerInput } from '@shared/channels'
+import type { CreateServerInput, UpdateServerInput, TestResult } from '@shared/channels'
 import { getDatabase } from '@main/db/connection'
 import { ServersRepo } from '@main/db/servers.repo'
 import { ActivityLogRepo } from '@main/db/activity-log.repo'
 import { checkGate } from '@main/licensing/feature-gates'
+import { serverTester } from '@main/testing/server-tester.service'
 
 // ─── Service Factory ──────────────────────────────────────────────────────────
 
@@ -100,6 +101,24 @@ export const registerServersIpc = (): void => {
       details: { serverName: server?.name ?? id },
       serverId: id,
     })
+  })
+
+  // ── servers:test ──────────────────────────────────────────────────────────
+  ipcMain.handle('servers:test', async (_event, id: string): Promise<TestResult> => {
+    log.debug(`[ipc] servers:test ${id}`)
+
+    const allowed = checkGate('serverTesting')
+    if (!allowed) {
+      throw new Error('Server connection testing requires aidrelay Pro.')
+    }
+
+    const { servers } = createRepos()
+    const server = servers.findById(id)
+    if (!server) {
+      return { success: false, message: `Server not found: ${id}` }
+    }
+
+    return serverTester.testServer(server)
   })
 
   log.info('[ipc] servers handlers registered')

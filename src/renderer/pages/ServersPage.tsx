@@ -31,6 +31,7 @@ import {
   ChevronDown,
   ChevronRight,
   ArrowUpDown,
+  FlaskConical,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -38,6 +39,7 @@ import { ServerEditor } from '@/components/servers/ServerEditor'
 import { ToggleMatrix } from '@/components/servers/ToggleMatrix'
 import { useServersStore } from '@/stores/servers.store'
 import { useClientsStore } from '@/stores/clients.store'
+import { useFeatureGate } from '@/lib/useFeatureGate'
 import type { McpServer } from '@shared/types'
 
 // ─── Column helper ────────────────────────────────────────────────────────────
@@ -53,12 +55,14 @@ const columnHelper = createColumnHelper<McpServer>()
 const ServersPage = () => {
   const { servers, loading, error, load, delete: deleteServer, toggleEnabled } = useServersStore()
   const { clients, detectAll } = useClientsStore()
+  const serverTestingEnabled = useFeatureGate('serverTesting')
   const [sorting, setSorting] = useState<SortingState>([])
   const [globalFilter, setGlobalFilter] = useState('')
   const [editingServer, setEditingServer] = useState<McpServer | undefined>(undefined)
   const [showEditor, setShowEditor] = useState(false)
   const [matrixExpanded, setMatrixExpanded] = useState(false)
   const [syncingAll, setSyncingAll] = useState(false)
+  const [testingServerId, setTestingServerId] = useState<string | null>(null)
 
   useEffect(() => {
     void load()
@@ -89,6 +93,22 @@ const ServersPage = () => {
     },
     [deleteServer],
   )
+
+  const handleTest = useCallback(async (server: McpServer) => {
+    setTestingServerId(server.id)
+    try {
+      const result = await window.api.serversTest(server.id)
+      if (result.success) {
+        toast.success(result.message)
+      } else {
+        toast.error(result.message)
+      }
+    } catch {
+      toast.error(`Failed to test "${server.name}"`)
+    } finally {
+      setTestingServerId(null)
+    }
+  }, [])
 
   const handleSyncAll = useCallback(async () => {
     setSyncingAll(true)
@@ -180,9 +200,25 @@ const ServersPage = () => {
     columnHelper.display({
       id: 'actions',
       header: '',
-      size: 80,
+      size: 112,
       cell: ({ row }) => (
         <div className="flex items-center justify-end gap-1">
+          <button
+            type="button"
+            onClick={() => void handleTest(row.original)}
+            disabled={!serverTestingEnabled || testingServerId === row.original.id}
+            className="p-1.5 text-muted-foreground hover:text-foreground rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            aria-label={`Test ${row.original.name}`}
+            title={
+              serverTestingEnabled ? `Test ${row.original.name}` : 'Upgrade to Pro to test servers'
+            }
+            data-testid={`server-test-${row.original.id}`}
+          >
+            <FlaskConical
+              size={14}
+              className={testingServerId === row.original.id ? 'animate-pulse' : ''}
+            />
+          </button>
           <button
             type="button"
             onClick={() => openEdit(row.original)}

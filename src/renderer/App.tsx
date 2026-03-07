@@ -11,7 +11,7 @@
  * root route that renders the Shell layout and child routes for each page.
  * Placeholder routes are used for pages not yet implemented so navigation
  * links work end-to-end from the start. Rules page wired in Step 22;
- * Profiles page wired in Step 30.
+ * Profiles page wired in Step 30; Registry + Stacks pages wired in Step 43/45.
  */
 
 import { RouterProvider, createRouter, createRootRoute, createRoute } from '@tanstack/react-router'
@@ -22,6 +22,8 @@ import { ServersPage } from '@/pages/ServersPage'
 import { RulesPage } from '@/pages/RulesPage'
 import { ActivityLogPage } from '@/pages/ActivityLogPage'
 import { ProfilesPage } from '@/pages/ProfilesPage'
+import { RegistryPage } from '@/pages/RegistryPage'
+import { StacksPage } from '@/pages/StacksPage'
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
 
@@ -75,6 +77,18 @@ const activityRoute = createRoute({
   component: ActivityLogPage,
 })
 
+const registryRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/registry',
+  component: RegistryPage,
+})
+
+const stacksRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/stacks',
+  component: StacksPage,
+})
+
 const settingsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/settings',
@@ -88,6 +102,8 @@ const routeTree = rootRoute.addChildren([
   clientsRoute,
   profilesRoute,
   activityRoute,
+  registryRoute,
+  stacksRoute,
   settingsRoute,
 ])
 

@@ -121,6 +121,9 @@ export default [
     rules: {
       '@typescript-eslint/no-explicit-any': 'warn',
       '@typescript-eslint/no-non-null-assertion': 'off',
+      // Vitest patterns (vi.mocked, mock.calls, etc.) routinely access methods
+      // outside their original object context — this is intentional in tests.
+      '@typescript-eslint/unbound-method': 'off',
     },
   },
 ]
