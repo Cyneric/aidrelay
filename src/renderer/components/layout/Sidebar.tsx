@@ -24,20 +24,25 @@ import {
   History,
 } from 'lucide-react'
 import { Link, useRouterState } from '@tanstack/react-router'
+import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 
 // ─── Nav Config ───────────────────────────────────────────────────────────────
 
+/**
+ * Static nav item definitions. Labels are i18n keys looked up at render time
+ * so the sidebar reacts to language changes without a page reload.
+ */
 const NAV_ITEMS = [
-  { to: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/servers', label: 'Servers', icon: Server },
-  { to: '/rules', label: 'Rules', icon: BookOpen },
-  { to: '/clients', label: 'Clients', icon: Monitor },
-  { to: '/profiles', label: 'Profiles', icon: Layers },
-  { to: '/registry', label: 'Registry', icon: Store },
-  { to: '/stacks', label: 'Stacks', icon: Package },
-  { to: '/activity', label: 'Activity Log', icon: Activity },
-  { to: '/history', label: 'History', icon: History },
+  { to: '/', labelKey: 'nav.dashboard', icon: LayoutDashboard },
+  { to: '/servers', labelKey: 'nav.servers', icon: Server },
+  { to: '/rules', labelKey: 'nav.rules', icon: BookOpen },
+  { to: '/clients', labelKey: 'nav.clients', icon: Monitor },
+  { to: '/profiles', labelKey: 'nav.profiles', icon: Layers },
+  { to: '/registry', labelKey: 'nav.registry', icon: Store },
+  { to: '/stacks', labelKey: 'nav.stacks', icon: Package },
+  { to: '/activity', labelKey: 'nav.activityLog', icon: Activity },
+  { to: '/history', labelKey: 'nav.history', icon: History },
 ] as const
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -48,6 +53,7 @@ const NAV_ITEMS = [
  */
 const Sidebar = () => {
   const { location } = useRouterState()
+  const { t } = useTranslation()
   const currentPath = location.pathname
 
   return (
@@ -66,7 +72,8 @@ const Sidebar = () => {
       {/* Primary links */}
       <nav className="flex-1 overflow-y-auto py-3 px-2">
         <ul className="space-y-0.5" role="list">
-          {NAV_ITEMS.map(({ to, label, icon: Icon }) => {
+          {NAV_ITEMS.map(({ to, labelKey, icon: Icon }) => {
+            const label = t(labelKey)
             const isActive = to === '/' ? currentPath === '/' : currentPath.startsWith(to)
             return (
               <li key={to}>
@@ -104,7 +111,7 @@ const Sidebar = () => {
           aria-current={currentPath.startsWith('/settings') ? 'page' : undefined}
         >
           <Settings size={16} aria-hidden="true" />
-          Settings
+          {t('nav.settings')}
         </Link>
       </div>
     </aside>

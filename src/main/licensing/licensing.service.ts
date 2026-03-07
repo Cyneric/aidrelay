@@ -10,20 +10,23 @@
  * @description license-provider license validation service. Handles activation,
  * validation, and deactivation of license keys via the license-provider API.
  *
- * The validation result is cached in `electron.safeStorage` (encrypted AES-256
- * on Windows) so the app can start instantly without a network round-trip. The
- * cache is considered stale after 7 days and re-validated in the background.
- * If the network is unavailable during re-validation, a 7-day grace period
- * keeps the cached status active. On expiry or an explicit invalid response
- * the app falls back to the free tier.
+ * The validation result is encrypted via `electron.safeStorage` (AES-256 on
+ * Windows) and persisted to `<userData>/license.enc` so the app can start
+ * instantly without a network round-trip on every launch. The cache is
+ * considered stale after 7 days and re-validated in the background. If the
+ * network is unavailable during re-validation, a 7-day grace period keeps the
+ * cached status active. On expiry or an explicit invalid response the app
+ * falls back to the free tier.
  *
  * Lifecycle:
- *   app start → getStatus() reads cache → background re-validate if stale
- *   user enters key → activateLicense(key) → validate → update cache
- *   user deactivates → deactivateLicense() → API call → clear cache
+ *   app start → getStatus() reads cache file → background re-validate if stale
+ *   user enters key → activateLicense(key) → validate → update cache file
+ *   user deactivates → deactivateLicense() → API call → delete cache file
  */
 
-import { safeStorage } from 'electron'
+import { safeStorage, app } from 'electron'
+import { existsSync, readFileSync, writeFileSync, unlinkSync } from 'fs'
+import { join } from 'path'
 import log from 'electron-log'
 import type { LicenseStatus, PlanTier } from '@shared/types'
 
@@ -47,8 +50,11 @@ const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000
  */
 const GRACE_PERIOD_MS = 7 * 24 * 60 * 60 * 1000
 
-/** safeStorage encryption key name used to persist the license cache. */
-const STORAGE_KEY = 'aidrelay-license-cache'
+/**
+ * Returns the absolute path to the encrypted license cache file.
+ * Stored in the per-user Electron userData directory so it survives app restarts.
+ */
+const cachePath = (): string => join(app.getPath('userData'), 'license.enc')
 
 // ─── Internal Cache Shape ─────────────────────────────────────────────────────
 
@@ -76,15 +82,17 @@ const freeTierStatus = (): LicenseStatus => ({
 })
 
 /**
- * Reads and decrypts the cached license data from `electron.safeStorage`.
- * Returns `null` if nothing is stored or decryption fails.
+ * Reads and decrypts the cached license data from the encrypted file on disk.
+ * Returns `null` if the file does not exist, encryption is unavailable, or
+ * the file contents cannot be decrypted (e.g. the OS key changed).
  */
 const readCache = (): LicenseCache | null => {
   try {
     if (!safeStorage.isEncryptionAvailable()) return null
-    const stored = process.env['_AIDRELAY_LICENSE_CACHE']
-    if (!stored) return null
-    const decrypted = safeStorage.decryptString(Buffer.from(stored, 'base64'))
+    const file = cachePath()
+    if (!existsSync(file)) return null
+    const encrypted = readFileSync(file)
+    const decrypted = safeStorage.decryptString(encrypted)
     return JSON.parse(decrypted) as LicenseCache
   } catch {
     return null
@@ -92,16 +100,17 @@ const readCache = (): LicenseCache | null => {
 }
 
 /**
- * Encrypts and writes license cache data to `electron.safeStorage`.
+ * Encrypts the license cache and writes it to `<userData>/license.enc`.
+ * The file is replaced atomically so a partial write never corrupts it.
+ *
+ * @param cache - The cache data to persist.
  */
 const writeCache = (cache: LicenseCache): void => {
   try {
     if (!safeStorage.isEncryptionAvailable()) return
     const json = JSON.stringify(cache)
     const encrypted = safeStorage.encryptString(json)
-    // Store in memory env var as a stand-in for a real persistent key-value store.
-    // In production this would be written to app.getPath('userData')/license.enc
-    process.env['_AIDRELAY_LICENSE_CACHE'] = encrypted.toString('base64')
+    writeFileSync(cachePath(), encrypted)
     log.debug(`[license] cache written for key ending ...${cache.key.slice(-4)}`)
   } catch (err) {
     log.warn('[license] failed to write cache:', err)
@@ -109,11 +118,17 @@ const writeCache = (cache: LicenseCache): void => {
 }
 
 /**
- * Clears the cached license data from `electron.safeStorage`.
+ * Deletes the encrypted license cache file from disk.
+ * Safe to call even if the file does not exist.
  */
 const clearCache = (): void => {
-  delete process.env['_AIDRELAY_LICENSE_CACHE']
-  log.debug('[license] cache cleared')
+  try {
+    const file = cachePath()
+    if (existsSync(file)) unlinkSync(file)
+    log.debug('[license] cache cleared')
+  } catch (err) {
+    log.warn('[license] failed to clear cache:', err)
+  }
 }
 
 // ─── API Calls ────────────────────────────────────────────────────────────────
@@ -294,7 +309,6 @@ export const deactivateLicense = async (): Promise<void> => {
     await apiDeactivate(cache.key)
   }
   clearCache()
-  // Suppress unused variable warning for STORE_ID in stub implementation.
-  void STORAGE_KEY
+  // STORE_ID is used via environment variable — suppress the unused warning.
   void STORE_ID
 }

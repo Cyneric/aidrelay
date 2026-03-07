@@ -14,7 +14,13 @@
 
 import { ipcMain } from 'electron'
 import log from 'electron-log'
-import type { ClientId, ClientStatus, McpServerMap, SyncResult } from '@shared/types'
+import type {
+  ClientId,
+  ClientStatus,
+  McpServerMap,
+  SyncResult,
+  ValidationResult,
+} from '@shared/types'
 import { ADAPTERS, ADAPTER_IDS } from '@main/clients/registry'
 import { getDatabase } from '@main/db/connection'
 import { ServersRepo } from '@main/db/servers.repo'
@@ -146,6 +152,29 @@ export const registerClientsIpc = (): void => {
 
     return results
   })
+
+  // ── clients:validate-config ───────────────────────────────────────────────
+  ipcMain.handle(
+    'clients:validate-config',
+    async (_event, clientId: ClientId): Promise<ValidationResult> => {
+      log.debug(`[ipc] clients:validate-config ${clientId}`)
+
+      const adapter = ADAPTERS.get(clientId)
+      if (!adapter) {
+        return { valid: false, errors: [`Unknown client: ${clientId}`] }
+      }
+
+      const detection = await adapter.detect()
+      if (!detection.installed || detection.configPaths.length === 0) {
+        return {
+          valid: false,
+          errors: [`${adapter.displayName} is not installed or has no config file`],
+        }
+      }
+
+      return adapter.validate(detection.configPaths[0]!)
+    },
+  )
 
   log.info('[ipc] clients handlers registered')
 }

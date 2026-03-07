@@ -8,9 +8,7 @@
  * @copyright 2026
  *
  * @description Central registry of all client adapters. IPC handlers and
- * services look up adapters here rather than importing them directly. The map
- * is populated with the three Phase 1 adapters; Phase 2 (Step 18) adds the
- * remaining five (Windsurf, Claude Code, Zed, JetBrains, Codex CLI).
+ * services look up adapters here rather than importing them directly.
  */
 
 import type { ClientId } from '@shared/types'

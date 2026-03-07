@@ -28,20 +28,9 @@ import { RegistryPage } from '@/pages/RegistryPage'
 import { StacksPage } from '@/pages/StacksPage'
 import { SettingsPage } from '@/pages/SettingsPage'
 import { HistoryPage } from '@/pages/HistoryPage'
+import { ClientsPage } from '@/pages/ClientsPage'
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
-
-/** Placeholder component for pages that are not yet implemented. */
-const PlaceholderPage = ({ title }: { title: string }) => (
-  <section aria-labelledby="placeholder-heading" className="flex flex-col gap-2">
-    <h1 id="placeholder-heading" className="text-2xl font-bold tracking-tight">
-      {title}
-    </h1>
-    <p className="text-sm text-muted-foreground">
-      Coming soon — this page will be built out in a future phase.
-    </p>
-  </section>
-)
 
 const rootRoute = createRootRoute({ component: Shell })
 
@@ -66,7 +55,7 @@ const rulesRoute = createRoute({
 const clientsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/clients',
-  component: () => <PlaceholderPage title="Clients" />,
+  component: ClientsPage,
 })
 
 const profilesRoute = createRoute({

@@ -84,6 +84,8 @@ export interface McpServer {
   readonly id: string
   readonly name: string
   readonly type: McpServerType
+  /** Endpoint URL — populated for `sse` and `http` transport types. */
+  readonly url?: string
   readonly command: string
   readonly args: readonly string[]
   readonly env: Readonly<Record<string, string>>

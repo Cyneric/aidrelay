@@ -196,7 +196,7 @@ const EnvVarEditor = ({ env, secretEnvKeys, onChange }: EnvVarEditorProps) => {
               aria-label={entry.isSecret ? 'Unmark as secret' : 'Mark as secret'}
               data-testid={`env-secret-toggle-${index}`}
             >
-              {entry.isSecret ? '🔒 secret' : 'secret?'}
+              {entry.isSecret ? 'secret' : 'secret?'}
             </button>
 
             {/* Delete */}

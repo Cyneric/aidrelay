@@ -34,6 +34,7 @@ import {
   ChevronRight,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import { CategoryFilter } from '@/components/rules/CategoryFilter'
 import { ScopeToggle } from '@/components/rules/ScopeToggle'
@@ -84,6 +85,7 @@ const priorityColor = (priority: AiRule['priority']): string => {
  */
 const RulesPage = () => {
   const { rules, loading, error, load, delete: deleteRule, toggleEnabled } = useRulesStore()
+  const { t } = useTranslation()
 
   const [sorting, setSorting] = useState<SortingState>([])
   const [globalFilter, setGlobalFilter] = useState('')
@@ -318,7 +320,7 @@ const RulesPage = () => {
         <header className="flex items-start justify-between gap-4 flex-wrap">
           <div>
             <h1 id="rules-heading" className="text-2xl font-bold tracking-tight">
-              Rules
+              {t('rules.title')}
             </h1>
             <p className="text-sm text-muted-foreground mt-0.5">
               {rules.length} rule{rules.length !== 1 ? 's' : ''} in the registry
@@ -333,7 +335,7 @@ const RulesPage = () => {
               data-testid="import-rules-button"
             >
               <Upload size={14} aria-hidden="true" />
-              Import
+              {t('rules.importFromProject')}
             </button>
             <button
               type="button"
@@ -347,7 +349,7 @@ const RulesPage = () => {
                 className={syncingAll ? 'animate-spin' : ''}
                 aria-hidden="true"
               />
-              {syncingAll ? 'Syncing…' : 'Sync rules'}
+              {syncingAll ? t('common.loading') : t('rules.syncAll')}
             </button>
             <button
               type="button"
@@ -356,7 +358,7 @@ const RulesPage = () => {
               data-testid="add-rule-button"
             >
               <Plus size={14} aria-hidden="true" />
-              Add rule
+              {t('rules.add')}
             </button>
           </div>
         </header>
@@ -385,9 +387,9 @@ const RulesPage = () => {
             type="search"
             value={globalFilter}
             onChange={(e) => setGlobalFilter(e.target.value)}
-            placeholder="Search rules…"
+            placeholder={t('rules.search')}
             className="w-full max-w-sm rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-            aria-label="Search rules"
+            aria-label={t('rules.search')}
             data-testid="rules-search"
           />
           <CategoryFilter

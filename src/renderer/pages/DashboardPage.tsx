@@ -15,6 +15,7 @@
 import { useEffect, useState } from 'react'
 import { RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
+import { useTranslation } from 'react-i18next'
 import { ClientCard } from '@/components/clients/ClientCard'
 import { useClientsStore } from '@/stores/clients.store'
 import type { ClientStatus, ConfigChangedPayload } from '@shared/types'
@@ -27,6 +28,7 @@ import type { ClientStatus, ConfigChangedPayload } from '@shared/types'
  */
 const DashboardPage = () => {
   const { clients, loading, error, detectAll, syncClient } = useClientsStore()
+  const { t } = useTranslation()
   const [syncingId, setSyncingId] = useState<ClientStatus['id'] | null>(null)
 
   // Detect all clients when the page first mounts
@@ -37,22 +39,17 @@ const DashboardPage = () => {
   // Listen for external config changes detected by the file watcher
   useEffect(() => {
     const unsubscribe = window.api.onConfigChanged((payload: ConfigChangedPayload) => {
-      const parts: string[] = []
-      if (payload.added.length > 0) parts.push(`+${payload.added.length} added`)
-      if (payload.removed.length > 0) parts.push(`-${payload.removed.length} removed`)
-      const description = parts.length > 0 ? ` (${parts.join(', ')})` : ''
-
-      toast.info(`${payload.clientId} config changed externally${description}`, {
-        description: 'Import changes to keep aidrelay in sync.',
+      toast.info(t('dashboard.configChangedTitle'), {
+        description: t('dashboard.configChangedDescription', { clientId: payload.clientId }),
         action: {
-          label: 'Import',
+          label: t('dashboard.importChanges'),
           onClick: () => void syncClient(payload.clientId),
         },
         duration: 8000,
       })
     })
     return unsubscribe
-  }, [syncClient])
+  }, [syncClient, t])
 
   const handleSync = async (clientId: ClientStatus['id']) => {
     setSyncingId(clientId)
@@ -65,11 +62,9 @@ const DashboardPage = () => {
       <header className="mb-6 flex items-center justify-between">
         <div>
           <h1 id="dashboard-heading" className="text-2xl font-bold tracking-tight">
-            Dashboard
+            {t('dashboard.title')}
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Overview of detected AI tool clients and their sync status.
-          </p>
+          <p className="text-sm text-muted-foreground mt-1">{t('dashboard.subtitle')}</p>
         </div>
 
         <button
@@ -81,7 +76,7 @@ const DashboardPage = () => {
           data-testid="detect-all-button"
         >
           <RefreshCw size={14} className={loading ? 'animate-spin' : ''} aria-hidden="true" />
-          {loading ? 'Detecting…' : 'Refresh'}
+          {loading ? t('common.loading') : 'Refresh'}
         </button>
       </header>
 

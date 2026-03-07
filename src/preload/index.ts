@@ -28,6 +28,7 @@ import type {
   GitPushResult,
   GitPullResult,
   ManualGitConfig,
+  ValidationResult,
 } from '../shared/types'
 import type {
   CreateServerInput,
@@ -83,6 +84,16 @@ const api = {
    * @returns Array of sync results, one per synced client.
    */
   clientsSyncAll: (): Promise<SyncResult[]> => ipcRenderer.invoke('clients:sync-all'),
+
+  /**
+   * Validates a client's config file against the expected JSON schema.
+   * Returns a `ValidationResult` with `valid` flag and any error messages.
+   *
+   * @param clientId - The client whose config to validate.
+   * @returns Validation result.
+   */
+  clientsValidateConfig: (clientId: ClientId): Promise<ValidationResult> =>
+    ipcRenderer.invoke('clients:validate-config', clientId),
 
   // ── Servers ───────────────────────────────────────────────────────────────
 

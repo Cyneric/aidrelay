@@ -27,6 +27,7 @@ interface ServerRow {
   id: string
   name: string
   type: string
+  url: string
   command: string
   args: string
   env: string
@@ -51,6 +52,7 @@ const rowToServer = (row: ServerRow): McpServer => ({
   id: row.id,
   name: row.name,
   type: row.type as McpServer['type'],
+  ...(row.url ? { url: row.url } : {}),
   command: row.command,
   args: JSON.parse(row.args) as string[],
   env: JSON.parse(row.env) as Record<string, string>,
@@ -109,15 +111,16 @@ export class ServersRepo {
     this.db
       .prepare(
         `INSERT INTO servers
-          (id, name, type, command, args, env, secret_env_keys, enabled,
+          (id, name, type, url, command, args, env, secret_env_keys, enabled,
            client_overrides, tags, notes, created_at, updated_at)
          VALUES
-          (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         id,
         input.name,
         input.type,
+        input.url ?? '',
         input.command,
         JSON.stringify(input.args ?? []),
         JSON.stringify(input.env ?? {}),
@@ -157,7 +160,7 @@ export class ServersRepo {
     this.db
       .prepare(
         `UPDATE servers SET
-          name = ?, type = ?, command = ?, args = ?, env = ?,
+          name = ?, type = ?, url = ?, command = ?, args = ?, env = ?,
           secret_env_keys = ?, enabled = ?, client_overrides = ?,
           tags = ?, notes = ?, updated_at = ?
          WHERE id = ?`,
@@ -165,6 +168,7 @@ export class ServersRepo {
       .run(
         updates.name ?? existing.name,
         updates.type ?? existing.type,
+        updates.url ?? existing.url ?? '',
         updates.command ?? existing.command,
         JSON.stringify(updates.args ?? existing.args),
         JSON.stringify(updates.env ?? existing.env),

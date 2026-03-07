@@ -24,7 +24,9 @@
  * checks from non-published builds.
  */
 
-import { autoUpdater } from 'electron-updater'
+import updaterPkg from 'electron-updater'
+
+const { autoUpdater } = updaterPkg
 import { BrowserWindow } from 'electron'
 import log from 'electron-log'
 import { is } from '@electron-toolkit/utils'
