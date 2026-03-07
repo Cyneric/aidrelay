@@ -8,6 +8,7 @@ Read `PLAN.md` for the complete project plan including architecture, tech stack,
 - **License:** Proprietary / closed source
 - **Platform:** Windows-first (Electron + TypeScript + React)
 - **Current phase:** Phase 1 — Scaffolding + Core
+- **Progress tracker:** See `TASK.md` for the full implementation checklist. Check it before starting work; update it immediately when a step completes.
 
 ---
 
@@ -167,6 +168,8 @@ Every file must include a header block in the following format:
 
 ## Behavioral Rules
 
+- Before starting any implementation work, read `TASK.md` to know which steps are done and which is next — never skip steps or work out of sequence
+- After completing a step from PLAN.md, immediately mark it done in `TASK.md` (change `- [ ]` to `- [x]`) — a step is done only when code is written, all unit tests pass, and `pnpm build` + `pnpm lint` succeed
 - When stuck, unsure, or facing ambiguity — ask instead of guessing
 - Always explain breaking changes and their impact before implementing them
 - Do not silently modify, remove, or refactor code outside the scope of the current task
