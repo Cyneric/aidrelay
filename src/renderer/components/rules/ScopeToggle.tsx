@@ -44,24 +44,12 @@ const ScopeToggle = ({
   onProjectPathChange,
 }: ScopeToggleProps) => {
   const handleBrowse = async () => {
-    // Use Electron's dialog via the exposed API. If the API method is not yet
-    // available, fall back to a no-op so the component never crashes.
-    try {
-      const result = await (
-        window as Window & {
-          api: {
-            showOpenDialog?: (opts: unknown) => Promise<{ canceled: boolean; filePaths: string[] }>
-          }
-        }
-      ).api.showOpenDialog?.({
-        properties: ['openDirectory'],
-        title: 'Select project root directory',
-      })
-      if (result && !result.canceled && result.filePaths[0]) {
-        onProjectPathChange(result.filePaths[0])
-      }
-    } catch {
-      // showOpenDialog not yet wired up — user can type the path manually
+    const result = await window.api.showOpenDialog({
+      properties: ['openDirectory'],
+      title: 'Select project root directory',
+    })
+    if (!result.canceled && result.filePaths[0]) {
+      onProjectPathChange(result.filePaths[0])
     }
   }
 

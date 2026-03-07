@@ -2,7 +2,7 @@
  * @file src/renderer/components/rules/ImportRulesDialog.tsx
  *
  * @created 07.03.2026
- * @modified 07.03.2026
+ * @modified 08.03.2026
  *
  * @author Christian Blank <christianblank91@protonmail.com>
  * @copyright 2026
@@ -192,9 +192,17 @@ const ImportRulesDialog = ({ onClose }: ImportRulesDialogProps) => {
                 <button
                   type="button"
                   onClick={() => {
-                    // Native directory picker not yet exposed through the preload bridge.
-                    // Users can type the path directly in the input above.
-                    toast.info('Directory browser not yet available — paste the path manually')
+                    void (async () => {
+                      const result = await window.api.showOpenDialog({
+                        properties: ['openDirectory'],
+                        title: 'Select project directory',
+                      })
+                      if (!result.canceled && result.filePaths[0]) {
+                        setCustomPath(result.filePaths[0])
+                        setSelectedPath('')
+                        setPreview(null)
+                      }
+                    })()
                   }}
                   className="rounded-md border border-input px-3 py-2 text-sm hover:bg-accent transition-colors"
                   aria-label="Browse for directory"

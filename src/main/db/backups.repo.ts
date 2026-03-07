@@ -108,6 +108,20 @@ export class BackupsRepo {
   }
 
   /**
+   * Returns the most recent backup for a given client, or null if none exist.
+   * Used by clients:detect-all to populate syncStatus and lastSyncedAt.
+   *
+   * @param clientId - The client to look up.
+   * @returns The latest `BackupEntry`, or null.
+   */
+  findLatestByClient(clientId: ClientId): BackupEntry | null {
+    const row = this.db
+      .prepare('SELECT * FROM backups WHERE client_id = ? ORDER BY created_at DESC LIMIT 1')
+      .get(clientId) as BackupRow | undefined
+    return row ? rowToEntry(row) : null
+  }
+
+  /**
    * Returns all backup records for a given client, newest first.
    *
    * @param clientId - The client whose backups to retrieve.

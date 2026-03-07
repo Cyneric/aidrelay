@@ -305,10 +305,15 @@ const GeneralSection = () => {
 // ─── About Section ────────────────────────────────────────────────────────────
 
 const AboutSection = () => {
+  const [version, setVersion] = useState('—')
   const [checking, setChecking] = useState(false)
   const [updateAvailable, setUpdateAvailable] = useState(false)
   const [updateVersion, setUpdateVersion] = useState('')
   const [downloaded, setDownloaded] = useState(false)
+
+  useEffect(() => {
+    void window.api.appVersion().then(setVersion)
+  }, [])
 
   useEffect(() => {
     const unsubAvailable = window.api.onUpdateAvailable(({ version }) => {
@@ -341,7 +346,7 @@ const AboutSection = () => {
       <div className="space-y-3 text-sm">
         <div className="flex items-center gap-4">
           <span className="text-muted-foreground">Version</span>
-          <span className="font-mono font-medium">0.1.0</span>
+          <span className="font-mono font-medium">{version}</span>
         </div>
         <div className="flex items-center gap-4">
           <span className="text-muted-foreground">Platform</span>

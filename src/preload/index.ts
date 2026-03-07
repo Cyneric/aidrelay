@@ -496,6 +496,25 @@ const api = {
   backupsRestore: (backupPath: string, clientId: ClientId): Promise<void> =>
     ipcRenderer.invoke('backups:restore', backupPath, clientId),
 
+  // ── Dialog ────────────────────────────────────────────────────────────────
+
+  /**
+   * Opens the native directory/file picker dialog.
+   *
+   * @param options - Optional properties (openDirectory, openFile, etc.) and title.
+   * @returns Object with canceled flag and selected file paths.
+   */
+  showOpenDialog: (options?: {
+    properties?: readonly ('openDirectory' | 'openFile' | 'multiSelections')[]
+    title?: string
+  }): Promise<{ canceled: boolean; filePaths: string[] }> =>
+    ipcRenderer.invoke('dialog:show-open', options ?? {}),
+
+  /**
+   * Returns the application version from package.json (via app.getVersion).
+   */
+  appVersion: (): Promise<string> => ipcRenderer.invoke('app:version'),
+
   // ── Settings ──────────────────────────────────────────────────────────────
 
   /**

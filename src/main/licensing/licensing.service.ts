@@ -140,7 +140,12 @@ const clearCache = (): void => {
  * @returns Parsed API response body.
  */
 const apiActivate = async (key: string): Promise<Record<string, unknown>> => {
-  const body = new URLSearchParams({ license_key: key, instance_name: 'aidrelay-desktop' })
+  const params: Record<string, string> = {
+    license_key: key,
+    instance_name: 'aidrelay-desktop',
+  }
+  if (STORE_ID) params['store_id'] = STORE_ID
+  const body = new URLSearchParams(params)
   const res = await fetch(`${LS_API_BASE}/activate`, {
     method: 'POST',
     headers: { Accept: 'application/json', 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -157,7 +162,9 @@ const apiActivate = async (key: string): Promise<Record<string, unknown>> => {
  * @returns Parsed API response body.
  */
 const apiValidate = async (key: string): Promise<Record<string, unknown>> => {
-  const body = new URLSearchParams({ license_key: key })
+  const params: Record<string, string> = { license_key: key }
+  if (STORE_ID) params['store_id'] = STORE_ID
+  const body = new URLSearchParams(params)
   const res = await fetch(`${LS_API_BASE}/validate`, {
     method: 'POST',
     headers: { Accept: 'application/json', 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -309,6 +316,4 @@ export const deactivateLicense = async (): Promise<void> => {
     await apiDeactivate(cache.key)
   }
   clearCache()
-  // STORE_ID is used via environment variable — suppress the unused warning.
-  void STORE_ID
 }

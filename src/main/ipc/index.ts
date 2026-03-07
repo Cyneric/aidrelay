@@ -27,6 +27,8 @@ import { registerStacksIpc } from './stacks.ipc'
 import { registerSettingsIpc } from './settings.ipc'
 import { registerBackupsIpc } from './backups.ipc'
 import { registerUpdaterIpc } from './updater.ipc'
+import { registerDialogIpc } from './dialog.ipc'
+import { registerAppIpc } from './app.ipc'
 
 /**
  * Registers all IPC handlers for every implemented domain.
@@ -46,5 +48,7 @@ export const registerIpcHandlers = (): void => {
   registerSettingsIpc()
   registerBackupsIpc()
   registerUpdaterIpc()
+  registerDialogIpc()
+  registerAppIpc()
   log.info('[ipc] all handlers registered')
 }

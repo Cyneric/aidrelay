@@ -93,11 +93,11 @@ describe('ServerTesterService', () => {
   })
 
   describe('testServer()', () => {
-    it('returns unsupported message for non-stdio servers', async () => {
+    it('returns failure when sse server has no URL configured', async () => {
       const result = await tester.testServer(makeServer({ type: 'sse' }))
 
       expect(result.success).toBe(false)
-      expect(result.message).toMatch(/not yet supported/)
+      expect(result.message).toMatch(/No URL configured/)
     })
 
     it('returns success when the server responds with a valid initialize result', async () => {
