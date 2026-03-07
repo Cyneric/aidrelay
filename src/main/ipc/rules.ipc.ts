@@ -26,6 +26,7 @@ import { RulesSyncService } from '@main/rules/rules-sync.service'
 import { RuleImporter } from '@main/rules/rule-importer'
 import { detectRecentWorkspaces } from '@main/rules/workspace-detector'
 import { ADAPTERS, ADAPTER_IDS } from '@main/clients/registry'
+import { checkGate } from '@main/licensing/feature-gates'
 
 // ─── Service Factory ──────────────────────────────────────────────────────────
 
@@ -63,6 +64,16 @@ export const registerRulesIpc = (): void => {
   ipcMain.handle('rules:create', (_event, input: CreateRuleInput): AiRule => {
     log.debug(`[ipc] rules:create "${input.name}"`)
     const { rules, log: logRepo } = createRepos()
+
+    // Enforce the per-tier rule limit before creating.
+    const maxRules = checkGate('maxRules')
+    const currentCount = rules.findAll().length
+    if (currentCount >= maxRules) {
+      throw new Error(
+        `Rule limit reached (${maxRules}). Upgrade to aidrelay Pro for unlimited rules.`,
+      )
+    }
+
     const rule = rules.create(input)
 
     // Calculate and persist the token estimate immediately after creation.

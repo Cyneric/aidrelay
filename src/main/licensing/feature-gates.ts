@@ -9,26 +9,24 @@
  *
  * @description Main-process feature gate helpers. `checkGate()` is the single
  * callable used throughout the main process whenever a feature needs to be
- * gated behind the Pro tier. `getActiveGates()` returns the appropriate gate
- * set for the currently validated licence — stubbed to FREE_GATES until the
- * license-provider integration is wired in Step 34.
+ * gated behind the Pro tier. `getActiveGates()` reads the current license
+ * status from the licensing service and returns the appropriate gate set.
  */
 
 import type { FeatureGates } from '@shared/channels'
-import { FREE_GATES } from '@shared/feature-gates'
+import { FREE_GATES, PRO_GATES } from '@shared/feature-gates'
+import { getStatus } from './licensing.service'
 
 /**
  * Returns the feature gate set that matches the user's current licence status.
- *
- * Stub implementation: always returns `FREE_GATES` until the license-provider
- * licence validation service is connected in Step 34.
+ * Reads the cached licence tier from the licensing service — this is a
+ * synchronous read of the local cache, not a network call.
  *
  * @returns The active `FeatureGates` object for the current session.
  */
 export const getActiveGates = (): Readonly<FeatureGates> => {
-  // TODO (Step 34): read the cached licence tier from electron.safeStorage and
-  // return PRO_GATES when a valid Pro licence is present.
-  return FREE_GATES
+  const status = getStatus()
+  return status.valid && status.tier === 'pro' ? PRO_GATES : FREE_GATES
 }
 
 /**

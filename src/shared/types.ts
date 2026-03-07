@@ -185,6 +185,20 @@ export interface LicenseStatus {
   readonly lastValidatedAt: string
 }
 
+// ─── File Watcher Types ───────────────────────────────────────────────────────
+
+/**
+ * Payload sent to the renderer when a watched client config changes externally.
+ * Delivered via the `clients:config-changed` IPC event (not a `handle` channel).
+ */
+export interface ConfigChangedPayload {
+  readonly clientId: ClientId
+  readonly configPath: string
+  readonly added: readonly string[]
+  readonly removed: readonly string[]
+  readonly modified: readonly string[]
+}
+
 // ─── Sync / Result Types ──────────────────────────────────────────────────────
 
 /**
