@@ -179,6 +179,28 @@ export interface RegistryServer {
 }
 
 /**
+ * Result of an MCP server connection test (JSON-RPC initialize handshake).
+ */
+export interface TestResult {
+  readonly success: boolean
+  readonly message: string
+  readonly responseTimeMs?: number
+}
+
+/**
+ * A portable bundle of MCP servers and AI rules that can be exported and
+ * imported across machines. Secrets are never included in the bundle.
+ */
+export interface McpStack {
+  readonly name: string
+  readonly description: string
+  readonly version: string
+  readonly servers: readonly Omit<McpServer, 'id' | 'secretEnvKeys' | 'clientOverrides'>[]
+  readonly rules: readonly Omit<AiRule, 'id' | 'clientOverrides'>[]
+  readonly exportedAt: string
+}
+
+/**
  * Feature gates that control Pro-tier functionality.
  */
 export interface FeatureGates {
@@ -231,8 +253,16 @@ export interface IpcChannels {
   // Activity Log
   'log:query': (filters: LogFilters) => Promise<ActivityLogEntry[]>
 
-  // Registry search
+  // Servers — connection test
+  'servers:test': (id: string) => Promise<TestResult>
+
+  // Registry
   'registry:search': (query: string) => Promise<RegistryServer[]>
+  'registry:install': (qualifiedName: string) => Promise<McpServer>
+
+  // Stacks
+  'stacks:export': (serverIds: string[], ruleIds: string[], name: string) => Promise<string>
+  'stacks:import': (json: string) => Promise<ImportResult>
 
   // Licensing
   'license:activate': (key: string) => Promise<LicenseStatus>

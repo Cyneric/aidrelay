@@ -40,6 +40,8 @@ import type {
   ActivityLogEntry,
   LogFilters,
   FeatureGates,
+  RegistryServer,
+  TestResult,
 } from '../shared/channels'
 
 /**
@@ -404,6 +406,62 @@ const api = {
    * @returns Pull result with imported entity counts and conflict count.
    */
   gitSyncPull: (): Promise<GitPullResult> => ipcRenderer.invoke('git-sync:pull'),
+
+  // ── Registry ──────────────────────────────────────────────────────────────
+
+  /**
+   * Searches the Smithery registry for MCP servers matching the query.
+   * Returns an empty array if no API key is configured or the request fails.
+   *
+   * @param query - Free-text search string.
+   * @returns Matching registry server entries.
+   */
+  registrySearch: (query: string): Promise<RegistryServer[]> =>
+    ipcRenderer.invoke('registry:search', query),
+
+  /**
+   * Installs a registry server by its qualified name (Pro only).
+   * Creates a new MCP server entry using `npx -y <qualifiedName>`.
+   *
+   * @param qualifiedName - Smithery qualified name (e.g. `@anthropic/github-mcp`).
+   * @returns The newly created `McpServer` record.
+   */
+  registryInstall: (qualifiedName: string): Promise<McpServer> =>
+    ipcRenderer.invoke('registry:install', qualifiedName),
+
+  // ── Stacks ────────────────────────────────────────────────────────────────
+
+  /**
+   * Exports the selected servers and rules as a portable JSON stack string
+   * (Pro only). Secrets and machine-specific fields are stripped automatically.
+   *
+   * @param serverIds - IDs of the servers to include.
+   * @param ruleIds   - IDs of the rules to include.
+   * @param name      - Human-readable name for the exported stack.
+   * @returns JSON string representing the `McpStack` bundle.
+   */
+  stacksExport: (serverIds: string[], ruleIds: string[], name: string): Promise<string> =>
+    ipcRenderer.invoke('stacks:export', serverIds, ruleIds, name),
+
+  /**
+   * Imports servers and rules from a JSON stack string.
+   * Duplicate entries (matched by name) are silently skipped.
+   *
+   * @param json - The raw JSON string of a previously exported stack.
+   * @returns Import result with counts of imported, skipped, and errored entries.
+   */
+  stacksImport: (json: string): Promise<ImportResult> => ipcRenderer.invoke('stacks:import', json),
+
+  // ── Server testing ────────────────────────────────────────────────────────
+
+  /**
+   * Runs a JSON-RPC `initialize` handshake against a stdio MCP server (Pro only).
+   * The test process is spawned, probed, and killed automatically within 5 seconds.
+   *
+   * @param id - UUID of the server to test.
+   * @returns Test result describing success or failure with response time.
+   */
+  serversTest: (id: string): Promise<TestResult> => ipcRenderer.invoke('servers:test', id),
 
   // ── Push events (main → renderer) ─────────────────────────────────────────
 

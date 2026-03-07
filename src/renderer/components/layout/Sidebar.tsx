@@ -19,6 +19,8 @@ import {
   Layers,
   Activity,
   Settings,
+  Store,
+  Package,
 } from 'lucide-react'
 import { Link, useRouterState } from '@tanstack/react-router'
 import { cn } from '@/lib/utils'
@@ -31,6 +33,8 @@ const NAV_ITEMS = [
   { to: '/rules', label: 'Rules', icon: BookOpen },
   { to: '/clients', label: 'Clients', icon: Monitor },
   { to: '/profiles', label: 'Profiles', icon: Layers },
+  { to: '/registry', label: 'Registry', icon: Store },
+  { to: '/stacks', label: 'Stacks', icon: Package },
   { to: '/activity', label: 'Activity Log', icon: Activity },
 ] as const
 
