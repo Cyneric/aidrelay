@@ -2,7 +2,7 @@
  * @file src/main/ipc/servers.ipc.ts
  *
  * @created 07.03.2026
- * @modified 07.03.2026
+ * @modified 08.03.2026
  *
  * @author Christian Blank <christianblank91@protonmail.com>
  * @copyright 2026
@@ -14,13 +14,19 @@
 
 import { ipcMain } from 'electron'
 import log from 'electron-log'
-import type { McpServer } from '@shared/types'
-import type { CreateServerInput, UpdateServerInput, TestResult } from '@shared/channels'
+import type { McpServer, McpServerConfig, McpServerType } from '@shared/types'
+import type {
+  CreateServerInput,
+  UpdateServerInput,
+  TestResult,
+  ImportResult,
+} from '@shared/channels'
 import { getDatabase } from '@main/db/connection'
 import { ServersRepo } from '@main/db/servers.repo'
 import { ActivityLogRepo } from '@main/db/activity-log.repo'
 import { checkGate } from '@main/licensing/feature-gates'
 import { serverTester } from '@main/testing/server-tester.service'
+import { ADAPTERS, ADAPTER_IDS } from '@main/clients/registry'
 
 // ─── Service Factory ──────────────────────────────────────────────────────────
 
@@ -31,6 +37,39 @@ import { serverTester } from '@main/testing/server-tester.service'
 const createRepos = (): { servers: ServersRepo; log: ActivityLogRepo } => {
   const db = getDatabase()
   return { servers: new ServersRepo(db), log: new ActivityLogRepo(db) }
+}
+
+/**
+ * Converts a raw client config entry into CreateServerInput for registry import.
+ * Skips invalid entries (stdio without command, sse/http without url).
+ *
+ * @param name - Server name from the config map key.
+ * @param config - Raw config from the client's mcp.json.
+ * @returns CreateServerInput or null if the config is invalid.
+ */
+const configToCreateInput = (name: string, config: McpServerConfig): CreateServerInput | null => {
+  const type: McpServerType = config.type ?? 'stdio'
+  const command = config.command ?? ''
+
+  if (type === 'stdio' && !command.trim()) {
+    return null
+  }
+  if ((type === 'sse' || type === 'http') && !config.url?.trim()) {
+    return null
+  }
+
+  const input: CreateServerInput = {
+    name,
+    type,
+    command: command || 'fetch',
+    args: config.args ?? [],
+    env: config.env ?? {},
+    secretEnvKeys: [],
+    tags: ['imported'],
+    notes: 'Imported from client config',
+    ...(config.url?.trim() ? { url: config.url.trim() } : {}),
+  }
+  return input
 }
 
 // ─── Handler Registration ─────────────────────────────────────────────────────
@@ -101,6 +140,71 @@ export const registerServersIpc = (): void => {
       details: { serverName: server?.name ?? id },
       serverId: id,
     })
+  })
+
+  // ── servers:import-from-clients ────────────────────────────────────────────
+  ipcMain.handle('servers:import-from-clients', async (): Promise<ImportResult> => {
+    log.debug('[ipc] servers:import-from-clients')
+
+    const { servers, log: logRepo } = createRepos()
+    const existingNames = new Set(servers.findAll().map((s) => s.name))
+    const collected = new Map<string, McpServerConfig>()
+    const errors: string[] = []
+
+    for (const id of ADAPTER_IDS) {
+      const adapter = ADAPTERS.get(id)!
+      try {
+        const detection = await adapter.detect()
+        if (!detection.installed || detection.configPaths.length === 0) continue
+
+        const map = await adapter.read(detection.configPaths[0]!)
+        for (const [name, config] of Object.entries(map)) {
+          if (!collected.has(name)) {
+            collected.set(name, config)
+          }
+        }
+      } catch (err) {
+        errors.push(`${adapter.displayName}: ${String(err)}`)
+      }
+    }
+
+    let imported = 0
+    let skipped = 0
+    const maxServers = checkGate('maxServers')
+
+    for (const [name, config] of collected) {
+      if (existingNames.has(name)) {
+        skipped++
+        continue
+      }
+      if (servers.findAll().length >= maxServers) {
+        errors.push(`Server limit reached (${maxServers}). Skipped remaining imports.`)
+        break
+      }
+
+      const input = configToCreateInput(name, config)
+      if (!input) {
+        errors.push(`"${name}": invalid config (missing command or url)`)
+        continue
+      }
+
+      try {
+        servers.create(input)
+        existingNames.add(name)
+        imported++
+      } catch (err) {
+        errors.push(`"${name}": ${String(err)}`)
+      }
+    }
+
+    if (imported > 0) {
+      logRepo.insert({
+        action: 'servers.imported-from-clients',
+        details: { imported, skipped, errorCount: errors.length },
+      })
+    }
+
+    return { imported, skipped, errors }
   })
 
   // ── servers:test ──────────────────────────────────────────────────────────

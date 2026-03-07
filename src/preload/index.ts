@@ -2,7 +2,7 @@
  * @file src/preload/index.ts
  *
  * @created 07.03.2026
- * @modified 07.03.2026
+ * @modified 08.03.2026
  *
  * @author Christian Blank <christianblank91@protonmail.com>
  * @copyright 2026
@@ -136,6 +136,13 @@ const api = {
    * @param id - UUID of the server to delete.
    */
   serversDelete: (id: string): Promise<void> => ipcRenderer.invoke('servers:delete', id),
+
+  /**
+   * Imports servers from all installed clients' config files into the registry.
+   * Skips servers that already exist (by name). Returns counts and any errors.
+   */
+  serversImportFromClients: (): Promise<ImportResult> =>
+    ipcRenderer.invoke('servers:import-from-clients'),
 
   // ── Rules ─────────────────────────────────────────────────────────────────
 

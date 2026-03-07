@@ -2,7 +2,7 @@
  * @file src/shared/channels.ts
  *
  * @created 07.03.2026
- * @modified 07.03.2026
+ * @modified 08.03.2026
  *
  * @author Christian Blank <christianblank91@protonmail.com>
  * @copyright 2026
@@ -253,6 +253,7 @@ export interface IpcChannels {
   'servers:create': (server: CreateServerInput) => Promise<McpServer>
   'servers:update': (id: string, updates: UpdateServerInput) => Promise<McpServer>
   'servers:delete': (id: string) => Promise<void>
+  'servers:import-from-clients': () => Promise<ImportResult>
 
   // Secrets
   'secrets:set': (serverName: string, key: string, value: string) => Promise<void>
