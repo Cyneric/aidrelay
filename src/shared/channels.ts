@@ -100,8 +100,8 @@ export interface ActivityLogEntry {
   readonly timestamp: string
   readonly action: string
   readonly details: Readonly<Record<string, unknown>>
-  readonly clientId?: ClientId
-  readonly serverId?: string
+  readonly clientId?: ClientId | undefined
+  readonly serverId?: string | undefined
 }
 
 /**

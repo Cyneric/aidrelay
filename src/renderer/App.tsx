@@ -7,29 +7,101 @@
  * @author Christian Blank <aidrelay@proton.me>
  * @copyright 2026
  *
- * @description Root application component. Renders the top-level shell
- * layout and will host the router in subsequent phases. For now it displays
- * a placeholder that confirms the renderer loaded correctly.
+ * @description Root React component. Sets up the TanStack Router with a
+ * root route that renders the Shell layout and child routes for each page.
+ * Placeholder routes are used for pages not yet implemented so navigation
+ * links work end-to-end from the start.
  */
 
-/**
- * Root application component. This is a placeholder — the full layout with
- * sidebar navigation, TanStack Router, and all pages gets built in Phase 1
- * step 10 onwards.
- */
-export const App = () => {
-  return (
-    <div
-      className="flex h-screen w-screen flex-col items-center justify-center bg-background text-foreground"
-      data-testid="app-root"
-    >
-      <main className="flex flex-col items-center gap-4 text-center">
-        <h1 className="text-4xl font-bold tracking-tight">aidrelay</h1>
-        <p className="text-muted-foreground text-lg">AI Developer Relay</p>
-        <p className="text-muted-foreground text-sm">
-          Phase 1 scaffold complete — renderer loaded successfully.
-        </p>
-      </main>
-    </div>
-  )
+import { RouterProvider, createRouter, createRootRoute, createRoute } from '@tanstack/react-router'
+import { Shell } from '@/components/layout/Shell'
+import { DashboardPage } from '@/pages/DashboardPage'
+
+// ─── Routes ───────────────────────────────────────────────────────────────────
+
+/** Placeholder component for pages that are not yet implemented. */
+const PlaceholderPage = ({ title }: { title: string }) => (
+  <section aria-labelledby="placeholder-heading" className="flex flex-col gap-2">
+    <h1 id="placeholder-heading" className="text-2xl font-bold tracking-tight">
+      {title}
+    </h1>
+    <p className="text-sm text-muted-foreground">
+      Coming soon — this page will be built out in a future phase.
+    </p>
+  </section>
+)
+
+const rootRoute = createRootRoute({ component: Shell })
+
+const indexRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/',
+  component: DashboardPage,
+})
+
+const serversRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/servers',
+  component: () => <PlaceholderPage title="Servers" />,
+})
+
+const rulesRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/rules',
+  component: () => <PlaceholderPage title="Rules" />,
+})
+
+const clientsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/clients',
+  component: () => <PlaceholderPage title="Clients" />,
+})
+
+const profilesRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/profiles',
+  component: () => <PlaceholderPage title="Profiles" />,
+})
+
+const activityRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/activity',
+  component: () => <PlaceholderPage title="Activity Log" />,
+})
+
+const settingsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/settings',
+  component: () => <PlaceholderPage title="Settings" />,
+})
+
+const routeTree = rootRoute.addChildren([
+  indexRoute,
+  serversRoute,
+  rulesRoute,
+  clientsRoute,
+  profilesRoute,
+  activityRoute,
+  settingsRoute,
+])
+
+// ─── Router ───────────────────────────────────────────────────────────────────
+
+const router = createRouter({ routeTree })
+
+// Register the router's type for TypeScript inference across the app
+declare module '@tanstack/react-router' {
+  interface Register {
+    router: typeof router
+  }
 }
+
+// ─── Component ────────────────────────────────────────────────────────────────
+
+/**
+ * Root component rendered by `src/renderer/main.tsx`.
+ * Wraps the entire app in the TanStack Router provider.
+ */
+const App = () => <RouterProvider router={router} />
+
+export { App }
