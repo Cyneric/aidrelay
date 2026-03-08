@@ -28,6 +28,14 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useClientsStore } from '@/stores/clients.store'
 import type { ClientStatus } from '@shared/types'
@@ -66,7 +74,7 @@ const ClientRow = ({ client, syncing, validating, onSync, onValidate }: Readonly
   const StatusIcon = meta.icon
 
   return (
-    <tr
+    <TableRow
       className={cn(
         'border-b last:border-b-0 transition-colors',
         !client.installed && 'opacity-50',
@@ -74,7 +82,7 @@ const ClientRow = ({ client, syncing, validating, onSync, onValidate }: Readonly
       data-testid={`client-row-${client.id}`}
     >
       {/* Name + install badge */}
-      <td className="px-4 py-3">
+      <TableCell className="px-4 py-3">
         <div className="flex flex-col gap-0.5">
           <span className="text-sm font-medium">{client.displayName}</span>
           <span
@@ -87,10 +95,10 @@ const ClientRow = ({ client, syncing, validating, onSync, onValidate }: Readonly
             {client.installed ? 'Installed' : 'Not installed'}
           </span>
         </div>
-      </td>
+      </TableCell>
 
       {/* Config paths */}
-      <td className="px-4 py-3 max-w-xs">
+      <TableCell className="px-4 py-3 max-w-xs">
         {client.configPaths.length === 0 ? (
           <span className="text-xs text-muted-foreground">—</span>
         ) : (
@@ -107,17 +115,17 @@ const ClientRow = ({ client, syncing, validating, onSync, onValidate }: Readonly
             ))}
           </ul>
         )}
-      </td>
+      </TableCell>
 
       {/* Servers */}
-      <td className="px-4 py-3 text-center">
+      <TableCell className="px-4 py-3 text-center">
         <span className="text-sm" data-testid={`client-server-count-${client.id}`}>
           {client.serverCount}
         </span>
-      </td>
+      </TableCell>
 
       {/* Sync status */}
-      <td className="px-4 py-3">
+      <TableCell className="px-4 py-3">
         <span
           className={cn('inline-flex items-center gap-1 text-xs font-medium', meta.className)}
           data-testid={`client-sync-status-${client.id}`}
@@ -125,17 +133,17 @@ const ClientRow = ({ client, syncing, validating, onSync, onValidate }: Readonly
           <StatusIcon size={13} aria-hidden="true" />
           {meta.label}
         </span>
-      </td>
+      </TableCell>
 
       {/* Last synced */}
-      <td className="px-4 py-3">
+      <TableCell className="px-4 py-3">
         <span className="text-xs text-muted-foreground">
           {client.lastSyncedAt ? new Date(client.lastSyncedAt).toLocaleString() : '—'}
         </span>
-      </td>
+      </TableCell>
 
       {/* Actions */}
-      <td className="px-4 py-3">
+      <TableCell className="px-4 py-3">
         <div className="flex items-center gap-2">
           <Tooltip>
             <TooltipTrigger asChild>
@@ -178,8 +186,8 @@ const ClientRow = ({ client, syncing, validating, onSync, onValidate }: Readonly
             <TooltipContent>Check the config file for schema errors</TooltipContent>
           </Tooltip>
         </div>
-      </td>
-    </tr>
+      </TableCell>
+    </TableRow>
   )
 }
 
@@ -273,40 +281,40 @@ const ClientsPage = () => {
       </div>
 
       <div className="rounded-lg border overflow-hidden">
-        <table className="w-full text-sm" data-testid="clients-table">
-          <thead className="border-b bg-muted/50">
-            <tr>
-              <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">
+        <Table className="w-full text-sm" data-testid="clients-table">
+          <TableHeader className="border-b bg-muted/50">
+            <TableRow>
+              <TableHead className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">
                 Client
-              </th>
-              <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">
+              </TableHead>
+              <TableHead className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">
                 Config path
-              </th>
-              <th className="px-4 py-2.5 text-center text-xs font-medium text-muted-foreground">
+              </TableHead>
+              <TableHead className="px-4 py-2.5 text-center text-xs font-medium text-muted-foreground">
                 Servers
-              </th>
-              <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">
+              </TableHead>
+              <TableHead className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">
                 Status
-              </th>
-              <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">
+              </TableHead>
+              <TableHead className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">
                 Last synced
-              </th>
-              <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">
+              </TableHead>
+              <TableHead className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">
                 Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody>
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {loading && clients.length === 0
               ? Array.from({ length: 4 }).map((_, i) => (
-                  <tr key={i} className="border-b last:border-b-0">
-                    <td colSpan={6} className="px-4 py-3">
+                  <TableRow key={i} className="border-b last:border-b-0">
+                    <TableCell colSpan={6} className="px-4 py-3">
                       <div
                         className="h-4 w-full animate-pulse rounded bg-muted"
                         aria-hidden="true"
                       />
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))
               : clients.map((client) => (
                   <ClientRow
@@ -318,8 +326,8 @@ const ClientsPage = () => {
                     onValidate={(id) => void handleValidate(id)}
                   />
                 ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
     </main>
   )

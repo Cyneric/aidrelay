@@ -17,10 +17,29 @@ import '@testing-library/jest-dom'
 // Stub the window.api bridge that the preload script normally exposes.
 // Individual tests can override specific methods as needed.
 Object.defineProperty(window, 'api', {
-  value: {},
+  value: {
+    settingsGet: () => Promise.resolve(undefined),
+    settingsSet: () => Promise.resolve(),
+  },
   writable: true,
   configurable: true,
 })
+
+// useTheme and other components rely on matchMedia for prefers-color-scheme.
+// jsdom does not implement it, so we stub it with a no-op that returns false (light).
+if (typeof window.matchMedia === 'undefined') {
+  window.matchMedia = () =>
+    ({
+      matches: false,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => false,
+      media: '',
+      onchange: null,
+    }) as MediaQueryList
+}
 
 // Radix UI uses ResizeObserver to measure popper/tooltip content dimensions.
 // jsdom does not implement it, so we stub it with a no-op.

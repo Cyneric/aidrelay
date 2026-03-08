@@ -184,10 +184,12 @@ const ProfileForm = ({
           {PRESET_COLORS.map((c) => (
             <Tooltip key={c}>
               <TooltipTrigger asChild>
-                <button
+                <Button
                   type="button"
+                  variant="ghost"
+                  size="icon"
                   onClick={() => setValue('color', c)}
-                  className="w-6 h-6 rounded-full ring-offset-background transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  className="w-6 h-6 rounded-full p-0"
                   style={{
                     backgroundColor: c,
                     boxShadow:
@@ -203,10 +205,10 @@ const ProfileForm = ({
           ))}
           <Tooltip>
             <TooltipTrigger asChild>
-              <input
+              <Input
                 type="color"
                 {...register('color')}
-                className="w-8 h-8 rounded cursor-pointer border-0 bg-transparent focus-visible:ring-2 focus-visible:ring-ring"
+                className="w-8 h-8 rounded cursor-pointer border-0 bg-transparent p-0 h-8 focus-visible:ring-2 focus-visible:ring-ring"
                 aria-label="Custom colour"
                 data-testid="color-picker"
               />

@@ -15,6 +15,7 @@
 import { RefreshCw, CheckCircle2, AlertCircle, Clock, XCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { ClientStatus } from '@shared/types'
 
@@ -69,15 +70,11 @@ const ClientCard = ({ client, onSync, syncing = false }: ClientCardProps) => {
   const StatusIcon = statusMeta.icon
 
   return (
-    <article
-      className={cn(
-        'rounded-lg border bg-card p-5 flex flex-col gap-4 transition-opacity',
-        !client.installed && 'opacity-50',
-      )}
+    <Card
+      className={cn('transition-opacity', !client.installed && 'opacity-50')}
       data-testid={`client-card-${client.id}`}
     >
-      {/* Header */}
-      <header className="flex items-start justify-between gap-2">
+      <CardHeader className="flex flex-row items-start justify-between gap-2 space-y-0 pb-2">
         <div>
           <h3 className="font-semibold text-sm leading-none">{client.displayName}</h3>
           <span
@@ -103,15 +100,18 @@ const ClientCard = ({ client, onSync, syncing = false }: ClientCardProps) => {
           </TooltipTrigger>
           <TooltipContent>{statusMeta.label} — last checked at app startup</TooltipContent>
         </Tooltip>
-      </header>
+      </CardHeader>
 
-      {/* Server count */}
-      <p className="text-sm text-muted-foreground" data-testid={`client-server-count-${client.id}`}>
-        {client.serverCount === 1 ? '1 server' : `${client.serverCount} servers`}
-      </p>
+      <CardContent className="py-0">
+        <p
+          className="text-sm text-muted-foreground"
+          data-testid={`client-server-count-${client.id}`}
+        >
+          {client.serverCount === 1 ? '1 server' : `${client.serverCount} servers`}
+        </p>
+      </CardContent>
 
-      {/* Sync button */}
-      <footer>
+      <CardFooter>
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
@@ -133,8 +133,8 @@ const ClientCard = ({ client, onSync, syncing = false }: ClientCardProps) => {
               : `Write active profile servers and rules to ${client.displayName} config`}
           </TooltipContent>
         </Tooltip>
-      </footer>
-    </article>
+      </CardFooter>
+    </Card>
   )
 }
 

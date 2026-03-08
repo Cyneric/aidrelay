@@ -164,6 +164,12 @@
     "inactive": "No active license",
     "upgradeCta": "Upgrade to Pro"
   },
+  "theme": {
+    "toggleLabel": "Toggle theme",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System"
+  },
   "common": {
     "save": "Save",
     "cancel": "Cancel",

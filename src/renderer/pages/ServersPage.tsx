@@ -38,7 +38,16 @@ import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { ServerEditor } from '@/components/servers/ServerEditor'
 import { ToggleMatrix } from '@/components/servers/ToggleMatrix'
@@ -167,12 +176,10 @@ const ServersPage = () => {
       size: 48,
       cell: ({ row }) => (
         <div className="flex justify-center">
-          <input
-            type="checkbox"
+          <Checkbox
             checked={row.original.enabled}
-            onChange={() => void toggleEnabled(row.original.id)}
+            onCheckedChange={() => void toggleEnabled(row.original.id)}
             aria-label={`${row.original.enabled ? 'Disable' : 'Enable'} ${row.original.name}`}
-            className="h-4 w-4 cursor-pointer accent-primary"
             data-testid={`server-enabled-${row.original.id}`}
           />
         </div>
@@ -445,12 +452,12 @@ const ServersPage = () => {
               </div>
             </div>
           ) : (
-            <table className="w-full text-sm" data-testid="servers-table">
-              <thead className="bg-muted/50">
+            <Table className="w-full text-sm" data-testid="servers-table">
+              <TableHeader className="bg-muted/50">
                 {table.getHeaderGroups().map((headerGroup) => (
-                  <tr key={headerGroup.id}>
+                  <TableRow key={headerGroup.id}>
                     {headerGroup.headers.map((header) => (
-                      <th
+                      <TableHead
                         key={header.id}
                         scope="col"
                         style={{ width: header.getSize() !== 150 ? header.getSize() : undefined }}
@@ -459,27 +466,27 @@ const ServersPage = () => {
                         {header.isPlaceholder
                           ? null
                           : flexRender(header.column.columnDef.header, header.getContext())}
-                      </th>
+                      </TableHead>
                     ))}
-                  </tr>
+                  </TableRow>
                 ))}
-              </thead>
-              <tbody className="divide-y divide-border">
+              </TableHeader>
+              <TableBody className="divide-y divide-border">
                 {table.getRowModel().rows.map((row) => (
-                  <tr
+                  <TableRow
                     key={row.id}
                     className="hover:bg-muted/30 transition-colors"
                     data-testid={`server-row-${row.original.id}`}
                   >
                     {row.getVisibleCells().map((cell) => (
-                      <td key={cell.id} className="px-4 py-3">
+                      <TableCell key={cell.id} className="px-4 py-3">
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </td>
+                      </TableCell>
                     ))}
-                  </tr>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           )}
         </div>
 

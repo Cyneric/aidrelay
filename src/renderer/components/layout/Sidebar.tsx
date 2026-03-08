@@ -23,6 +23,7 @@ import {
   Package,
   History,
 } from 'lucide-react'
+import { ThemeToggle } from '@/components/theme/ThemeToggle'
 import { Link, useRouterState } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
@@ -118,8 +119,11 @@ const Sidebar = () => {
         </ul>
       </nav>
 
-      {/* Settings (pinned to bottom) */}
-      <div className="px-2 py-3 border-t">
+      {/* Theme + Settings (pinned to bottom) */}
+      <div className="px-2 py-3 border-t space-y-1">
+        <div className="px-3 py-1">
+          <ThemeToggle compact data-testid="sidebar-theme-toggle" />
+        </div>
         <Link
           to="/settings"
           className={cn(

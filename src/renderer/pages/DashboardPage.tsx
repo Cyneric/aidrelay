@@ -17,6 +17,8 @@ import { RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import { CardGrid } from '@/components/ui/card-grid'
 import { ClientCard } from '@/components/clients/ClientCard'
 import { useClientsStore } from '@/stores/clients.store'
 import type { ClientStatus, ConfigChangedPayload } from '@shared/types'
@@ -95,28 +97,16 @@ const DashboardPage = () => {
 
       {/* Loading skeleton */}
       {loading && clients.length === 0 && (
-        <div
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
-          aria-busy="true"
-          aria-label="Loading clients"
-          data-testid="clients-skeleton"
-        >
+        <CardGrid aria-busy="true" aria-label="Loading clients" data-testid="clients-skeleton">
           {Array.from({ length: 3 }).map((_, i) => (
-            <div
-              key={i}
-              className="rounded-lg border bg-card p-5 h-36 animate-pulse bg-muted"
-              aria-hidden="true"
-            />
+            <Card key={i} className="h-36 animate-pulse bg-muted" aria-hidden="true" />
           ))}
-        </div>
+        </CardGrid>
       )}
 
       {/* Client cards */}
       {!loading || clients.length > 0 ? (
-        <div
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
-          data-testid="clients-grid"
-        >
+        <CardGrid data-testid="clients-grid">
           {clients.map((client) => (
             <ClientCard
               key={client.id}
@@ -125,7 +115,7 @@ const DashboardPage = () => {
               syncing={syncingId === client.id}
             />
           ))}
-        </div>
+        </CardGrid>
       ) : null}
     </section>
   )

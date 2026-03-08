@@ -17,6 +17,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import { CardGrid } from '@/components/ui/card-grid'
 import { ProfileCard } from '@/components/profiles/ProfileCard'
 import { ProfileEditor } from '@/components/profiles/ProfileEditor'
 import { ProfileDiffView } from '@/components/profiles/ProfileDiffView'
@@ -160,10 +161,7 @@ const ProfilesPage = () => {
 
       {/* Card grid */}
       {profiles.length > 0 && (
-        <div
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
-          data-testid="profiles-grid"
-        >
+        <CardGrid data-testid="profiles-grid">
           {profiles.map((profile) => (
             <ProfileCard
               key={profile.id}
@@ -175,7 +173,7 @@ const ProfilesPage = () => {
               }}
             />
           ))}
-        </div>
+        </CardGrid>
       )}
 
       {/* Profile editor drawer */}

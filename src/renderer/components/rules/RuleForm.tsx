@@ -19,8 +19,10 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import {
   Select,
   SelectContent,
@@ -247,20 +249,29 @@ const RuleForm = ({ defaultValues, onSubmit, onCancel, saving = false }: RuleFor
       <div className="flex flex-col gap-1.5">
         <fieldset>
           <legend className="text-sm font-medium mb-2">Scope</legend>
-          <div className="flex gap-4">
-            {(['global', 'project'] as const).map((s) => (
-              <label key={s} className="flex items-center gap-2 cursor-pointer text-sm">
-                <input
-                  type="radio"
-                  value={s}
-                  {...register('scope')}
-                  className="accent-primary"
-                  data-testid={`rule-scope-${s}`}
-                />
-                <span className="capitalize">{s}</span>
-              </label>
-            ))}
-          </div>
+          <Controller
+            control={control}
+            name="scope"
+            render={({ field }) => (
+              <RadioGroup value={field.value} onValueChange={field.onChange} className="flex gap-4">
+                {(['global', 'project'] as const).map((s) => (
+                  <div key={s} className="flex items-center gap-2">
+                    <RadioGroupItem
+                      value={s}
+                      id={`rule-scope-${s}`}
+                      data-testid={`rule-scope-${s}`}
+                    />
+                    <Label
+                      htmlFor={`rule-scope-${s}`}
+                      className="cursor-pointer text-sm font-normal capitalize"
+                    >
+                      {s}
+                    </Label>
+                  </div>
+                ))}
+              </RadioGroup>
+            )}
+          />
         </fieldset>
       </div>
 
@@ -339,15 +350,24 @@ const RuleForm = ({ defaultValues, onSubmit, onCancel, saving = false }: RuleFor
       </div>
 
       {/* Always apply toggle */}
-      <label className="flex items-center gap-2.5 cursor-pointer text-sm">
-        <input
-          type="checkbox"
-          {...register('alwaysApply')}
-          className="h-4 w-4 accent-primary"
-          data-testid="rule-always-apply-checkbox"
-        />
-        <span>Always apply (Cursor: always include in context regardless of file match)</span>
-      </label>
+      <Controller
+        control={control}
+        name="alwaysApply"
+        render={({ field }) => (
+          <Label
+            htmlFor="rule-always-apply-checkbox"
+            className="flex items-center gap-2.5 cursor-pointer text-sm"
+          >
+            <Checkbox
+              id="rule-always-apply-checkbox"
+              checked={field.value}
+              onCheckedChange={(v) => field.onChange(v === true)}
+              data-testid="rule-always-apply-checkbox"
+            />
+            <span>Always apply (Cursor: always include in context regardless of file match)</span>
+          </Label>
+        )}
+      />
 
       {/* Tags */}
       <div className="flex flex-col gap-1.5">
