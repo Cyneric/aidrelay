@@ -2,7 +2,7 @@
  * @file src/renderer/components/rules/ScopeToggle.tsx
  *
  * @created 07.03.2026
- * @modified 07.03.2026
+ * @modified 08.03.2026
  *
  * @author Christian Blank <christianblank91@protonmail.com>
  * @copyright 2026
@@ -15,6 +15,10 @@
  */
 
 import { FolderOpen } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { cn } from '@/lib/utils'
 import type { RuleScope } from '@shared/types'
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -61,58 +65,64 @@ const ScopeToggle = ({
         aria-label="Rule scope"
         className="inline-flex rounded-md border border-input overflow-hidden text-sm"
       >
-        <button
+        <Button
           type="button"
           role="radio"
           aria-checked={scope === 'global'}
           onClick={() => onScopeChange('global')}
-          className={`px-3 py-1.5 transition-colors ${
-            scope === 'global'
-              ? 'bg-primary text-primary-foreground'
-              : 'bg-background text-muted-foreground hover:bg-muted'
-          }`}
+          variant={scope === 'global' ? 'default' : 'ghost'}
+          size="sm"
+          className={cn('rounded-none', scope !== 'global' && 'text-muted-foreground')}
           data-testid="scope-global"
         >
           Global rules
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
           role="radio"
           aria-checked={scope === 'project'}
           onClick={() => onScopeChange('project')}
-          className={`px-3 py-1.5 border-l border-input transition-colors ${
-            scope === 'project'
-              ? 'bg-primary text-primary-foreground'
-              : 'bg-background text-muted-foreground hover:bg-muted'
-          }`}
+          variant={scope === 'project' ? 'default' : 'ghost'}
+          size="sm"
+          className={cn(
+            'rounded-none border-l border-input',
+            scope !== 'project' && 'text-muted-foreground',
+          )}
           data-testid="scope-project"
         >
           Project rules
-        </button>
+        </Button>
       </div>
 
       {/* Project path picker — only visible in project scope */}
       {scope === 'project' && (
         <div className="flex items-center gap-2">
-          <input
+          <Input
             type="text"
             value={projectPath}
             onChange={(e) => onProjectPathChange(e.target.value)}
             placeholder="C:\dev\my-project"
-            className="flex-1 max-w-sm rounded-md border border-input bg-background px-3 py-1.5 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-ring"
+            className="flex-1 max-w-sm font-mono text-xs"
             aria-label="Project directory path"
             data-testid="scope-project-path"
           />
-          <button
-            type="button"
-            onClick={() => void handleBrowse()}
-            className="inline-flex items-center gap-1.5 rounded-md border border-input px-2.5 py-1.5 text-xs hover:bg-accent transition-colors"
-            aria-label="Browse for project directory"
-            data-testid="scope-project-browse"
-          >
-            <FolderOpen size={12} aria-hidden="true" />
-            Browse
-          </button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => void handleBrowse()}
+                className="gap-1.5"
+                aria-label="Browse for project directory"
+                data-testid="scope-project-browse"
+              >
+                <FolderOpen size={12} aria-hidden="true" />
+                Browse
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Browse for project directory</TooltipContent>
+          </Tooltip>
         </div>
       )}
     </div>

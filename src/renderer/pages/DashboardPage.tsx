@@ -2,7 +2,7 @@
  * @file src/renderer/pages/DashboardPage.tsx
  *
  * @created 07.03.2026
- * @modified 07.03.2026
+ * @modified 08.03.2026
  *
  * @author Christian Blank <christianblank91@protonmail.com>
  * @copyright 2026
@@ -16,6 +16,7 @@ import { useEffect, useState } from 'react'
 import { RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
+import { Button } from '@/components/ui/button'
 import { ClientCard } from '@/components/clients/ClientCard'
 import { useClientsStore } from '@/stores/clients.store'
 import type { ClientStatus, ConfigChangedPayload } from '@shared/types'
@@ -67,17 +68,18 @@ const DashboardPage = () => {
           <p className="text-sm text-muted-foreground mt-1">{t('dashboard.subtitle')}</p>
         </div>
 
-        <button
+        <Button
           type="button"
+          variant="outline"
           onClick={() => void detectAll()}
           disabled={loading}
-          className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium border hover:bg-accent transition-colors disabled:opacity-50"
+          className="gap-1.5"
           aria-label="Refresh client detection"
           data-testid="detect-all-button"
         >
           <RefreshCw size={14} className={loading ? 'animate-spin' : ''} aria-hidden="true" />
           {loading ? t('common.loading') : 'Refresh'}
-        </button>
+        </Button>
       </header>
 
       {/* Error state */}

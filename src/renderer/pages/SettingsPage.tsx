@@ -2,7 +2,7 @@
  * @file src/renderer/pages/SettingsPage.tsx
  *
  * @created 07.03.2026
- * @modified 07.03.2026
+ * @modified 08.03.2026
  *
  * @author Christian Blank <christianblank91@protonmail.com>
  * @copyright 2026
@@ -20,6 +20,16 @@ import { z } from 'zod'
 import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
 import { Save, RotateCcw, Key, Globe, Info, Download } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { useLicense } from '@/lib/useLicense'
 
 // ─── Validation Schemas ───────────────────────────────────────────────────────
@@ -103,14 +113,15 @@ const LicensingSection = () => {
               </span>
             )}
           </div>
-          <button
+          <Button
             type="button"
+            variant="link"
             onClick={() => void deactivate()}
-            className="text-sm text-destructive underline hover:no-underline"
+            className="h-auto p-0 text-sm text-destructive underline hover:no-underline"
             data-testid="btn-deactivate-license"
           >
             Deactivate license
-          </button>
+          </Button>
         </div>
       ) : (
         <form
@@ -119,11 +130,10 @@ const LicensingSection = () => {
           data-testid="license-form"
         >
           <div className="flex-1">
-            <input
+            <Input
               {...register('licenseKey')}
               type="text"
               placeholder="XXXX-XXXX-XXXX-XXXX"
-              className="w-full rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
               aria-label="License key"
               data-testid="input-license-key"
             />
@@ -133,14 +143,9 @@ const LicensingSection = () => {
               </p>
             )}
           </div>
-          <button
-            type="submit"
-            disabled={activating}
-            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-            data-testid="btn-activate-license"
-          >
+          <Button type="submit" disabled={activating} data-testid="btn-activate-license">
             {activating ? 'Activating…' : 'Activate'}
-          </button>
+          </Button>
         </form>
       )}
       <p className="mt-3 text-xs text-muted-foreground">
@@ -196,15 +201,14 @@ const GitRemoteSection = () => {
     >
       <form onSubmit={(e) => void onSave(e)} className="space-y-3" data-testid="git-remote-form">
         <div>
-          <label htmlFor="remote-url" className="block text-sm font-medium mb-1">
+          <Label htmlFor="remote-url" className="block mb-1">
             Remote URL
-          </label>
-          <input
+          </Label>
+          <Input
             id="remote-url"
             {...register('remoteUrl')}
             type="url"
             placeholder="https://github.com/you/aidrelay-sync.git"
-            className="w-full rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
             data-testid="input-remote-url"
           />
           {errors.remoteUrl && (
@@ -215,7 +219,7 @@ const GitRemoteSection = () => {
         </div>
 
         <div>
-          <label className="block text-sm font-medium mb-1">Auth Method</label>
+          <span className="block text-sm font-medium mb-1">Auth Method</span>
           <div className="flex gap-4">
             <label className="flex items-center gap-2 text-sm cursor-pointer">
               <input {...register('authMethod')} type="radio" value="ssh" />
@@ -230,31 +234,28 @@ const GitRemoteSection = () => {
 
         {authMethod === 'https-token' && (
           <div>
-            <label htmlFor="https-token" className="block text-sm font-medium mb-1">
+            <Label htmlFor="https-token" className="block mb-1">
               Personal Access Token
-            </label>
-            <input
+            </Label>
+            <Input
               id="https-token"
               {...register('httpsToken')}
               type="password"
               placeholder="ghp_…"
-              className="w-full rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
               data-testid="input-https-token"
             />
           </div>
         )}
 
-        <div className="flex gap-2">
-          <button
-            type="submit"
-            disabled={!isDirty}
-            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-            data-testid="btn-save-git-remote"
-          >
-            <Save size={14} aria-hidden="true" />
-            Save
-          </button>
-        </div>
+        <Button
+          type="submit"
+          disabled={!isDirty}
+          className="gap-1.5"
+          data-testid="btn-save-git-remote"
+        >
+          <Save size={14} aria-hidden="true" />
+          Save
+        </Button>
       </form>
     </Section>
   )
@@ -284,19 +285,18 @@ const GeneralSection = () => {
       icon={Globe}
     >
       <div>
-        <label htmlFor="language-select" className="block text-sm font-medium mb-1">
+        <Label htmlFor="language-select" className="block mb-1">
           Interface language
-        </label>
-        <select
-          id="language-select"
-          value={language}
-          onChange={(e) => void saveLanguage(e.target.value)}
-          className="rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-          data-testid="select-language"
-        >
-          <option value="en">English</option>
-          <option value="de">Deutsch</option>
-        </select>
+        </Label>
+        <Select value={language} onValueChange={(v) => void saveLanguage(v)}>
+          <SelectTrigger id="language-select" className="w-40" data-testid="select-language">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="en">English</SelectItem>
+            <SelectItem value="de">Deutsch</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
     </Section>
   )
@@ -364,29 +364,32 @@ const AboutSection = () => {
             <p className="text-green-600 dark:text-green-400">
               Update v{updateVersion} ready to install
             </p>
-            <button
+            <Button
               type="button"
+              size="sm"
               onClick={() => void handleInstall()}
-              className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+              className="gap-1.5"
               data-testid="btn-install-update"
             >
               <Download size={12} aria-hidden="true" />
               Restart &amp; Install
-            </button>
+            </Button>
           </div>
         )}
 
         {!updateAvailable && !downloaded && (
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
             onClick={() => void handleCheckUpdates()}
             disabled={checking}
-            className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm hover:bg-accent disabled:opacity-50"
+            className="gap-1.5"
             data-testid="btn-check-updates"
           >
             <RotateCcw size={14} aria-hidden="true" />
             {checking ? 'Checking…' : 'Check for updates'}
-          </button>
+          </Button>
         )}
       </div>
     </Section>

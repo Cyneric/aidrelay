@@ -2,7 +2,7 @@
  * @file src/renderer/components/stacks/StackImporter.tsx
  *
  * @created 07.03.2026
- * @modified 07.03.2026
+ * @modified 08.03.2026
  *
  * @author Christian Blank <christianblank91@protonmail.com>
  * @copyright 2026
@@ -16,6 +16,9 @@
 import { useState, useCallback, useRef, type ChangeEvent } from 'react'
 import { Upload } from 'lucide-react'
 import { toast } from 'sonner'
+import { Button } from '@/components/ui/button'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import { useServersStore } from '@/stores/servers.store'
 import { useRulesStore } from '@/stores/rules.store'
 import type { ImportResult } from '@shared/channels'
@@ -114,29 +117,27 @@ const StackImporter = () => {
 
       {/* Paste JSON */}
       <div className="flex flex-col gap-1.5">
-        <label htmlFor="stack-paste" className="text-sm font-medium">
-          Paste JSON
-        </label>
-        <textarea
+        <Label htmlFor="stack-paste">Paste JSON</Label>
+        <Textarea
           id="stack-paste"
           value={pastedJson}
           onChange={(e) => setPastedJson(e.target.value)}
           placeholder='{ "name": "My Stack", "servers": [...], "rules": [...] }'
           rows={6}
-          className="w-full rounded-md border border-input bg-background px-3 py-2 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-ring resize-y disabled:opacity-50"
+          className="font-mono text-xs resize-y"
           disabled={importing}
           data-testid="stack-paste-input"
         />
-        <button
+        <Button
           type="button"
           onClick={() => void handlePasteImport()}
           disabled={importing || pastedJson.trim().length === 0}
-          className="inline-flex items-center gap-1.5 self-start rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="self-start gap-1.5"
           data-testid="stack-import-button"
         >
           <Upload size={14} aria-hidden="true" />
           {importing ? 'Importing…' : 'Import'}
-        </button>
+        </Button>
       </div>
 
       {/* Result summary */}

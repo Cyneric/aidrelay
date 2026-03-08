@@ -2,7 +2,7 @@
  * @file src/renderer/components/rules/RuleEditor.tsx
  *
  * @created 07.03.2026
- * @modified 07.03.2026
+ * @modified 08.03.2026
  *
  * @author Christian Blank <christianblank91@protonmail.com>
  * @copyright 2026
@@ -18,6 +18,8 @@ import { useState, useCallback } from 'react'
 import { X } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { RuleForm } from './RuleForm'
 import { RuleMarkdownEditor } from './RuleMarkdownEditor'
 import { useRulesStore } from '@/stores/rules.store'
@@ -124,15 +126,21 @@ const RuleEditor = ({ rule, onClose }: RuleEditorProps) => {
               </span>
             )}
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-1.5 text-muted-foreground hover:text-foreground rounded transition-colors"
-            aria-label="Close editor"
-            data-testid="rule-editor-close"
-          >
-            <X size={18} />
-          </button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={onClose}
+                aria-label="Close editor"
+                data-testid="rule-editor-close"
+              >
+                <X size={18} />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Close</TooltipContent>
+          </Tooltip>
         </header>
 
         {/* Tab bar */}
@@ -176,22 +184,21 @@ const RuleEditor = ({ rule, onClose }: RuleEditorProps) => {
         {/* Content tab footer actions */}
         {activeTab === 'content' && (
           <footer className="flex justify-end gap-2 px-6 py-4 border-t border-border">
-            <button
+            <Button
               type="button"
+              variant="outline"
               onClick={onClose}
-              className="rounded-md px-4 py-2 text-sm border border-input hover:bg-accent transition-colors"
               data-testid="rule-editor-content-cancel"
             >
               Cancel
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
               onClick={() => setActiveTab('details')}
-              className="rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium hover:bg-primary/90 transition-colors"
               data-testid="rule-editor-content-next"
             >
               {rule ? 'Save changes' : 'Continue to details →'}
-            </button>
+            </Button>
           </footer>
         )}
       </aside>

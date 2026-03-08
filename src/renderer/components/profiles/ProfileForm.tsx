@@ -12,9 +12,20 @@
  * color (preset swatches + native color picker), and optional parent profile.
  */
 
-import { useForm } from 'react-hook-form'
+import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { Profile } from '@shared/types'
 import type { CreateProfileInput } from '@shared/channels'
 
@@ -29,6 +40,8 @@ const profileSchema = z.object({
 })
 
 type ProfileFormValues = z.infer<typeof profileSchema>
+
+const NONE_PROFILE_VALUE = '__none__' as const
 
 // ─── Preset colours ───────────────────────────────────────────────────────────
 
@@ -74,6 +87,7 @@ const ProfileForm = ({
     handleSubmit,
     watch,
     setValue,
+    control,
     formState: { errors },
   } = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
@@ -109,18 +123,17 @@ const ProfileForm = ({
     >
       {/* Name */}
       <div className="flex flex-col gap-1.5">
-        <label htmlFor="profile-name" className="text-sm font-medium">
+        <Label htmlFor="profile-name">
           Name{' '}
           <span aria-hidden="true" className="text-destructive">
             *
           </span>
-        </label>
-        <input
+        </Label>
+        <Input
           id="profile-name"
           type="text"
           {...register('name')}
           placeholder="Work mode"
-          className="rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
           data-testid="profile-name-input"
           aria-invalid={!!errors.name}
         />
@@ -133,30 +146,27 @@ const ProfileForm = ({
 
       {/* Description */}
       <div className="flex flex-col gap-1.5">
-        <label htmlFor="profile-description" className="text-sm font-medium">
-          Description
-        </label>
-        <input
+        <Label htmlFor="profile-description">Description</Label>
+        <Input
           id="profile-description"
           type="text"
           {...register('description')}
           placeholder="Optimised for focused coding sessions"
-          className="rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
           data-testid="profile-description-input"
         />
       </div>
 
       {/* Icon */}
       <div className="flex flex-col gap-1.5">
-        <label htmlFor="profile-icon" className="text-sm font-medium">
+        <Label htmlFor="profile-icon">
           Icon <span className="text-muted-foreground text-xs">(emoji)</span>
-        </label>
-        <input
+        </Label>
+        <Input
           id="profile-icon"
           type="text"
           {...register('icon')}
           placeholder="🚀"
-          className="rounded-md border border-input bg-background px-3 py-2 text-sm w-20 focus:outline-none focus:ring-2 focus:ring-ring"
+          className="w-20"
           data-testid="profile-icon-input"
           aria-invalid={!!errors.icon}
         />
@@ -169,30 +179,40 @@ const ProfileForm = ({
 
       {/* Color */}
       <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-medium">Colour</label>
+        <Label>Colour</Label>
         <div className="flex items-center gap-2 flex-wrap">
           {PRESET_COLORS.map((c) => (
-            <button
-              key={c}
-              type="button"
-              onClick={() => setValue('color', c)}
-              className="w-6 h-6 rounded-full ring-offset-background transition-shadow"
-              style={{
-                backgroundColor: c,
-                boxShadow: color === c ? `0 0 0 2px var(--background), 0 0 0 4px ${c}` : undefined,
-              }}
-              aria-label={`Select colour ${c}`}
-              aria-pressed={color === c}
-              data-testid={`color-swatch-${c}`}
-            />
+            <Tooltip key={c}>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={() => setValue('color', c)}
+                  className="w-6 h-6 rounded-full ring-offset-background transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  style={{
+                    backgroundColor: c,
+                    boxShadow:
+                      color === c ? `0 0 0 2px var(--background), 0 0 0 4px ${c}` : undefined,
+                  }}
+                  aria-label={`Select colour ${c}`}
+                  aria-pressed={color === c}
+                  data-testid={`color-swatch-${c}`}
+                />
+              </TooltipTrigger>
+              <TooltipContent>{c}</TooltipContent>
+            </Tooltip>
           ))}
-          <input
-            type="color"
-            {...register('color')}
-            className="w-8 h-8 rounded cursor-pointer border-0 bg-transparent"
-            aria-label="Custom colour"
-            data-testid="color-picker"
-          />
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <input
+                type="color"
+                {...register('color')}
+                className="w-8 h-8 rounded cursor-pointer border-0 bg-transparent focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label="Custom colour"
+                data-testid="color-picker"
+              />
+            </TooltipTrigger>
+            <TooltipContent>Pick a custom colour</TooltipContent>
+          </Tooltip>
         </div>
         {errors.color && (
           <p className="text-xs text-destructive" role="alert">
@@ -204,43 +224,45 @@ const ProfileForm = ({
       {/* Parent profile */}
       {availableParents.length > 0 && (
         <div className="flex flex-col gap-1.5">
-          <label htmlFor="parent-profile" className="text-sm font-medium">
-            Inherit from
-          </label>
-          <select
-            id="parent-profile"
-            {...register('parentProfileId')}
-            className="rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-            data-testid="parent-profile-select"
-          >
-            <option value="">None</option>
-            {availableParents.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
+          <Label htmlFor="parent-profile">Inherit from</Label>
+          <Controller
+            control={control}
+            name="parentProfileId"
+            render={({ field }) => (
+              <Select
+                value={field.value && field.value !== '' ? field.value : NONE_PROFILE_VALUE}
+                onValueChange={(v) => field.onChange(v === NONE_PROFILE_VALUE ? '' : v)}
+              >
+                <SelectTrigger id="parent-profile" data-testid="parent-profile-select">
+                  <SelectValue placeholder="None" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NONE_PROFILE_VALUE}>None</SelectItem>
+                  {availableParents.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          />
         </div>
       )}
 
       {/* Actions */}
       <div className="flex justify-end gap-2 pt-2">
-        <button
+        <Button
           type="button"
+          variant="outline"
           onClick={onCancel}
-          className="rounded-md px-4 py-2 text-sm border border-input hover:bg-accent transition-colors"
           data-testid="profile-form-cancel"
         >
           Cancel
-        </button>
-        <button
-          type="submit"
-          disabled={saving}
-          className="rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
-          data-testid="profile-form-submit"
-        >
+        </Button>
+        <Button type="submit" disabled={saving} data-testid="profile-form-submit">
           {saving ? 'Saving…' : defaultValues ? 'Save changes' : 'Create profile'}
-        </button>
+        </Button>
       </div>
     </form>
   )

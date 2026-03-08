@@ -2,7 +2,7 @@
  * @file src/renderer/components/rules/CategoryFilter.tsx
  *
  * @created 07.03.2026
- * @modified 07.03.2026
+ * @modified 08.03.2026
  *
  * @author Christian Blank <christianblank91@protonmail.com>
  * @copyright 2026
@@ -12,6 +12,8 @@
  * actually exist are shown. "All" is always the first option.
  */
 
+import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 import type { AiRule } from '@shared/types'
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -37,35 +39,37 @@ const CategoryFilter = ({ rules, selected, onChange }: CategoryFilterProps) => {
 
   return (
     <nav aria-label="Filter by category" className="flex flex-wrap gap-1.5">
-      <button
+      <Button
         type="button"
+        size="sm"
+        variant={selected === null ? 'default' : 'secondary'}
         onClick={() => onChange(null)}
-        className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-          selected === null
-            ? 'bg-primary text-primary-foreground'
-            : 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-        }`}
+        className={cn(
+          'rounded-full h-7 px-3 text-xs',
+          selected !== null && 'text-muted-foreground',
+        )}
         aria-pressed={selected === null}
         data-testid="category-filter-all"
       >
         All
-      </button>
+      </Button>
 
       {categories.map((cat) => (
-        <button
+        <Button
           key={cat}
           type="button"
+          size="sm"
+          variant={selected === cat ? 'default' : 'secondary'}
           onClick={() => onChange(cat)}
-          className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-            selected === cat
-              ? 'bg-primary text-primary-foreground'
-              : 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-          }`}
+          className={cn(
+            'rounded-full h-7 px-3 text-xs',
+            selected !== cat && 'text-muted-foreground',
+          )}
           aria-pressed={selected === cat}
           data-testid={`category-filter-${cat}`}
         >
           {cat}
-        </button>
+        </Button>
       ))}
     </nav>
   )

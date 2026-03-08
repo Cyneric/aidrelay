@@ -16,9 +16,21 @@
 import { useState, useEffect, useCallback } from 'react'
 import { RefreshCw } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { ActivityLogTable } from '@/components/log/ActivityLogTable'
 import type { ActivityLogEntry } from '@shared/channels'
 import type { ClientId } from '@shared/types'
+
+const ALL_CLIENTS_VALUE = '__all__' as const
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -67,6 +79,8 @@ const ActivityLogPage = () => {
     'codex-cli',
   ]
 
+  const hasFilters = Boolean(actionFilter || clientFilter || sinceFilter)
+
   return (
     <section
       aria-labelledby="log-heading"
@@ -83,16 +97,17 @@ const ActivityLogPage = () => {
             {entries.length} entr{entries.length !== 1 ? 'ies' : 'y'} matching current filters
           </p>
         </div>
-        <button
+        <Button
           type="button"
+          variant="outline"
           onClick={() => void fetchEntries()}
           disabled={loading}
-          className="inline-flex items-center gap-1.5 rounded-md border border-input px-3 py-2 text-sm hover:bg-accent disabled:opacity-50 transition-colors"
+          className="gap-1.5"
           data-testid="log-refresh-button"
         >
           <RefreshCw size={14} className={loading ? 'animate-spin' : ''} aria-hidden="true" />
           Refresh
-        </button>
+        </Button>
       </header>
 
       {/* Filters */}
@@ -103,70 +118,77 @@ const ActivityLogPage = () => {
       >
         {/* Action type */}
         <div className="flex flex-col gap-1">
-          <label htmlFor="log-action-filter" className="text-xs font-medium text-muted-foreground">
+          <Label htmlFor="log-action-filter" className="text-xs text-muted-foreground">
             {t('activityLog.action')}
-          </label>
-          <input
+          </Label>
+          <Input
             id="log-action-filter"
             type="text"
             value={actionFilter}
             onChange={(e) => setActionFilter(e.target.value)}
             placeholder="e.g. server.created"
-            className="rounded-md border border-input bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            className="h-8 text-sm"
             data-testid="log-action-filter"
           />
         </div>
 
         {/* Client */}
         <div className="flex flex-col gap-1">
-          <label htmlFor="log-client-filter" className="text-xs font-medium text-muted-foreground">
+          <Label htmlFor="log-client-filter" className="text-xs text-muted-foreground">
             {t('activityLog.client')}
-          </label>
-          <select
-            id="log-client-filter"
-            value={clientFilter}
-            onChange={(e) => setClientFilter(e.target.value as ClientId | '')}
-            className="rounded-md border border-input bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-            data-testid="log-client-filter"
+          </Label>
+          <Select
+            value={clientFilter || ALL_CLIENTS_VALUE}
+            onValueChange={(v) => setClientFilter(v === ALL_CLIENTS_VALUE ? '' : (v as ClientId))}
           >
-            <option value="">{t('activityLog.allClients')}</option>
-            {CLIENT_IDS.map((id) => (
-              <option key={id} value={id}>
-                {id}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger
+              id="log-client-filter"
+              className="h-8 text-sm w-40"
+              data-testid="log-client-filter"
+            >
+              <SelectValue placeholder={t('activityLog.allClients')} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL_CLIENTS_VALUE}>{t('activityLog.allClients')}</SelectItem>
+              {CLIENT_IDS.map((id) => (
+                <SelectItem key={id} value={id}>
+                  {id}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         {/* Since date */}
         <div className="flex flex-col gap-1">
-          <label htmlFor="log-since-filter" className="text-xs font-medium text-muted-foreground">
+          <Label htmlFor="log-since-filter" className="text-xs text-muted-foreground">
             Since
-          </label>
-          <input
+          </Label>
+          <Input
             id="log-since-filter"
             type="date"
             value={sinceFilter}
             onChange={(e) => setSinceFilter(e.target.value)}
-            className="rounded-md border border-input bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            className="h-8 text-sm"
             data-testid="log-since-filter"
           />
         </div>
 
         {/* Clear filters */}
-        {(actionFilter || clientFilter || sinceFilter) && (
-          <button
+        {hasFilters && (
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
             onClick={() => {
               setActionFilter('')
               setClientFilter('')
               setSinceFilter('')
             }}
-            className="rounded-md border border-input px-3 py-1.5 text-sm hover:bg-accent transition-colors"
             data-testid="log-clear-filters"
           >
             Clear filters
-          </button>
+          </Button>
         )}
       </div>
 

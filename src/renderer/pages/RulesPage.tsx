@@ -2,12 +2,12 @@
  * @file src/renderer/pages/RulesPage.tsx
  *
  * @created 07.03.2026
- * @modified 07.03.2026
+ * @modified 08.03.2026
  *
  * @author Christian Blank <christianblank91@protonmail.com>
  * @copyright 2026
  *
- * @description AI rules management page. Displays all rules in a TanStack Displays all rules in a TanStack
+ * @description AI rules management page. Displays all rules in a TanStack
  * Table with per-row enable/disable toggles, category filtering, scope
  * switching, and a collapsible token budget panel. Header actions: Add Rule,
  * Sync Rules, Import.
@@ -36,6 +36,9 @@ import {
 import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { CategoryFilter } from '@/components/rules/CategoryFilter'
 import { ScopeToggle } from '@/components/rules/ScopeToggle'
 import { RuleEditor } from '@/components/rules/RuleEditor'
@@ -52,7 +55,6 @@ const columnHelper = createColumnHelper<AiRule>()
 
 /**
  * Returns a Tailwind color class for a token count value.
- * Green for low counts, amber for moderate, red for high.
  */
 const tokenColor = (count: number): string => {
   if (count > 2000) return 'text-destructive font-medium'
@@ -118,7 +120,6 @@ const RulesPage = () => {
     void load()
   }, [load])
 
-  // Filter rules by the active scope (and project path when in project scope)
   const scopeFilteredRules = useMemo(
     () =>
       rules.filter((r) => {
@@ -129,7 +130,6 @@ const RulesPage = () => {
     [rules, scope, projectPath],
   )
 
-  // Further filter by selected category
   const displayedRules = useMemo(
     () =>
       selectedCategory === null
@@ -190,13 +190,15 @@ const RulesPage = () => {
     }),
     columnHelper.accessor('name', {
       header: ({ column }) => (
-        <button
+        <Button
           type="button"
+          variant="ghost"
+          size="xs"
           onClick={() => column.toggleSorting()}
-          className="inline-flex items-center gap-1 hover:text-foreground transition-colors"
+          className="gap-1 -ml-1 text-muted-foreground hover:text-foreground"
         >
           Name <ArrowUpDown size={12} />
-        </button>
+        </Button>
       ),
       cell: ({ getValue, row }) => (
         <span
@@ -249,13 +251,15 @@ const RulesPage = () => {
     }),
     columnHelper.accessor('tokenEstimate', {
       header: ({ column }) => (
-        <button
+        <Button
           type="button"
+          variant="ghost"
+          size="xs"
           onClick={() => column.toggleSorting()}
-          className="inline-flex items-center gap-1 hover:text-foreground transition-colors ml-auto"
+          className="gap-1 ml-auto -mr-1 text-muted-foreground hover:text-foreground"
         >
           Tokens <ArrowUpDown size={12} />
-        </button>
+        </Button>
       ),
       size: 90,
       cell: ({ getValue }) => {
@@ -273,24 +277,36 @@ const RulesPage = () => {
       size: 80,
       cell: ({ row }) => (
         <div className="flex items-center justify-end gap-1">
-          <button
-            type="button"
-            onClick={() => openEdit(row.original)}
-            className="p-1.5 text-muted-foreground hover:text-foreground rounded transition-colors"
-            aria-label={`Edit ${row.original.name}`}
-            data-testid={`rule-edit-${row.original.id}`}
-          >
-            <Pencil size={14} />
-          </button>
-          <button
-            type="button"
-            onClick={() => void handleDelete(row.original)}
-            className="p-1.5 text-muted-foreground hover:text-destructive rounded transition-colors"
-            aria-label={`Delete ${row.original.name}`}
-            data-testid={`rule-delete-${row.original.id}`}
-          >
-            <Trash2 size={14} />
-          </button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => openEdit(row.original)}
+                aria-label={`Edit ${row.original.name}`}
+                data-testid={`rule-edit-${row.original.id}`}
+              >
+                <Pencil size={14} />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Edit rule</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => void handleDelete(row.original)}
+                aria-label={`Delete ${row.original.name}`}
+                data-testid={`rule-delete-${row.original.id}`}
+              >
+                <Trash2 size={14} />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Delete rule</TooltipContent>
+          </Tooltip>
         </div>
       ),
     }),
@@ -328,38 +344,45 @@ const RulesPage = () => {
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
-            <button
+            <Button
               type="button"
+              variant="outline"
               onClick={() => setShowImport(true)}
-              className="inline-flex items-center gap-1.5 rounded-md border border-input px-3 py-2 text-sm hover:bg-accent transition-colors"
+              className="gap-1.5"
               data-testid="import-rules-button"
             >
               <Upload size={14} aria-hidden="true" />
               {t('rules.importFromProject')}
-            </button>
-            <button
-              type="button"
-              onClick={() => void handleSyncAll()}
-              disabled={syncingAll}
-              className="inline-flex items-center gap-1.5 rounded-md border border-input px-3 py-2 text-sm hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              data-testid="sync-rules-button"
-            >
-              <RefreshCw
-                size={14}
-                className={syncingAll ? 'animate-spin' : ''}
-                aria-hidden="true"
-              />
-              {syncingAll ? t('common.loading') : t('rules.syncAll')}
-            </button>
-            <button
+            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => void handleSyncAll()}
+                  disabled={syncingAll}
+                  className="gap-1.5"
+                  data-testid="sync-rules-button"
+                >
+                  <RefreshCw
+                    size={14}
+                    className={syncingAll ? 'animate-spin' : ''}
+                    aria-hidden="true"
+                  />
+                  {syncingAll ? t('common.loading') : t('rules.syncAll')}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Write active rules to all installed clients</TooltipContent>
+            </Tooltip>
+            <Button
               type="button"
               onClick={openCreate}
-              className="inline-flex items-center gap-1.5 rounded-md bg-primary text-primary-foreground px-3 py-2 text-sm font-medium hover:bg-primary/90 transition-colors"
+              className="gap-1.5"
               data-testid="add-rule-button"
             >
               <Plus size={14} aria-hidden="true" />
               {t('rules.add')}
-            </button>
+            </Button>
           </div>
         </header>
 
@@ -383,12 +406,12 @@ const RulesPage = () => {
 
         {/* Search + Category filter */}
         <div className="flex flex-col gap-3">
-          <input
+          <Input
             type="search"
             value={globalFilter}
             onChange={(e) => setGlobalFilter(e.target.value)}
             placeholder={t('rules.search')}
-            className="w-full max-w-sm rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            className="max-w-sm"
             aria-label={t('rules.search')}
             data-testid="rules-search"
           />
@@ -478,18 +501,19 @@ const RulesPage = () => {
           )}
         </div>
 
-        {/* Per-client token budget panel — added in Step 25 */}
+        {/* Per-client token budget panel */}
         <div className="rounded-md border border-border">
-          <button
+          <Button
             type="button"
+            variant="ghost"
             onClick={() => setBudgetExpanded((v) => !v)}
-            className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium hover:bg-muted/30 transition-colors"
+            className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium rounded-none rounded-t-md"
             aria-expanded={budgetExpanded}
             data-testid="budget-panel-expand"
           >
             <span>Token budget per client</span>
             {budgetExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-          </button>
+          </Button>
           {budgetExpanded && (
             <div className="border-t border-border px-4 py-4" data-testid="budget-panel-content">
               <TokenBudgetPanel />

@@ -37,6 +37,9 @@ import {
 import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { ServerEditor } from '@/components/servers/ServerEditor'
 import { ToggleMatrix } from '@/components/servers/ToggleMatrix'
 import { useServersStore } from '@/stores/servers.store'
@@ -177,13 +180,15 @@ const ServersPage = () => {
     }),
     columnHelper.accessor('name', {
       header: ({ column }) => (
-        <button
+        <Button
           type="button"
+          variant="ghost"
+          size="xs"
           onClick={() => column.toggleSorting()}
-          className="inline-flex items-center gap-1 hover:text-foreground transition-colors"
+          className="gap-1 -ml-1 text-muted-foreground hover:text-foreground"
         >
           Name <ArrowUpDown size={12} />
-        </button>
+        </Button>
       ),
       cell: ({ getValue, row }) => (
         <span
@@ -236,40 +241,59 @@ const ServersPage = () => {
       size: 112,
       cell: ({ row }) => (
         <div className="flex items-center justify-end gap-1">
-          <button
-            type="button"
-            onClick={() => void handleTest(row.original)}
-            disabled={!serverTestingEnabled || testingServerId === row.original.id}
-            className="p-1.5 text-muted-foreground hover:text-foreground rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-            aria-label={`Test ${row.original.name}`}
-            title={
-              serverTestingEnabled ? `Test ${row.original.name}` : 'Upgrade to Pro to test servers'
-            }
-            data-testid={`server-test-${row.original.id}`}
-          >
-            <FlaskConical
-              size={14}
-              className={testingServerId === row.original.id ? 'animate-pulse' : ''}
-            />
-          </button>
-          <button
-            type="button"
-            onClick={() => openEdit(row.original)}
-            className="p-1.5 text-muted-foreground hover:text-foreground rounded transition-colors"
-            aria-label={`Edit ${row.original.name}`}
-            data-testid={`server-edit-${row.original.id}`}
-          >
-            <Pencil size={14} />
-          </button>
-          <button
-            type="button"
-            onClick={() => void handleDelete(row.original)}
-            className="p-1.5 text-muted-foreground hover:text-destructive rounded transition-colors"
-            aria-label={`Delete ${row.original.name}`}
-            data-testid={`server-delete-${row.original.id}`}
-          >
-            <Trash2 size={14} />
-          </button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => void handleTest(row.original)}
+                disabled={!serverTestingEnabled || testingServerId === row.original.id}
+                aria-label={`Test ${row.original.name}`}
+                data-testid={`server-test-${row.original.id}`}
+              >
+                <FlaskConical
+                  size={14}
+                  className={testingServerId === row.original.id ? 'animate-pulse' : ''}
+                />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              {serverTestingEnabled
+                ? `Test ${row.original.name}`
+                : 'Upgrade to Pro to test servers'}
+            </TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => openEdit(row.original)}
+                aria-label={`Edit ${row.original.name}`}
+                data-testid={`server-edit-${row.original.id}`}
+              >
+                <Pencil size={14} />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Edit server</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => void handleDelete(row.original)}
+                aria-label={`Delete ${row.original.name}`}
+                data-testid={`server-delete-${row.original.id}`}
+              >
+                <Trash2 size={14} />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Delete server</TooltipContent>
+          </Tooltip>
         </div>
       ),
     }),
@@ -309,43 +333,55 @@ const ServersPage = () => {
           </div>
 
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => void handleImportFromClients()}
-              disabled={importingFromClients || installedClientCount === 0}
-              className="inline-flex items-center gap-1.5 rounded-md border border-input px-3 py-2 text-sm hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              data-testid="import-from-clients-button"
-            >
-              <Download
-                size={14}
-                className={importingFromClients ? 'animate-pulse' : ''}
-                aria-hidden="true"
-              />
-              {importingFromClients ? t('common.loading') : t('servers.importFromClients')}
-            </button>
-            <button
-              type="button"
-              onClick={() => void handleSyncAll()}
-              disabled={syncingAll || installedClientCount === 0}
-              className="inline-flex items-center gap-1.5 rounded-md border border-input px-3 py-2 text-sm hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              data-testid="sync-all-button"
-            >
-              <RefreshCw
-                size={14}
-                className={syncingAll ? 'animate-spin' : ''}
-                aria-hidden="true"
-              />
-              {syncingAll ? t('common.loading') : t('servers.syncAll')}
-            </button>
-            <button
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => void handleImportFromClients()}
+                  disabled={importingFromClients || installedClientCount === 0}
+                  className="gap-1.5"
+                  data-testid="import-from-clients-button"
+                >
+                  <Download
+                    size={14}
+                    className={importingFromClients ? 'animate-pulse' : ''}
+                    aria-hidden="true"
+                  />
+                  {importingFromClients ? t('common.loading') : t('servers.importFromClients')}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Import server configs from installed AI clients</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => void handleSyncAll()}
+                  disabled={syncingAll || installedClientCount === 0}
+                  className="gap-1.5"
+                  data-testid="sync-all-button"
+                >
+                  <RefreshCw
+                    size={14}
+                    className={syncingAll ? 'animate-spin' : ''}
+                    aria-hidden="true"
+                  />
+                  {syncingAll ? t('common.loading') : t('servers.syncAll')}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Write active profile to all installed clients</TooltipContent>
+            </Tooltip>
+            <Button
               type="button"
               onClick={openCreate}
-              className="inline-flex items-center gap-1.5 rounded-md bg-primary text-primary-foreground px-3 py-2 text-sm font-medium hover:bg-primary/90 transition-colors"
+              className="gap-1.5"
               data-testid="add-server-button"
             >
               <Plus size={14} aria-hidden="true" />
               {t('servers.add')}
-            </button>
+            </Button>
           </div>
         </header>
 
@@ -361,12 +397,12 @@ const ServersPage = () => {
 
         {/* Search */}
         <div>
-          <input
+          <Input
             type="search"
             value={globalFilter}
             onChange={(e) => setGlobalFilter(e.target.value)}
             placeholder={t('servers.search')}
-            className="w-full max-w-sm rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            className="max-w-sm"
             aria-label={t('servers.search')}
             data-testid="servers-search"
           />
@@ -388,22 +424,24 @@ const ServersPage = () => {
             >
               <p className="text-sm text-muted-foreground">No servers yet.</p>
               <div className="flex items-center gap-4">
-                <button
+                <Button
                   type="button"
+                  variant="link"
                   onClick={() => void handleImportFromClients()}
                   disabled={importingFromClients || installedClientCount === 0}
-                  className="text-sm text-primary hover:underline disabled:opacity-50"
+                  className="h-auto p-0 text-sm"
                 >
                   {t('servers.importFromClients')}
-                </button>
+                </Button>
                 <span className="text-muted-foreground">or</span>
-                <button
+                <Button
                   type="button"
+                  variant="link"
                   onClick={openCreate}
-                  className="text-sm text-primary hover:underline"
+                  className="h-auto p-0 text-sm"
                 >
                   Add your first server
-                </button>
+                </Button>
               </div>
             </div>
           ) : (
@@ -447,16 +485,17 @@ const ServersPage = () => {
 
         {/* Per-client toggle matrix */}
         <div className="rounded-md border border-border">
-          <button
+          <Button
             type="button"
+            variant="ghost"
             onClick={() => setMatrixExpanded((v) => !v)}
-            className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium hover:bg-muted/30 transition-colors"
+            className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium rounded-none rounded-t-md"
             aria-expanded={matrixExpanded}
             data-testid="toggle-matrix-expand"
           >
             <span>Per-client enable / disable</span>
             {matrixExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-          </button>
+          </Button>
           {matrixExpanded && (
             <div className="border-t border-border px-4 py-4">
               <ToggleMatrix />

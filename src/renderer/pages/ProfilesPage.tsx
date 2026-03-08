@@ -2,7 +2,7 @@
  * @file src/renderer/pages/ProfilesPage.tsx
  *
  * @created 07.03.2026
- * @modified 07.03.2026
+ * @modified 08.03.2026
  *
  * @author Christian Blank <christianblank91@protonmail.com>
  * @copyright 2026
@@ -16,6 +16,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { Plus } from 'lucide-react'
 import { toast } from 'sonner'
+import { Button } from '@/components/ui/button'
 import { ProfileCard } from '@/components/profiles/ProfileCard'
 import { ProfileEditor } from '@/components/profiles/ProfileEditor'
 import { ProfileDiffView } from '@/components/profiles/ProfileDiffView'
@@ -110,15 +111,15 @@ const ProfilesPage = () => {
             Manage named configurations for quick context switching.
           </p>
         </div>
-        <button
+        <Button
           type="button"
           onClick={openCreate}
-          className="inline-flex items-center gap-1.5 rounded-md bg-primary text-primary-foreground px-3 py-2 text-sm font-medium hover:bg-primary/90 transition-colors"
+          className="gap-1.5"
           data-testid="add-profile-button"
         >
           <Plus size={14} aria-hidden="true" />
           Add profile
-        </button>
+        </Button>
       </div>
 
       {/* Error banner */}
@@ -146,14 +147,14 @@ const ProfilesPage = () => {
             Create a profile to bundle a set of server and rule overrides that you can activate with
             a single click.
           </p>
-          <button
+          <Button
             type="button"
+            variant="outline"
             onClick={openCreate}
-            className="rounded-md border border-input px-3 py-1.5 text-sm hover:bg-accent transition-colors"
             data-testid="profiles-empty-add"
           >
             Create first profile
-          </button>
+          </Button>
         </div>
       )}
 

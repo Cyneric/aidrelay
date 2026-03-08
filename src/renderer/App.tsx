@@ -2,7 +2,7 @@
  * @file src/renderer/App.tsx
  *
  * @created 07.03.2026
- * @modified 07.03.2026
+ * @modified 08.03.2026
  *
  * @author Christian Blank <christianblank91@protonmail.com>
  * @copyright 2026
@@ -18,6 +18,7 @@
 import { useEffect } from 'react'
 import { RouterProvider, createRouter, createRootRoute, createRoute } from '@tanstack/react-router'
 import { Toaster, toast } from 'sonner'
+import { TooltipProvider } from '@/components/ui/tooltip'
 import { Shell } from '@/components/layout/Shell'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { ServersPage } from '@/pages/ServersPage'
@@ -143,10 +144,10 @@ const App = () => {
   }, [])
 
   return (
-    <>
+    <TooltipProvider>
       <RouterProvider router={router} />
       <Toaster position="bottom-right" richColors />
-    </>
+    </TooltipProvider>
   )
 }
 

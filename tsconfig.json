@@ -5,5 +5,12 @@
     { "path": "./tsconfig.main.json" },
     { "path": "./tsconfig.renderer.json" },
     { "path": "./tsconfig.shared.json" }
-  ]
+  ],
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/renderer/*"],
+      "@shared/*": ["src/shared/*"]
+    }
+  }
 }

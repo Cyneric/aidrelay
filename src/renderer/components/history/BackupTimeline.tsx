@@ -2,7 +2,7 @@
  * @file src/renderer/components/history/BackupTimeline.tsx
  *
  * @created 07.03.2026
- * @modified 07.03.2026
+ * @modified 08.03.2026
  *
  * @author Christian Blank <christianblank91@protonmail.com>
  * @copyright 2026
@@ -16,6 +16,8 @@
 import { useState, useEffect, useCallback, type ElementType } from 'react'
 import { toast } from 'sonner'
 import { RotateCcw, Shield, RefreshCw, Clock } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { BackupEntry } from '@shared/channels'
 import type { ClientId } from '@shared/types'
 
@@ -55,22 +57,25 @@ const relativeTime = (iso: string): string => {
  */
 const BACKUP_TYPE_META: Record<
   BackupEntry['backupType'],
-  { label: string; icon: ElementType; className: string }
+  { label: string; icon: ElementType; className: string; description: string }
 > = {
   pristine: {
     label: 'Pristine',
     icon: Shield,
     className: 'text-blue-600 dark:text-blue-400',
+    description: 'Original config captured before aidrelay first wrote to this client',
   },
   sync: {
     label: 'Sync',
     icon: RefreshCw,
     className: 'text-muted-foreground',
+    description: 'Automatic backup taken before a profile sync',
   },
   manual: {
     label: 'Manual',
     icon: Clock,
     className: 'text-amber-600 dark:text-amber-400',
+    description: 'Manual backup created by the user',
   },
 }
 
@@ -161,7 +166,12 @@ const BackupTimeline = ({ clientId }: Readonly<Props>) => {
             data-testid={`backup-entry-${backup.id}`}
           >
             <div className="flex items-center gap-3 min-w-0">
-              <TypeIcon size={15} className={meta.className} aria-hidden="true" />
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <TypeIcon size={15} className={meta.className} aria-label={meta.label} />
+                </TooltipTrigger>
+                <TooltipContent>{meta.description}</TooltipContent>
+              </Tooltip>
               <div className="min-w-0">
                 <span className="font-medium">{meta.label}</span>
                 <span className="mx-2 text-muted-foreground">·</span>
@@ -179,17 +189,25 @@ const BackupTimeline = ({ clientId }: Readonly<Props>) => {
               <span className="text-xs text-muted-foreground font-mono">
                 {formatFileSize(backup.fileSize)}
               </span>
-              <button
-                type="button"
-                onClick={() => void handleRestore(backup)}
-                disabled={isRestoring}
-                className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium border hover:bg-accent disabled:opacity-50"
-                aria-label={`Restore backup from ${new Date(backup.createdAt).toLocaleString()}`}
-                data-testid={`btn-restore-${backup.id}`}
-              >
-                <RotateCcw size={11} aria-hidden="true" />
-                {isRestoring ? 'Restoring…' : 'Restore'}
-              </button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="xs"
+                    onClick={() => void handleRestore(backup)}
+                    disabled={isRestoring}
+                    aria-label={`Restore backup from ${new Date(backup.createdAt).toLocaleString()}`}
+                    data-testid={`btn-restore-${backup.id}`}
+                  >
+                    <RotateCcw size={11} aria-hidden="true" />
+                    {isRestoring ? 'Restoring…' : 'Restore'}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  Restore config to this snapshot — a safety backup is created first
+                </TooltipContent>
+              </Tooltip>
             </div>
           </li>
         )
