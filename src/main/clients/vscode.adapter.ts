@@ -51,9 +51,6 @@ const isVsCodeInstalled = (): boolean => {
     join(localAppData, 'Programs', 'Microsoft VS Code', 'Code.exe'),
     join(programFiles, 'Microsoft VS Code', 'Code.exe'),
     join(programFilesX86, 'Microsoft VS Code', 'Code.exe'),
-    join(localAppData, 'Programs', 'Microsoft VS Code Insiders', 'Code - Insiders.exe'),
-    join(programFiles, 'Microsoft VS Code Insiders', 'Code - Insiders.exe'),
-    join(programFilesX86, 'Microsoft VS Code Insiders', 'Code - Insiders.exe'),
   ]
 
   return candidates.some((path) => existsSync(path))

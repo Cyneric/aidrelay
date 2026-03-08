@@ -19,9 +19,10 @@ import type { ClientId, ClientDetectionResult, McpServerMap, ValidationResult } 
 /**
  * The JSON key used by a client to store its MCP server map.
  * Different clients use different keys — Claude Desktop, Cursor, and Windsurf
- * use `mcpServers`, VS Code uses `servers`, and Zed uses `context_servers`.
+ * use `mcpServers`, VS Code/Visual Studio use `servers`, OpenCode uses `mcp`,
+ * and Zed uses `context_servers`.
  */
-export type McpSchemaKey = 'mcpServers' | 'servers' | 'context_servers'
+export type McpSchemaKey = 'mcpServers' | 'servers' | 'context_servers' | 'mcp'
 
 // ─── Adapter Interface ────────────────────────────────────────────────────────
 

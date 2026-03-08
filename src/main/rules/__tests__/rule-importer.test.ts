@@ -123,6 +123,17 @@ describe('RuleImporter.importFromDirectory', () => {
     expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({ name: 'WS Rule' }))
   })
 
+  it('imports OpenCode instructions from opencode.json', () => {
+    writeFileSync(
+      join(tmpDir, 'opencode.json'),
+      JSON.stringify({ instructions: '# OpenCode Rule\n\nDo OpenCode.' }),
+    )
+
+    const result = importer.importFromDirectory(tmpDir)
+    expect(result.imported).toBe(1)
+    expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({ name: 'OpenCode Rule' }))
+  })
+
   it('imports AGENTS.md from project root', () => {
     writeFileSync(join(tmpDir, 'AGENTS.md'), 'Agent instructions.')
 

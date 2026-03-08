@@ -21,6 +21,7 @@
  *   - `.codex/AGENTS.md`             (Codex CLI, nested)
  *   - `.github/copilot-instructions.md` (VS Code)
  *   - `.windsurfrules`               (Windsurf)
+ *   - `opencode.json`                (OpenCode)
  */
 
 import { readdirSync, readFileSync, existsSync } from 'fs'
@@ -179,6 +180,39 @@ export class RuleImporter {
             tags: ['windsurf-import'],
           })
         }
+      }
+    }
+
+    // ── OpenCode opencode.json ────────────────────────────────────────────
+    const openCodeConfig = safeRead(join(dirPath, 'opencode.json'))
+    if (openCodeConfig) {
+      try {
+        const parsedConfig = JSON.parse(openCodeConfig) as { instructions?: unknown }
+        const instructions =
+          typeof parsedConfig.instructions === 'string' ? parsedConfig.instructions : null
+
+        if (instructions && instructions.trim().length > 0) {
+          const sections = parseConcatMd(instructions, 'opencode-import')
+          if (sections.length === 0) {
+            candidates.push({
+              name: 'opencode-instructions',
+              content: instructions.trim(),
+              source: 'opencode-import',
+              tags: ['opencode-import'],
+            })
+          } else {
+            for (const s of sections) {
+              candidates.push({
+                name: s.name ?? 'opencode-instructions',
+                content: s.content ?? '',
+                source: 'opencode-import',
+                tags: ['opencode-import'],
+              })
+            }
+          }
+        }
+      } catch {
+        // Ignore malformed OpenCode config here; validation belongs to client sync.
       }
     }
 

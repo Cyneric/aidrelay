@@ -109,7 +109,16 @@ describe('ClientsPage sync-all reporting', () => {
 
     renderWithProviders(<ClientsPage />)
 
-    expect(screen.getByTestId('client-missing-config-badge-cursor')).toBeInTheDocument()
+    const missingConfigIcon = screen.getByTestId('client-missing-config-badge-cursor')
+    expect(missingConfigIcon).toBeInTheDocument()
+    expect(missingConfigIcon).toHaveAttribute('aria-label', 'No configuration')
+    fireEvent.focus(missingConfigIcon)
+    expect(
+      await screen.findByRole('tooltip', {
+        name: 'Cursor is installed, but no configuration file was found yet.',
+      }),
+    ).toBeInTheDocument()
+
     fireEvent.click(screen.getByTestId('btn-sync-cursor'))
 
     expect(await screen.findByText('Create new configuration?')).toBeInTheDocument()

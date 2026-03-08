@@ -74,11 +74,14 @@ const ActivityLogPage = () => {
     'claude-code',
     'cursor',
     'vscode',
+    'vscode-insiders',
     'windsurf',
     'zed',
     'jetbrains',
     'codex-cli',
     'codex-gui',
+    'opencode',
+    'visual-studio',
   ]
 
   const hasFilters = Boolean(actionFilter || clientFilter || sinceFilter)

@@ -7,7 +7,7 @@
  * @author Christian Blank <christianblank91@protonmail.com>
  * @copyright 2026
  *
- * @description Unit tests for command launch normalization and Windows fallback.
+ * @description Unit tests for command launch normalization and cross-spawn mapping.
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -28,6 +28,9 @@ const makeSpawnedChild = (): {
   child: {
     once: ReturnType<typeof vi.fn>
     off: ReturnType<typeof vi.fn>
+    stdin: Record<string, unknown>
+    stdout: Record<string, unknown>
+    stderr: Record<string, unknown>
   }
   handlers: ChildHandlers
 } => {
@@ -48,6 +51,9 @@ const makeSpawnedChild = (): {
         )
         return undefined
       }),
+      stdin: {},
+      stdout: {},
+      stderr: {},
     },
     handlers,
   }
@@ -58,9 +64,8 @@ const emit = (handlers: ChildHandlers, event: string, ...args: unknown[]): void 
 }
 
 const spawnMock = vi.hoisted(() => vi.fn())
-
-vi.mock('child_process', () => ({
-  spawn: spawnMock,
+vi.mock('cross-spawn', () => ({
+  default: spawnMock,
 }))
 
 import type { CommandLaunchError } from '../command-launch.util'
@@ -81,52 +86,96 @@ describe('spawnCommandWithWindowsFallback', () => {
     const first = makeSpawnedChild()
     spawnMock.mockReturnValue(first.child)
 
-    const promise = spawnCommandWithWindowsFallback('npx', ['-y', 'pkg'], { stdio: 'pipe' })
+    const promise = spawnCommandWithWindowsFallback('npx', ['-y', 'pkg'], {
+      stdio: 'pipe',
+      env: { PATH: 'C:\\node' },
+    })
     await flushMicrotasks()
     emit(first.handlers, 'spawn')
 
     const result = await promise
     expect(result.mode).toBe('windows-alias')
+    expect(result.command).toBe('npx.cmd')
     expect(spawnMock).toHaveBeenCalledWith('npx.cmd', ['-y', 'pkg'], expect.any(Object))
   })
 
-  it('falls back to cmd.exe on Windows when direct launch returns ENOENT', async () => {
+  it('maps ENOENT to executable_not_found', async () => {
     withMockPlatform('win32')
     const first = makeSpawnedChild()
-    const second = makeSpawnedChild()
-    spawnMock.mockReturnValueOnce(first.child).mockReturnValueOnce(second.child)
+    spawnMock.mockReturnValueOnce(first.child)
 
     const promise = spawnCommandWithWindowsFallback('my-tool', ['--flag'], { stdio: 'pipe' })
 
     await flushMicrotasks()
     emit(first.handlers, 'error', Object.assign(new Error('not found'), { code: 'ENOENT' }))
-    await flushMicrotasks()
-    emit(second.handlers, 'spawn')
-    const result = await promise
-
-    expect(result.mode).toBe('windows-cmd-fallback')
-    expect(spawnMock).toHaveBeenNthCalledWith(1, 'my-tool', ['--flag'], expect.any(Object))
-    expect(spawnMock).toHaveBeenNthCalledWith(
-      2,
-      'cmd.exe',
-      ['/d', '/s', '/c', '"my-tool" "--flag"'],
-      expect.any(Object),
-    )
+    await expect(promise).rejects.toMatchObject({
+      name: 'CommandLaunchError',
+      kind: 'executable_not_found',
+      command: 'my-tool',
+    } satisfies Partial<CommandLaunchError>)
+    expect(spawnMock).toHaveBeenCalledTimes(1)
   })
 
-  it('does not fallback on non-Windows and returns executable_not_found for ENOENT', async () => {
+  it('maps non-ENOENT to spawn_failed', async () => {
+    withMockPlatform('win32')
+    const first = makeSpawnedChild()
+    spawnMock.mockReturnValueOnce(first.child)
+
+    const promise = spawnCommandWithWindowsFallback('npx', ['-y', 'pkg'], { stdio: 'pipe' })
+
+    await flushMicrotasks()
+    emit(first.handlers, 'error', Object.assign(new Error('invalid'), { code: 'EINVAL' }))
+    await expect(promise).rejects.toMatchObject({
+      name: 'CommandLaunchError',
+      kind: 'spawn_failed',
+      command: 'npx.cmd',
+      originalCode: 'EINVAL',
+    } satisfies Partial<CommandLaunchError>)
+    expect(spawnMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('sanitizes invalid env entries and canonicalizes Path before spawn', async () => {
+    withMockPlatform('win32')
+    const first = makeSpawnedChild()
+    spawnMock.mockReturnValue(first.child)
+
+    const promise = spawnCommandWithWindowsFallback('node', ['index.js'], {
+      stdio: 'pipe',
+      env: {
+        GOOD: '1',
+        EMPTY: '',
+        PATH: '',
+        Path: 'C:\\preferred',
+        path: 'C:\\secondary',
+        DROP_UNDEF: undefined,
+        'BAD=KEY': 'x',
+        NULL_VALUE: `a${String.fromCharCode(0)}b`,
+      },
+    })
+    await flushMicrotasks()
+    emit(first.handlers, 'spawn')
+    await promise
+
+    const options = spawnMock.mock.calls[0]?.[2] as { env?: Record<string, string> } | undefined
+    expect(options?.env).toEqual({
+      GOOD: '1',
+      EMPTY: '',
+      Path: 'C:\\preferred',
+    })
+  })
+
+  it('does not alias commands on non-Windows', async () => {
     withMockPlatform('linux')
     const first = makeSpawnedChild()
     spawnMock.mockReturnValueOnce(first.child)
 
-    const promise = spawnCommandWithWindowsFallback('missing-tool', [], { stdio: 'pipe' })
+    const promise = spawnCommandWithWindowsFallback('npx', [], { stdio: 'pipe' })
     await flushMicrotasks()
-    emit(first.handlers, 'error', Object.assign(new Error('not found'), { code: 'ENOENT' }))
-
-    await expect(promise).rejects.toMatchObject({
-      name: 'CommandLaunchError',
-      kind: 'executable_not_found',
-    } satisfies Partial<CommandLaunchError>)
+    emit(first.handlers, 'spawn')
+    const result = await promise
+    expect(result.mode).toBe('direct')
+    expect(result.command).toBe('npx')
+    expect(spawnMock).toHaveBeenCalledWith('npx', [], expect.any(Object))
     expect(spawnMock).toHaveBeenCalledTimes(1)
   })
 })

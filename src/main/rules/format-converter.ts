@@ -14,7 +14,7 @@
  * Supported formats:
  *   - Claude Code  → plain Markdown  (.md)
  *   - Cursor       → MDC with YAML frontmatter  (.mdc)
- *   - VS Code / Windsurf / Codex → single concatenated Markdown file
+ *   - VS Code / Windsurf / Codex / OpenCode instructions → concatenated Markdown
  */
 
 import type { AiRule } from '@shared/types'
@@ -61,7 +61,7 @@ export const toCursorMdc = (rule: AiRule): string => {
 
 /**
  * Concatenates multiple rules into a single Markdown document.
- * Used for VS Code, Windsurf, and Codex CLI which expect one file.
+ * Used for VS-family clients, Windsurf, Codex, and OpenCode instructions.
  * Rules are separated by a horizontal rule (`---`).
  *
  * @param rules - Ordered list of rules to concatenate.

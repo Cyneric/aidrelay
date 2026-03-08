@@ -25,7 +25,8 @@ import { getSecret } from '@main/secrets/keytar.service'
 import { CommandLaunchError, spawnCommandWithWindowsFallback } from './command-launch.util'
 
 /** How long to wait for an initialize response before declaring a timeout. */
-const TIMEOUT_MS = 5000
+const STDIO_TIMEOUT_MS = 30000
+const HTTP_SSE_TIMEOUT_MS = 5000
 
 /** MCP protocol version sent in the initialize request. */
 const PROTOCOL_VERSION = '2024-11-05'
@@ -59,6 +60,14 @@ interface JsonRpcResponse {
   id: number
   result?: InitializeResult
   error?: { code: number; message: string }
+}
+
+const INITIALIZE_REQUEST_ID = 1
+const MAX_STDERR_CHARS = 4000
+
+const encodeMcpStdioMessage = (message: JsonRpcRequest): string => {
+  const json = JSON.stringify(message)
+  return `Content-Length: ${Buffer.byteLength(json, 'utf8')}\r\n\r\n${json}`
 }
 
 // ─── Service ──────────────────────────────────────────────────────────────────
@@ -116,12 +125,6 @@ export class ServerTesterService {
             message: `Executable not found: ${server.command}`,
           }
         }
-        if (err.kind === 'shell_fallback_failed') {
-          return {
-            success: false,
-            message: `Shell fallback failed while starting "${server.command}".`,
-          }
-        }
         return {
           success: false,
           message: `Failed to spawn process "${server.command}": ${err.message}`,
@@ -135,7 +138,7 @@ export class ServerTesterService {
 
     const request: JsonRpcRequest = {
       jsonrpc: '2.0',
-      id: 1,
+      id: INITIALIZE_REQUEST_ID,
       method: 'initialize',
       params: {
         protocolVersion: PROTOCOL_VERSION,
@@ -144,7 +147,8 @@ export class ServerTesterService {
       },
     }
 
-    let stdoutBuffer = ''
+    let stdoutBuffer = Buffer.alloc(0)
+    let stderrBuffer = ''
     let settled = false
 
     return new Promise<TestResult>((resolve) => {
@@ -160,40 +164,89 @@ export class ServerTesterService {
         resolve(result)
       }
 
+      const handleResponse = (response: JsonRpcResponse): void => {
+        if (response.id === INITIALIZE_REQUEST_ID && response.error) {
+          settle({
+            success: false,
+            message: `Server returned error: ${response.error.message}`,
+          })
+          return
+        }
+        if (response.id === INITIALIZE_REQUEST_ID && response.result) {
+          const serverName = response.result.serverInfo?.name ?? server.name
+          settle({
+            success: true,
+            message: `Connected — ${serverName}`,
+            responseTimeMs: Date.now() - startedAt,
+          })
+        }
+      }
+
+      const processStdoutBuffer = (): void => {
+        while (!settled && stdoutBuffer.length > 0) {
+          const startsWithContentLength =
+            stdoutBuffer.length >= 15 &&
+            stdoutBuffer.subarray(0, 15).toString('utf8').toLowerCase() === 'content-length:'
+
+          if (startsWithContentLength) {
+            const headerEnd = stdoutBuffer.indexOf('\r\n\r\n')
+            if (headerEnd === -1) return
+
+            const header = stdoutBuffer.subarray(0, headerEnd).toString('utf8')
+            const lengthMatch = /content-length\s*:\s*(\d+)/i.exec(header)
+            if (!lengthMatch) {
+              stdoutBuffer = stdoutBuffer.subarray(headerEnd + 4)
+              continue
+            }
+
+            const contentLength = Number(lengthMatch[1])
+            const bodyStart = headerEnd + 4
+            const bodyEnd = bodyStart + contentLength
+            if (stdoutBuffer.length < bodyEnd) return
+
+            const body = stdoutBuffer.subarray(bodyStart, bodyEnd).toString('utf8')
+            stdoutBuffer = stdoutBuffer.subarray(bodyEnd)
+            try {
+              handleResponse(JSON.parse(body) as JsonRpcResponse)
+            } catch {
+              // Ignore malformed payloads and keep reading.
+            }
+            continue
+          }
+
+          const newlineIndex = stdoutBuffer.indexOf('\n')
+          if (newlineIndex === -1) return
+
+          const line = stdoutBuffer.subarray(0, newlineIndex).toString('utf8').trim()
+          stdoutBuffer = stdoutBuffer.subarray(newlineIndex + 1)
+          if (!line) continue
+
+          try {
+            handleResponse(JSON.parse(line) as JsonRpcResponse)
+          } catch {
+            // Ignore non-JSON log lines.
+          }
+        }
+      }
+
       const timer = setTimeout(() => {
-        settle({ success: false, message: `Timeout: no response after ${TIMEOUT_MS / 1000}s` })
-      }, TIMEOUT_MS)
+        const stderr = stderrBuffer.trim()
+        settle({
+          success: false,
+          message: stderr
+            ? `Timeout: no response after ${STDIO_TIMEOUT_MS / 1000}s: ${stderr}`
+            : `Timeout: no response after ${STDIO_TIMEOUT_MS / 1000}s`,
+        })
+      }, STDIO_TIMEOUT_MS)
 
       child.stdout?.on('data', (chunk: Buffer) => {
-        stdoutBuffer += chunk.toString('utf8')
+        stdoutBuffer = Buffer.concat([stdoutBuffer, chunk])
+        processStdoutBuffer()
+      })
 
-        // MCP messages are newline-delimited JSON.
-        const newlineIndex = stdoutBuffer.indexOf('\n')
-        if (newlineIndex === -1) return
-
-        const line = stdoutBuffer.slice(0, newlineIndex).trim()
-        stdoutBuffer = stdoutBuffer.slice(newlineIndex + 1)
-
-        try {
-          const response = JSON.parse(line) as JsonRpcResponse
-          if (response.id === 1 && response.error) {
-            settle({
-              success: false,
-              message: `Server returned error: ${response.error.message}`,
-            })
-            return
-          }
-          if (response.id === 1 && response.result) {
-            const serverName = response.result.serverInfo?.name ?? server.name
-            settle({
-              success: true,
-              message: `Connected — ${serverName}`,
-              responseTimeMs: Date.now() - startedAt,
-            })
-          }
-        } catch {
-          // Not valid JSON yet — keep buffering.
-        }
+      child.stderr?.on('data', (chunk: Buffer) => {
+        const next = stderrBuffer + chunk.toString('utf8')
+        stderrBuffer = next.length > MAX_STDERR_CHARS ? next.slice(-MAX_STDERR_CHARS) : next
       })
 
       child.on('error', (err: Error) => {
@@ -202,16 +255,19 @@ export class ServerTesterService {
 
       child.on('close', (code: number | null) => {
         if (!settled) {
+          const stderr = stderrBuffer.trim()
           settle({
             success: false,
-            message: `Process exited unexpectedly (code ${code ?? 'null'})`,
+            message: stderr
+              ? `Process exited unexpectedly (code ${code ?? 'null'}): ${stderr}`
+              : `Process exited unexpectedly (code ${code ?? 'null'})`,
           })
         }
       })
 
       // Send the initialize request after the process starts.
       try {
-        child.stdin?.write(JSON.stringify(request) + '\n')
+        child.stdin?.write(encodeMcpStdioMessage(request))
       } catch (err) {
         settle({ success: false, message: `Failed to write to stdin: ${String(err)}` })
       }
@@ -245,7 +301,7 @@ export class ServerTesterService {
       const isHttps = parsed.protocol === 'https:'
       const client = isHttps ? https : http
 
-      const req = client.get(url, { timeout: TIMEOUT_MS }, (res) => {
+      const req = client.get(url, { timeout: HTTP_SSE_TIMEOUT_MS }, (res) => {
         res.resume() // Consume body so the connection can close
         const responseTimeMs = Date.now() - startedAt
         // Any HTTP response means the server is reachable.
@@ -260,7 +316,7 @@ export class ServerTesterService {
         req.destroy()
         resolve({
           success: false,
-          message: `Timeout: no response after ${TIMEOUT_MS / 1000}s`,
+          message: `Timeout: no response after ${HTTP_SSE_TIMEOUT_MS / 1000}s`,
         })
       })
 
