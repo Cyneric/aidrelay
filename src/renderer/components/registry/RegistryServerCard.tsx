@@ -2,7 +2,7 @@
  * @file src/renderer/components/registry/RegistryServerCard.tsx
  *
  * @created 07.03.2026
- * @modified 07.03.2026
+ * @modified 08.03.2026
  *
  * @author Christian Blank <aidrelay@proton.me>
  * @copyright 2026
@@ -15,6 +15,9 @@
 import { useState } from 'react'
 import { BadgeCheck, Download, Wifi } from 'lucide-react'
 import { toast } from 'sonner'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useServersStore } from '@/stores/servers.store'
 import type { RegistryServer } from '@shared/channels'
 
@@ -53,13 +56,13 @@ const RegistryServerCard = ({ server, canInstall }: RegistryServerCardProps) => 
 
   const installDisabled = !canInstall || server.remote || installing
 
-  let installTitle: string
+  let installTooltip: string
   if (!canInstall) {
-    installTitle = 'Upgrade to Pro to install from registry'
+    installTooltip = 'Upgrade to Pro to install from registry'
   } else if (server.remote) {
-    installTitle = 'Remote SSE/HTTP servers cannot be installed automatically'
+    installTooltip = 'Remote SSE/HTTP servers cannot be installed automatically'
   } else {
-    installTitle = `Install ${server.displayName}`
+    installTooltip = `Install ${server.displayName}`
   }
 
   return (
@@ -72,28 +75,34 @@ const RegistryServerCard = ({ server, canInstall }: RegistryServerCardProps) => 
         <div className="flex items-center gap-1.5 min-w-0">
           <span className="font-semibold text-sm truncate">{server.displayName}</span>
           {server.verified && (
-            <BadgeCheck
-              size={14}
-              className="shrink-0 text-primary"
-              aria-label="Verified"
-              data-testid={`registry-verified-${server.id}`}
-            />
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <BadgeCheck
+                  size={14}
+                  className="shrink-0 text-primary"
+                  aria-label="Verified"
+                  data-testid={`registry-verified-${server.id}`}
+                />
+              </TooltipTrigger>
+              <TooltipContent>Verified by Smithery</TooltipContent>
+            </Tooltip>
           )}
         </div>
 
         <div className="flex items-center gap-1.5 shrink-0">
           {server.remote && (
-            <span
-              className="rounded bg-muted px-1.5 py-0.5 text-[11px] font-mono text-muted-foreground"
+            <Badge
+              variant="secondary"
+              className="font-mono text-[11px] gap-0.5"
               data-testid={`registry-remote-badge-${server.id}`}
             >
-              <Wifi size={10} className="inline mr-0.5" aria-hidden="true" />
+              <Wifi size={10} className="inline" aria-hidden="true" />
               remote
-            </span>
+            </Badge>
           )}
-          <span className="rounded bg-muted px-1.5 py-0.5 text-[11px] font-mono text-muted-foreground capitalize">
+          <Badge variant="secondary" className="font-mono text-[11px] capitalize">
             {server.source}
-          </span>
+          </Badge>
         </div>
       </div>
 
@@ -108,18 +117,23 @@ const RegistryServerCard = ({ server, canInstall }: RegistryServerCardProps) => 
           </span>
         )}
 
-        <button
-          type="button"
-          onClick={() => void handleInstall()}
-          disabled={installDisabled}
-          className="ml-auto inline-flex items-center gap-1.5 rounded-md bg-primary text-primary-foreground px-3 py-1.5 text-xs font-medium hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-          title={installTitle}
-          aria-label={installTitle}
-          data-testid={`registry-install-${server.id}`}
-        >
-          <Download size={12} aria-hidden="true" />
-          {installing ? 'Installing…' : 'Install'}
-        </button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => void handleInstall()}
+              disabled={installDisabled}
+              className="ml-auto gap-1.5"
+              aria-label={installTooltip}
+              data-testid={`registry-install-${server.id}`}
+            >
+              <Download size={12} aria-hidden="true" />
+              {installing ? 'Installing…' : 'Install'}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{installTooltip}</TooltipContent>
+        </Tooltip>
       </div>
     </article>
   )

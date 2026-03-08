@@ -2,7 +2,7 @@
  * @file src/renderer/pages/ClientsPage.tsx
  *
  * @created 07.03.2026
- * @modified 07.03.2026
+ * @modified 08.03.2026
  *
  * @author Christian Blank <aidrelay@proton.me>
  * @copyright 2026
@@ -27,6 +27,8 @@ import {
   FolderOpen,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useClientsStore } from '@/stores/clients.store'
 import type { ClientStatus } from '@shared/types'
 
@@ -135,37 +137,46 @@ const ClientRow = ({ client, syncing, validating, onSync, onValidate }: Readonly
       {/* Actions */}
       <td className="px-4 py-3">
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => onSync(client.id)}
-            disabled={!client.installed || syncing}
-            className={cn(
-              'inline-flex items-center gap-1 rounded px-2.5 py-1.5 text-xs font-medium',
-              'bg-primary text-primary-foreground hover:bg-primary/90',
-              'disabled:opacity-40 disabled:cursor-not-allowed transition-colors',
-            )}
-            aria-label={`Sync ${client.displayName}`}
-            data-testid={`btn-sync-${client.id}`}
-          >
-            <RefreshCw size={11} className={syncing ? 'animate-spin' : ''} aria-hidden="true" />
-            {syncing ? 'Syncing…' : 'Sync'}
-          </button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                size="xs"
+                onClick={() => onSync(client.id)}
+                disabled={!client.installed || syncing}
+                className="gap-1"
+                aria-label={`Sync ${client.displayName}`}
+                data-testid={`btn-sync-${client.id}`}
+              >
+                <RefreshCw size={11} className={syncing ? 'animate-spin' : ''} aria-hidden="true" />
+                {syncing ? 'Syncing…' : 'Sync'}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              {!client.installed
+                ? `${client.displayName} is not installed`
+                : `Write current profile config to ${client.displayName}`}
+            </TooltipContent>
+          </Tooltip>
 
-          <button
-            type="button"
-            onClick={() => onValidate(client.id)}
-            disabled={!client.installed || validating}
-            className={cn(
-              'inline-flex items-center gap-1 rounded px-2.5 py-1.5 text-xs font-medium',
-              'border hover:bg-accent transition-colors',
-              'disabled:opacity-40 disabled:cursor-not-allowed',
-            )}
-            aria-label={`Validate ${client.displayName} config`}
-            data-testid={`btn-validate-${client.id}`}
-          >
-            <ShieldCheck size={11} aria-hidden="true" />
-            {validating ? 'Checking…' : 'Validate'}
-          </button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                size="xs"
+                onClick={() => onValidate(client.id)}
+                disabled={!client.installed || validating}
+                className="gap-1"
+                aria-label={`Validate ${client.displayName} config`}
+                data-testid={`btn-validate-${client.id}`}
+              >
+                <ShieldCheck size={11} aria-hidden="true" />
+                {validating ? 'Checking…' : 'Validate'}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Check the config file for schema errors</TooltipContent>
+          </Tooltip>
         </div>
       </td>
     </tr>
@@ -236,27 +247,28 @@ const ClientsPage = () => {
         </div>
 
         <div className="flex gap-2">
-          <button
+          <Button
             type="button"
+            variant="outline"
             onClick={() => void detectAll()}
             disabled={loading}
-            className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium border hover:bg-accent transition-colors disabled:opacity-50"
+            className="gap-1.5"
             data-testid="btn-refresh-clients"
           >
             <RefreshCw size={14} className={loading ? 'animate-spin' : ''} aria-hidden="true" />
             {loading ? 'Detecting…' : 'Refresh'}
-          </button>
+          </Button>
 
-          <button
+          <Button
             type="button"
             onClick={() => void handleSyncAll()}
             disabled={loading || installedCount === 0}
-            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
+            className="gap-1.5"
             data-testid="btn-sync-all"
           >
             <RefreshCw size={14} aria-hidden="true" />
             Sync all
-          </button>
+          </Button>
         </div>
       </div>
 

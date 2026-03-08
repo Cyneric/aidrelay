@@ -2,7 +2,7 @@
  * @file src/renderer/components/profiles/__tests__/ProfileDiffView.test.tsx
  *
  * @created 07.03.2026
- * @modified 07.03.2026
+ * @modified 08.03.2026
  *
  * @author Christian Blank <aidrelay@proton.me>
  * @copyright 2026
@@ -13,8 +13,9 @@
  */
 
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { screen, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { renderWithProviders } from '@/test-utils'
 import { ProfileDiffView } from '../ProfileDiffView'
 import type { Profile } from '@shared/types'
 
@@ -54,47 +55,59 @@ const baseProfile: Profile = {
 
 describe('ProfileDiffView', () => {
   it('shows no-overrides message when profile has no overrides', () => {
-    render(<ProfileDiffView profile={baseProfile} onConfirm={vi.fn()} onCancel={vi.fn()} />)
+    renderWithProviders(
+      <ProfileDiffView profile={baseProfile} onConfirm={vi.fn()} onCancel={vi.fn()} />,
+    )
     expect(screen.getByText(/no server or rule overrides/i)).toBeInTheDocument()
   })
 
   it('shows Server changes section for serverOverrides', () => {
     const profile = { ...baseProfile, serverOverrides: { s1: { enabled: false } } }
-    render(<ProfileDiffView profile={profile} onConfirm={vi.fn()} onCancel={vi.fn()} />)
+    renderWithProviders(
+      <ProfileDiffView profile={profile} onConfirm={vi.fn()} onCancel={vi.fn()} />,
+    )
     expect(screen.getByText('Server changes')).toBeInTheDocument()
     expect(screen.getByText('My Server')).toBeInTheDocument()
   })
 
   it('shows Rule changes section for ruleOverrides', () => {
     const profile = { ...baseProfile, ruleOverrides: { r1: { enabled: true } } }
-    render(<ProfileDiffView profile={profile} onConfirm={vi.fn()} onCancel={vi.fn()} />)
+    renderWithProviders(
+      <ProfileDiffView profile={profile} onConfirm={vi.fn()} onCancel={vi.fn()} />,
+    )
     expect(screen.getByText('Rule changes')).toBeInTheDocument()
     expect(screen.getByText('My Rule')).toBeInTheDocument()
   })
 
   it('calls onConfirm when Activate profile button clicked', async () => {
     const onConfirm = vi.fn()
-    render(<ProfileDiffView profile={baseProfile} onConfirm={onConfirm} onCancel={vi.fn()} />)
+    renderWithProviders(
+      <ProfileDiffView profile={baseProfile} onConfirm={onConfirm} onCancel={vi.fn()} />,
+    )
     await userEvent.click(screen.getByTestId('profile-diff-confirm'))
     expect(onConfirm).toHaveBeenCalled()
   })
 
   it('calls onCancel when Cancel button clicked', async () => {
     const onCancel = vi.fn()
-    render(<ProfileDiffView profile={baseProfile} onConfirm={vi.fn()} onCancel={onCancel} />)
+    renderWithProviders(
+      <ProfileDiffView profile={baseProfile} onConfirm={vi.fn()} onCancel={onCancel} />,
+    )
     await userEvent.click(screen.getByTestId('profile-diff-cancel'))
     expect(onCancel).toHaveBeenCalled()
   })
 
-  it('calls onCancel when backdrop clicked', async () => {
+  it('calls onCancel when Escape key is pressed', () => {
     const onCancel = vi.fn()
-    render(<ProfileDiffView profile={baseProfile} onConfirm={vi.fn()} onCancel={onCancel} />)
-    await userEvent.click(screen.getByTestId('profile-diff-backdrop'))
+    renderWithProviders(
+      <ProfileDiffView profile={baseProfile} onConfirm={vi.fn()} onCancel={onCancel} />,
+    )
+    fireEvent.keyDown(document, { key: 'Escape', code: 'Escape' })
     expect(onCancel).toHaveBeenCalled()
   })
 
   it('disables confirm button while activating', () => {
-    render(
+    renderWithProviders(
       <ProfileDiffView profile={baseProfile} activating onConfirm={vi.fn()} onCancel={vi.fn()} />,
     )
     expect(screen.getByTestId('profile-diff-confirm')).toBeDisabled()
@@ -103,14 +116,17 @@ describe('ProfileDiffView', () => {
 
   it('falls back to item ID when server not found in store', () => {
     const profile = { ...baseProfile, serverOverrides: { 'unknown-id': { enabled: false } } }
-    render(<ProfileDiffView profile={profile} onConfirm={vi.fn()} onCancel={vi.fn()} />)
+    renderWithProviders(
+      <ProfileDiffView profile={profile} onConfirm={vi.fn()} onCancel={vi.fn()} />,
+    )
     expect(screen.getByText('unknown-id')).toBeInTheDocument()
   })
 
   it('shows profile name in heading', () => {
-    render(<ProfileDiffView profile={baseProfile} onConfirm={vi.fn()} onCancel={vi.fn()} />)
+    renderWithProviders(
+      <ProfileDiffView profile={baseProfile} onConfirm={vi.fn()} onCancel={vi.fn()} />,
+    )
     expect(screen.getByRole('dialog')).toBeInTheDocument()
-    // Heading includes the profile name
     expect(screen.getByText(/Work Mode/)).toBeInTheDocument()
   })
 })

@@ -2,7 +2,7 @@
  * @file src/renderer/components/profiles/ProfileEditor.tsx
  *
  * @created 07.03.2026
- * @modified 07.03.2026
+ * @modified 08.03.2026
  *
  * @author Christian Blank <aidrelay@proton.me>
  * @copyright 2026
@@ -15,6 +15,8 @@
 import { useState, useCallback } from 'react'
 import { X } from 'lucide-react'
 import { toast } from 'sonner'
+import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { ProfileForm } from './ProfileForm'
 import { useProfilesStore } from '@/stores/profiles.store'
 import type { Profile } from '@shared/types'
@@ -88,15 +90,21 @@ const ProfileEditor = ({ profile, availableParents = [], onClose }: ProfileEdito
           <h2 className="font-semibold text-base">
             {profile ? `Edit: ${profile.name}` : 'Add profile'}
           </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-1.5 text-muted-foreground hover:text-foreground rounded transition-colors"
-            aria-label="Close editor"
-            data-testid="profile-editor-close"
-          >
-            <X size={18} />
-          </button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={onClose}
+                aria-label="Close editor"
+                data-testid="profile-editor-close"
+              >
+                <X size={18} />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Close</TooltipContent>
+          </Tooltip>
         </header>
 
         {/* Body */}

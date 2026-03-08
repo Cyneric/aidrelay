@@ -2,7 +2,7 @@
  * @file src/renderer/components/servers/ServerEditor.tsx
  *
  * @created 07.03.2026
- * @modified 07.03.2026
+ * @modified 08.03.2026
  *
  * @author Christian Blank <aidrelay@proton.me>
  * @copyright 2026
@@ -17,6 +17,8 @@ import { useState, useCallback } from 'react'
 import { X } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { ServerForm } from './ServerForm'
 import { ServerJsonEditor } from './ServerJsonEditor'
 import { useServersStore } from '@/stores/servers.store'
@@ -110,15 +112,21 @@ const ServerEditor = ({ server, onClose }: ServerEditorProps) => {
           <h2 className="font-semibold text-base">
             {server ? `Edit: ${server.name}` : 'Add server'}
           </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-1.5 text-muted-foreground hover:text-foreground rounded transition-colors"
-            aria-label="Close editor"
-            data-testid="server-editor-close"
-          >
-            <X size={18} />
-          </button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={onClose}
+                aria-label="Close editor"
+                data-testid="server-editor-close"
+              >
+                <X size={18} />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Close</TooltipContent>
+          </Tooltip>
         </header>
 
         {/* Tab bar */}
@@ -176,14 +184,10 @@ const ServerEditor = ({ server, onClose }: ServerEditorProps) => {
         {/* JSON tab footer actions */}
         {activeTab === 'json' && (
           <footer className="flex justify-end gap-2 px-6 py-4 border-t border-border">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-md px-4 py-2 text-sm border border-input hover:bg-accent transition-colors"
-            >
+            <Button type="button" variant="outline" onClick={onClose}>
               Cancel
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
               onClick={() => {
                 if (formState) {
@@ -200,11 +204,10 @@ const ServerEditor = ({ server, onClose }: ServerEditorProps) => {
                 }
               }}
               disabled={saving || !formState?.name || !formState?.command}
-              className="rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               data-testid="server-editor-json-save"
             >
               {saving ? 'Saving…' : server ? 'Save changes' : 'Add server'}
-            </button>
+            </Button>
           </footer>
         )}
       </aside>

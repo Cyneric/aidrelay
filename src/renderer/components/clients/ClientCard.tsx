@@ -2,7 +2,7 @@
  * @file src/renderer/components/clients/ClientCard.tsx
  *
  * @created 07.03.2026
- * @modified 07.03.2026
+ * @modified 08.03.2026
  *
  * @author Christian Blank <aidrelay@proton.me>
  * @copyright 2026
@@ -14,6 +14,8 @@
 
 import { RefreshCw, CheckCircle2, AlertCircle, Clock, XCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { ClientStatus } from '@shared/types'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -89,13 +91,18 @@ const ClientCard = ({ client, onSync, syncing = false }: ClientCardProps) => {
           </span>
         </div>
 
-        <span
-          className={cn('flex items-center gap-1 text-xs', statusMeta.className)}
-          data-testid={`client-sync-status-${client.id}`}
-        >
-          <StatusIcon size={13} aria-hidden="true" />
-          {statusMeta.label}
-        </span>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span
+              className={cn('flex items-center gap-1 text-xs cursor-default', statusMeta.className)}
+              data-testid={`client-sync-status-${client.id}`}
+            >
+              <StatusIcon size={13} aria-hidden="true" />
+              {statusMeta.label}
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>{statusMeta.label} — last checked at app startup</TooltipContent>
+        </Tooltip>
       </header>
 
       {/* Server count */}
@@ -105,22 +112,27 @@ const ClientCard = ({ client, onSync, syncing = false }: ClientCardProps) => {
 
       {/* Sync button */}
       <footer>
-        <button
-          type="button"
-          onClick={() => onSync(client.id)}
-          disabled={!client.installed || syncing}
-          className={cn(
-            'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium',
-            'bg-primary text-primary-foreground hover:bg-primary/90',
-            'disabled:opacity-40 disabled:cursor-not-allowed',
-            'transition-colors',
-          )}
-          data-testid={`client-sync-button-${client.id}`}
-          aria-label={`Sync ${client.displayName}`}
-        >
-          <RefreshCw size={12} className={syncing ? 'animate-spin' : ''} aria-hidden="true" />
-          {syncing ? 'Syncing…' : 'Sync'}
-        </button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => onSync(client.id)}
+              disabled={!client.installed || syncing}
+              className="gap-1.5"
+              data-testid={`client-sync-button-${client.id}`}
+              aria-label={`Sync ${client.displayName}`}
+            >
+              <RefreshCw size={12} className={syncing ? 'animate-spin' : ''} aria-hidden="true" />
+              {syncing ? 'Syncing…' : 'Sync'}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            {!client.installed
+              ? `${client.displayName} is not installed`
+              : `Write active profile servers and rules to ${client.displayName} config`}
+          </TooltipContent>
+        </Tooltip>
       </footer>
     </article>
   )

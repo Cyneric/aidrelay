@@ -2,7 +2,7 @@
  * @file src/renderer/components/profiles/ProfileDiffView.tsx
  *
  * @created 07.03.2026
- * @modified 07.03.2026
+ * @modified 08.03.2026
  *
  * @author Christian Blank <aidrelay@proton.me>
  * @copyright 2026
@@ -13,10 +13,19 @@
  * Items with no change are shown in muted text for reference.
  */
 
-import { ArrowRight, X } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useServersStore } from '@/stores/servers.store'
 import { useRulesStore } from '@/stores/rules.store'
+import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import type { Profile } from '@shared/types'
 
 // ─── DiffRow ──────────────────────────────────────────────────────────────────
@@ -113,42 +122,23 @@ const ProfileDiffView = ({
   const noChanges = serverEntries.length === 0 && ruleEntries.length === 0
 
   return (
-    <>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 z-40 bg-black/40"
-        aria-hidden="true"
-        onClick={onCancel}
-        data-testid="profile-diff-backdrop"
-      />
-
-      {/* Modal */}
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="diff-dialog-heading"
-        className="fixed inset-0 z-50 flex items-center justify-center p-4"
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) onCancel()
+      }}
+    >
+      <DialogContent
+        className="max-w-lg flex flex-col max-h-[80vh]"
         data-testid="profile-diff-view"
       >
-        <div className="w-full max-w-lg rounded-lg bg-background border border-border shadow-xl flex flex-col max-h-[80vh]">
-          {/* Header */}
-          <header className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
-            <h2 id="diff-dialog-heading" className="font-semibold text-base">
-              Activate &ldquo;{profile.name}&rdquo;
-            </h2>
-            <button
-              type="button"
-              onClick={onCancel}
-              className="p-1.5 text-muted-foreground hover:text-foreground rounded transition-colors"
-              aria-label="Close"
-              data-testid="profile-diff-close"
-            >
-              <X size={18} />
-            </button>
-          </header>
+        <DialogHeader>
+          <DialogTitle>Activate &ldquo;{profile.name}&rdquo;</DialogTitle>
+        </DialogHeader>
 
-          {/* Body */}
-          <div className="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-5">
+        {/* Body */}
+        <ScrollArea className="flex-1 -mx-6 px-6">
+          <div className="flex flex-col gap-5 py-2">
             {noChanges ? (
               <p className="text-sm text-muted-foreground">
                 This profile has no server or rule overrides. Activating it will trigger a full sync
@@ -200,30 +190,28 @@ const ProfileDiffView = ({
               </>
             )}
           </div>
+        </ScrollArea>
 
-          {/* Footer */}
-          <footer className="flex justify-end gap-2 px-6 py-4 border-t border-border shrink-0">
-            <button
-              type="button"
-              onClick={onCancel}
-              className="rounded-md px-4 py-2 text-sm border border-input hover:bg-accent transition-colors"
-              data-testid="profile-diff-cancel"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={onConfirm}
-              disabled={activating}
-              className="rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
-              data-testid="profile-diff-confirm"
-            >
-              {activating ? 'Activating…' : 'Activate profile'}
-            </button>
-          </footer>
-        </div>
-      </div>
-    </>
+        <DialogFooter>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onCancel}
+            data-testid="profile-diff-cancel"
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            onClick={onConfirm}
+            disabled={activating}
+            data-testid="profile-diff-confirm"
+          >
+            {activating ? 'Activating…' : 'Activate profile'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
 

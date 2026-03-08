@@ -2,7 +2,7 @@
  * @file src/renderer/components/servers/EnvVarEditor.tsx
  *
  * @created 07.03.2026
- * @modified 07.03.2026
+ * @modified 08.03.2026
  *
  * @author Christian Blank <aidrelay@proton.me>
  * @copyright 2026
@@ -16,6 +16,9 @@
 
 import { useState, useCallback } from 'react'
 import { Plus, Trash2, Eye, EyeOff } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -133,95 +136,117 @@ const EnvVarEditor = ({ env, secretEnvKeys, onChange }: EnvVarEditorProps) => {
         {entries.map((entry, index) => (
           <div key={index} className="flex items-center gap-2" data-testid={`env-row-${index}`}>
             {/* Key */}
-            <input
+            <Input
               type="text"
               value={entry.key}
               onChange={(e) => updateRow(index, { key: e.target.value })}
               placeholder="KEY"
               aria-label={`Environment variable key ${index + 1}`}
-              className="flex-1 rounded-md border border-input bg-background px-3 py-1.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-ring"
+              className="flex-1 font-mono"
               data-testid={`env-key-${index}`}
             />
 
             {/* Value */}
             {entry.isSecret ? (
               <div className="flex flex-1 items-center gap-1">
-                <input
+                <Input
                   type={revealedSecrets.has(index) ? 'text' : 'password'}
                   value={entry.value}
                   onChange={(e) => updateRow(index, { value: e.target.value })}
                   placeholder="Stored in Credential Manager"
                   aria-label={`Secret value for ${entry.key || `variable ${index + 1}`}`}
-                  className="flex-1 rounded-md border border-input bg-background px-3 py-1.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="flex-1 font-mono"
                   data-testid={`env-value-${index}`}
                 />
-                <button
-                  type="button"
-                  onClick={() => toggleReveal(index)}
-                  className="p-1.5 text-muted-foreground hover:text-foreground rounded"
-                  aria-label={
-                    revealedSecrets.has(index) ? 'Hide secret value' : 'Show secret value'
-                  }
-                >
-                  {revealedSecrets.has(index) ? <EyeOff size={14} /> : <Eye size={14} />}
-                </button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      onClick={() => toggleReveal(index)}
+                      aria-label={
+                        revealedSecrets.has(index) ? 'Hide secret value' : 'Show secret value'
+                      }
+                    >
+                      {revealedSecrets.has(index) ? <EyeOff size={14} /> : <Eye size={14} />}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {revealedSecrets.has(index) ? 'Hide value' : 'Reveal value'}
+                  </TooltipContent>
+                </Tooltip>
               </div>
             ) : (
-              <input
+              <Input
                 type="text"
                 value={entry.value}
                 onChange={(e) => updateRow(index, { value: e.target.value })}
                 placeholder="value"
                 aria-label={`Value for ${entry.key || `variable ${index + 1}`}`}
-                className="flex-1 rounded-md border border-input bg-background px-3 py-1.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-ring"
+                className="flex-1 font-mono"
                 data-testid={`env-value-${index}`}
               />
             )}
 
             {/* Secret toggle */}
-            <button
-              type="button"
-              onClick={() => toggleSecret(index)}
-              title={
-                entry.isSecret
-                  ? 'Unmark as secret'
-                  : 'Mark as secret (stores in Credential Manager)'
-              }
-              className={cn(
-                'p-1.5 rounded text-xs font-medium transition-colors',
-                entry.isSecret
-                  ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
-                  : 'text-muted-foreground hover:text-foreground',
-              )}
-              aria-label={entry.isSecret ? 'Unmark as secret' : 'Mark as secret'}
-              data-testid={`env-secret-toggle-${index}`}
-            >
-              {entry.isSecret ? 'secret' : 'secret?'}
-            </button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="xs"
+                  onClick={() => toggleSecret(index)}
+                  className={cn(
+                    'font-medium',
+                    entry.isSecret
+                      ? 'bg-amber-100 text-amber-700 hover:bg-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:hover:bg-amber-900/50'
+                      : 'text-muted-foreground',
+                  )}
+                  aria-label={entry.isSecret ? 'Unmark as secret' : 'Mark as secret'}
+                  data-testid={`env-secret-toggle-${index}`}
+                >
+                  {entry.isSecret ? 'secret' : 'secret?'}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {entry.isSecret
+                  ? 'Unmark as secret — value stored in plain JSON'
+                  : 'Mark as secret — value stored in Windows Credential Manager'}
+              </TooltipContent>
+            </Tooltip>
 
             {/* Delete */}
-            <button
-              type="button"
-              onClick={() => removeRow(index)}
-              className="p-1.5 text-muted-foreground hover:text-destructive rounded transition-colors"
-              aria-label={`Remove environment variable ${index + 1}`}
-              data-testid={`env-remove-${index}`}
-            >
-              <Trash2 size={14} />
-            </button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={() => removeRow(index)}
+                  aria-label={`Remove environment variable ${index + 1}`}
+                  data-testid={`env-remove-${index}`}
+                >
+                  <Trash2 size={14} />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Remove variable</TooltipContent>
+            </Tooltip>
           </div>
         ))}
       </div>
 
-      <button
+      <Button
         type="button"
+        variant="ghost"
+        size="sm"
         onClick={addRow}
-        className="mt-3 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+        className="mt-3 gap-1.5 text-muted-foreground"
         data-testid="env-add-button"
       >
         <Plus size={14} />
         Add variable
-      </button>
+      </Button>
     </section>
   )
 }

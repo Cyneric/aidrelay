@@ -2,7 +2,7 @@
  * @file src/renderer/components/stacks/StackExporter.tsx
  *
  * @created 07.03.2026
- * @modified 07.03.2026
+ * @modified 08.03.2026
  *
  * @author Christian Blank <aidrelay@proton.me>
  * @copyright 2026
@@ -15,6 +15,10 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Download } from 'lucide-react'
 import { toast } from 'sonner'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useServersStore } from '@/stores/servers.store'
 import { useRulesStore } from '@/stores/rules.store'
 import { useFeatureGate } from '@/lib/useFeatureGate'
@@ -105,20 +109,20 @@ const StackExporter = () => {
 
       {/* Stack name */}
       <div className="flex flex-col gap-1.5">
-        <label htmlFor="stack-name" className="text-sm font-medium">
+        <Label htmlFor="stack-name">
           Stack name{' '}
           <span aria-hidden="true" className="text-destructive">
             *
           </span>
-        </label>
-        <input
+        </Label>
+        <Input
           id="stack-name"
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="e.g. My Dev Setup"
           disabled={!canExport}
-          className="w-full max-w-sm rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
+          className="max-w-sm"
           data-testid="stack-name-input"
         />
       </div>
@@ -183,17 +187,23 @@ const StackExporter = () => {
         </fieldset>
       </div>
 
-      <button
-        type="button"
-        onClick={() => void handleExport()}
-        disabled={exportDisabled}
-        title={!canExport ? 'Upgrade to Pro to export stacks' : undefined}
-        className="inline-flex items-center gap-1.5 self-start rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        data-testid="stack-export-button"
-      >
-        <Download size={14} aria-hidden="true" />
-        {exporting ? 'Exporting…' : 'Export'}
-      </button>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            type="button"
+            onClick={() => void handleExport()}
+            disabled={exportDisabled}
+            className="self-start gap-1.5"
+            data-testid="stack-export-button"
+          >
+            <Download size={14} aria-hidden="true" />
+            {exporting ? 'Exporting…' : 'Export'}
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>
+          {!canExport ? 'Upgrade to Pro to export stacks' : 'Download as .json file'}
+        </TooltipContent>
+      </Tooltip>
     </div>
   )
 }

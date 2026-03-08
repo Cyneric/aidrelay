@@ -2,7 +2,7 @@
  * @file src/renderer/components/rules/__tests__/ImportRulesDialog.test.tsx
  *
  * @created 07.03.2026
- * @modified 07.03.2026
+ * @modified 08.03.2026
  *
  * @author Christian Blank <aidrelay@proton.me>
  * @copyright 2026
@@ -12,7 +12,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { screen, fireEvent, waitFor } from '@testing-library/react'
+import { renderWithProviders } from '@/test-utils'
 import { ImportRulesDialog } from '../ImportRulesDialog'
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
@@ -46,41 +47,40 @@ beforeEach(() => {
 
 describe('ImportRulesDialog', () => {
   it('renders the dialog with heading', async () => {
-    render(<ImportRulesDialog onClose={vi.fn()} />)
+    renderWithProviders(<ImportRulesDialog onClose={vi.fn()} />)
     await waitFor(() => expect(screen.queryByText('Detecting recent workspaces…')).toBeNull())
     expect(screen.getByRole('dialog')).toBeTruthy()
     expect(screen.getByText('Import rules from project')).toBeTruthy()
   })
 
-  it('calls onClose when backdrop is clicked', async () => {
+  it('calls onClose when Escape key is pressed', async () => {
     const onClose = vi.fn()
-    render(<ImportRulesDialog onClose={onClose} />)
+    renderWithProviders(<ImportRulesDialog onClose={onClose} />)
     await waitFor(() => expect(mockDetectWorkspaces).toHaveBeenCalled())
-    fireEvent.click(screen.getByTestId('import-dialog-backdrop'))
+    fireEvent.keyDown(document, { key: 'Escape', code: 'Escape' })
     expect(onClose).toHaveBeenCalled()
   })
 
   it('calls onClose when cancel button is clicked', async () => {
     const onClose = vi.fn()
-    render(<ImportRulesDialog onClose={onClose} />)
+    renderWithProviders(<ImportRulesDialog onClose={onClose} />)
     await waitFor(() => expect(mockDetectWorkspaces).toHaveBeenCalled())
     fireEvent.click(screen.getByTestId('import-dialog-cancel'))
     expect(onClose).toHaveBeenCalled()
   })
 
-  it('populates workspace dropdown when workspaces are detected', async () => {
+  it('shows workspace select trigger when workspaces are detected', async () => {
     mockDetectWorkspaces.mockResolvedValue(['C:\\proj\\a', 'C:\\proj\\b'])
-    render(<ImportRulesDialog onClose={vi.fn()} />)
+    renderWithProviders(<ImportRulesDialog onClose={vi.fn()} />)
     await waitFor(() => expect(screen.getByTestId('workspace-select')).toBeTruthy())
-    const select = screen.getByTestId<HTMLSelectElement>('workspace-select')
-    expect(select.options).toHaveLength(2)
+    expect(screen.getByTestId('workspace-select')).toBeInTheDocument()
   })
 
   it('shows scan result in preview after scanning', async () => {
     mockDetectWorkspaces.mockResolvedValue([])
     mockImportFromProject.mockResolvedValue({ imported: 3, skipped: 1, errors: [] })
 
-    render(<ImportRulesDialog onClose={vi.fn()} />)
+    renderWithProviders(<ImportRulesDialog onClose={vi.fn()} />)
     await waitFor(() => expect(mockDetectWorkspaces).toHaveBeenCalled())
 
     fireEvent.change(screen.getByTestId('custom-path-input'), {
@@ -95,7 +95,7 @@ describe('ImportRulesDialog', () => {
   it('disables import button when scan found 0 rules', async () => {
     mockImportFromProject.mockResolvedValue({ imported: 0, skipped: 0, errors: [] })
 
-    render(<ImportRulesDialog onClose={vi.fn()} />)
+    renderWithProviders(<ImportRulesDialog onClose={vi.fn()} />)
     await waitFor(() => expect(mockDetectWorkspaces).toHaveBeenCalled())
 
     fireEvent.change(screen.getByTestId('custom-path-input'), {
@@ -113,7 +113,7 @@ describe('ImportRulesDialog', () => {
     mockImportFromProject.mockResolvedValue({ imported: 2, skipped: 0, errors: [] })
     const onClose = vi.fn()
 
-    render(<ImportRulesDialog onClose={onClose} />)
+    renderWithProviders(<ImportRulesDialog onClose={onClose} />)
     await waitFor(() => expect(mockDetectWorkspaces).toHaveBeenCalled())
 
     fireEvent.change(screen.getByTestId('custom-path-input'), {

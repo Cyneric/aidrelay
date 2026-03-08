@@ -2,7 +2,7 @@
  * @file src/renderer/components/profiles/__tests__/ProfileCard.test.tsx
  *
  * @created 07.03.2026
- * @modified 07.03.2026
+ * @modified 08.03.2026
  *
  * @author Christian Blank <aidrelay@proton.me>
  * @copyright 2026
@@ -12,8 +12,9 @@
  */
 
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { renderWithProviders } from '@/test-utils'
 import { ProfileCard } from '../ProfileCard'
 import type { Profile } from '@shared/types'
 
@@ -36,7 +37,7 @@ const baseProfile: Profile = {
 
 describe('ProfileCard', () => {
   it('renders profile name and description', () => {
-    render(
+    renderWithProviders(
       <ProfileCard
         profile={baseProfile}
         onActivate={vi.fn()}
@@ -51,7 +52,7 @@ describe('ProfileCard', () => {
   })
 
   it('shows Active badge when profile is active', () => {
-    render(
+    renderWithProviders(
       <ProfileCard
         profile={{ ...baseProfile, isActive: true }}
         onActivate={vi.fn()}
@@ -63,7 +64,7 @@ describe('ProfileCard', () => {
   })
 
   it('hides Active badge when profile is not active', () => {
-    render(
+    renderWithProviders(
       <ProfileCard
         profile={baseProfile}
         onActivate={vi.fn()}
@@ -75,7 +76,7 @@ describe('ProfileCard', () => {
   })
 
   it('shows Activate button when profile is not active', () => {
-    render(
+    renderWithProviders(
       <ProfileCard
         profile={baseProfile}
         onActivate={vi.fn()}
@@ -87,7 +88,7 @@ describe('ProfileCard', () => {
   })
 
   it('hides Activate button when profile is active', () => {
-    render(
+    renderWithProviders(
       <ProfileCard
         profile={{ ...baseProfile, isActive: true }}
         onActivate={vi.fn()}
@@ -100,7 +101,7 @@ describe('ProfileCard', () => {
 
   it('calls onActivate with the profile when Activate clicked', async () => {
     const onActivate = vi.fn()
-    render(
+    renderWithProviders(
       <ProfileCard
         profile={baseProfile}
         onActivate={onActivate}
@@ -114,7 +115,7 @@ describe('ProfileCard', () => {
 
   it('calls onEdit with the profile when Edit clicked', async () => {
     const onEdit = vi.fn()
-    render(
+    renderWithProviders(
       <ProfileCard profile={baseProfile} onActivate={vi.fn()} onEdit={onEdit} onDelete={vi.fn()} />,
     )
     await userEvent.click(screen.getByTestId('profile-edit-p1'))
@@ -123,7 +124,7 @@ describe('ProfileCard', () => {
 
   it('calls onDelete with the profile when Delete clicked', async () => {
     const onDelete = vi.fn()
-    render(
+    renderWithProviders(
       <ProfileCard
         profile={baseProfile}
         onActivate={vi.fn()}
@@ -136,9 +137,21 @@ describe('ProfileCard', () => {
   })
 
   it('disables Delete button when profile is active', () => {
-    render(
+    renderWithProviders(
       <ProfileCard
         profile={{ ...baseProfile, isActive: true }}
+        onActivate={vi.fn()}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    )
+    expect(screen.getByTestId('profile-delete-p1')).toBeDisabled()
+  })
+
+  it('disables Delete button for the default profile', () => {
+    renderWithProviders(
+      <ProfileCard
+        profile={{ ...baseProfile, name: 'default', isActive: false }}
         onActivate={vi.fn()}
         onEdit={vi.fn()}
         onDelete={vi.fn()}
@@ -153,7 +166,7 @@ describe('ProfileCard', () => {
       serverOverrides: { s1: { enabled: true }, s2: { enabled: false } },
       ruleOverrides: { r1: { enabled: true } },
     }
-    render(
+    renderWithProviders(
       <ProfileCard profile={profile} onActivate={vi.fn()} onEdit={vi.fn()} onDelete={vi.fn()} />,
     )
     expect(screen.getByTestId('profile-server-overrides-p1')).toHaveTextContent(
@@ -168,7 +181,7 @@ describe('ProfileCard', () => {
       serverOverrides: { s1: { enabled: true } },
       ruleOverrides: {},
     }
-    render(
+    renderWithProviders(
       <ProfileCard profile={profile} onActivate={vi.fn()} onEdit={vi.fn()} onDelete={vi.fn()} />,
     )
     expect(screen.getByTestId('profile-server-overrides-p1')).toHaveTextContent('1 server override')

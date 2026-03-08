@@ -2,7 +2,7 @@
  * @file src/renderer/pages/HistoryPage.tsx
  *
  * @created 07.03.2026
- * @modified 07.03.2026
+ * @modified 08.03.2026
  *
  * @author Christian Blank <aidrelay@proton.me>
  * @copyright 2026
@@ -17,6 +17,7 @@
 
 import { useState, useEffect } from 'react'
 import { ChevronDown, ChevronRight } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import type { ClientStatus } from '@shared/types'
 import { BackupTimeline } from '@/components/history/BackupTimeline'
 
@@ -34,9 +35,10 @@ const ClientHistorySection = ({ client }: Readonly<{ client: ClientStatus }>) =>
       aria-labelledby={`history-heading-${client.id}`}
       data-testid={`client-history-${client.id}`}
     >
-      <button
+      <Button
         type="button"
-        className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium hover:bg-accent/50 transition-colors"
+        variant="ghost"
+        className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium rounded-none rounded-t-lg"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-controls={`history-panel-${client.id}`}
@@ -47,7 +49,7 @@ const ClientHistorySection = ({ client }: Readonly<{ client: ClientStatus }>) =>
         ) : (
           <ChevronRight size={16} aria-hidden="true" />
         )}
-      </button>
+      </Button>
 
       {open && (
         <div id={`history-panel-${client.id}`} className="px-4 pb-4">

@@ -2,7 +2,7 @@
  * @file src/renderer/components/servers/ServerForm.tsx
  *
  * @created 07.03.2026
- * @modified 07.03.2026
+ * @modified 08.03.2026
  *
  * @author Christian Blank <aidrelay@proton.me>
  * @copyright 2026
@@ -14,10 +14,22 @@
  * switching between the form and JSON tabs.
  */
 
-import { useFieldArray, useForm, useWatch } from 'react-hook-form'
+import { useFieldArray, useForm, useWatch, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Plus, Trash2 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import { EnvVarEditor } from './EnvVarEditor'
 import type { McpServer } from '@shared/types'
@@ -172,22 +184,19 @@ const ServerForm = ({ defaultValues, onSubmit, onCancel, saving = false }: Serve
       data-testid="server-form"
     >
       {/* Name */}
-      <div className="flex flex-col gap-1">
-        <label htmlFor="server-name" className="text-sm font-medium">
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="server-name">
           Name{' '}
           <span aria-hidden="true" className="text-destructive">
             *
           </span>
-        </label>
-        <input
+        </Label>
+        <Input
           id="server-name"
           type="text"
           placeholder="e.g. chrome-devtools"
           {...register('name')}
-          className={cn(
-            'rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring',
-            errors.name ? 'border-destructive' : 'border-input',
-          )}
+          className={cn(errors.name && 'border-destructive')}
           data-testid="server-name-input"
           aria-describedby={errors.name ? 'server-name-error' : undefined}
           aria-invalid={!!errors.name}
@@ -200,42 +209,43 @@ const ServerForm = ({ defaultValues, onSubmit, onCancel, saving = false }: Serve
       </div>
 
       {/* Type */}
-      <div className="flex flex-col gap-1">
-        <label htmlFor="server-type" className="text-sm font-medium">
-          Transport type
-        </label>
-        <select
-          id="server-type"
-          {...register('type')}
-          className="rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-          data-testid="server-type-select"
-        >
-          <option value="stdio">stdio</option>
-          <option value="sse">SSE</option>
-          <option value="http">HTTP</option>
-        </select>
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="server-type">Transport type</Label>
+        <Controller
+          control={control}
+          name="type"
+          render={({ field }) => (
+            <Select value={field.value} onValueChange={field.onChange}>
+              <SelectTrigger id="server-type" data-testid="server-type-select">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="stdio">stdio</SelectItem>
+                <SelectItem value="sse">SSE</SelectItem>
+                <SelectItem value="http">HTTP</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
+        />
       </div>
 
       {/* URL — only for SSE / HTTP transports */}
       {isNetworkTransport && (
-        <div className="flex flex-col gap-1">
-          <label htmlFor="server-url" className="text-sm font-medium">
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="server-url">
             Endpoint URL{' '}
             <span aria-hidden="true" className="text-destructive">
               *
             </span>
-          </label>
-          <input
+          </Label>
+          <Input
             id="server-url"
             type="url"
             placeholder={
               selectedType === 'sse' ? 'https://example.com/sse' : 'https://example.com/mcp'
             }
             {...register('url')}
-            className={cn(
-              'rounded-md border bg-background px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-ring',
-              errors.url ? 'border-destructive' : 'border-input',
-            )}
+            className={cn('font-mono', errors.url && 'border-destructive')}
             data-testid="server-url-input"
             aria-invalid={!!errors.url}
             aria-describedby={errors.url ? 'server-url-error' : undefined}
@@ -249,8 +259,8 @@ const ServerForm = ({ defaultValues, onSubmit, onCancel, saving = false }: Serve
       )}
 
       {/* Command */}
-      <div className="flex flex-col gap-1">
-        <label htmlFor="server-command" className="text-sm font-medium">
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="server-command">
           {isNetworkTransport ? (
             'Command'
           ) : (
@@ -261,16 +271,13 @@ const ServerForm = ({ defaultValues, onSubmit, onCancel, saving = false }: Serve
               </span>
             </>
           )}
-        </label>
-        <input
+        </Label>
+        <Input
           id="server-command"
           type="text"
           placeholder="e.g. npx"
           {...register('command')}
-          className={cn(
-            'rounded-md border bg-background px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-ring',
-            errors.command ? 'border-destructive' : 'border-input',
-          )}
+          className={cn('font-mono', errors.command && 'border-destructive')}
           data-testid="server-command-input"
           aria-invalid={!!errors.command}
         />
@@ -286,33 +293,41 @@ const ServerForm = ({ defaultValues, onSubmit, onCancel, saving = false }: Serve
         <span className="text-sm font-medium">Arguments</span>
         {argFields.map((field, index) => (
           <div key={field.id} className="flex items-center gap-2">
-            <input
+            <Input
               type="text"
               {...register(`args.${index}.value`)}
               placeholder={`arg ${index + 1}`}
-              className="flex-1 rounded-md border border-input bg-background px-3 py-1.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-ring"
+              className="font-mono"
               data-testid={`server-arg-${index}`}
               aria-label={`Argument ${index + 1}`}
             />
-            <button
-              type="button"
-              onClick={() => removeArg(index)}
-              className="p-1.5 text-muted-foreground hover:text-destructive rounded transition-colors"
-              aria-label={`Remove argument ${index + 1}`}
-            >
-              <Trash2 size={14} />
-            </button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={() => removeArg(index)}
+                  aria-label={`Remove argument ${index + 1}`}
+                >
+                  <Trash2 size={14} />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Remove argument</TooltipContent>
+            </Tooltip>
           </div>
         ))}
-        <button
+        <Button
           type="button"
+          variant="ghost"
+          size="sm"
           onClick={() => appendArg({ value: '' })}
-          className="self-start inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          className="self-start gap-1.5 text-muted-foreground"
           data-testid="add-arg-button"
         >
           <Plus size={14} />
           Add argument
-        </button>
+        </Button>
       </div>
 
       {/* Env vars */}
@@ -329,53 +344,38 @@ const ServerForm = ({ defaultValues, onSubmit, onCancel, saving = false }: Serve
       </div>
 
       {/* Tags */}
-      <div className="flex flex-col gap-1">
-        <label htmlFor="server-tags" className="text-sm font-medium">
-          Tags
-        </label>
-        <input
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="server-tags">Tags</Label>
+        <Input
           id="server-tags"
           type="text"
           placeholder="work, remote, dev (comma-separated)"
           {...register('tags')}
-          className="rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
           data-testid="server-tags-input"
         />
       </div>
 
       {/* Notes */}
-      <div className="flex flex-col gap-1">
-        <label htmlFor="server-notes" className="text-sm font-medium">
-          Notes
-        </label>
-        <textarea
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="server-notes">Notes</Label>
+        <Textarea
           id="server-notes"
           rows={3}
           placeholder="Optional notes about this server…"
           {...register('notes')}
-          className="rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+          className="resize-none"
           data-testid="server-notes-input"
         />
       </div>
 
       {/* Actions */}
       <footer className="flex justify-end gap-2 pt-2 border-t border-border">
-        <button
-          type="button"
-          onClick={onCancel}
-          className="rounded-md px-4 py-2 text-sm border border-input hover:bg-accent transition-colors"
-          data-testid="server-form-cancel"
-        >
+        <Button type="button" variant="outline" onClick={onCancel} data-testid="server-form-cancel">
           Cancel
-        </button>
-        <button
-          type="submit"
-          disabled={saving}
-          className="rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          data-testid="server-form-submit"
-        >
+        </Button>
+        <Button type="submit" disabled={saving} data-testid="server-form-submit">
           {saving ? 'Saving…' : defaultValues ? 'Save changes' : 'Add server'}
-        </button>
+        </Button>
       </footer>
     </form>
   )

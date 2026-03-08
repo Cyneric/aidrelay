@@ -2,7 +2,7 @@
  * @file src/renderer/components/registry/RegistryBrowser.tsx
  *
  * @created 07.03.2026
- * @modified 07.03.2026
+ * @modified 08.03.2026
  *
  * @author Christian Blank <aidrelay@proton.me>
  * @copyright 2026
@@ -16,6 +16,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Search } from 'lucide-react'
 import { useFeatureGate } from '@/lib/useFeatureGate'
+import { Input } from '@/components/ui/input'
 import { RegistryServerCard } from './RegistryServerCard'
 import type { RegistryServer } from '@shared/channels'
 
@@ -70,12 +71,12 @@ const RegistryBrowser = () => {
           className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
           aria-hidden="true"
         />
-        <input
+        <Input
           type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search MCP servers…"
-          className="w-full rounded-md border border-input bg-background pl-8 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          className="pl-8"
           aria-label="Search registry"
           data-testid="registry-search"
         />

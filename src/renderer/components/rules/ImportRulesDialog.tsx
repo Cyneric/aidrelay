@@ -14,10 +14,28 @@
  */
 
 import { useState, useEffect, useCallback } from 'react'
-import { FolderOpen, X, RefreshCw } from 'lucide-react'
+import { FolderOpen, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { useRulesStore } from '@/stores/rules.store'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -74,12 +92,6 @@ const ImportRulesDialog = ({ onClose }: ImportRulesDialogProps) => {
     setScanning(true)
     setPreview(null)
     try {
-      // Use import endpoint to get a dry-run-like preview.
-      // We call importFromProject but the actual write happens on confirm.
-      // To get a preview without writing, we read the result from a scan.
-      // Since we don't have a separate scan endpoint, we show what would be
-      // imported by calling the real import here (idempotent — duplicates are
-      // skipped automatically).
       const result = await window.api.rulesImportFromProject(activePath)
       setPreview(result)
     } catch {
@@ -107,176 +119,157 @@ const ImportRulesDialog = ({ onClose }: ImportRulesDialogProps) => {
   }, [preview, load, onClose])
 
   return (
-    <>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 z-40 bg-black/40"
-        aria-hidden="true"
-        onClick={onClose}
-        data-testid="import-dialog-backdrop"
-      />
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) onClose()
+      }}
+    >
+      <DialogContent className="max-w-lg" data-testid="import-rules-dialog">
+        <DialogHeader>
+          <DialogTitle>Import rules from project</DialogTitle>
+        </DialogHeader>
 
-      {/* Dialog */}
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="import-dialog-heading"
-        className="fixed inset-0 z-50 flex items-center justify-center p-4"
-        data-testid="import-rules-dialog"
-      >
-        <div className="w-full max-w-lg rounded-lg bg-background border border-border shadow-xl flex flex-col gap-0">
-          {/* Header */}
-          <header className="flex items-center justify-between px-6 py-4 border-b border-border">
-            <h2 id="import-dialog-heading" className="font-semibold text-base">
-              Import rules from project
-            </h2>
-            <button
-              type="button"
-              onClick={onClose}
-              className="p-1.5 text-muted-foreground hover:text-foreground rounded transition-colors"
-              aria-label="Close dialog"
-              data-testid="import-dialog-close"
-            >
-              <X size={18} />
-            </button>
-          </header>
-
-          {/* Body */}
-          <div className="flex flex-col gap-4 px-6 py-5">
-            {/* Workspace dropdown */}
-            {detecting ? (
-              <p className="text-sm text-muted-foreground">Detecting recent workspaces…</p>
-            ) : workspaces.length > 0 ? (
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="workspace-select" className="text-sm font-medium">
-                  Recent workspace
-                </label>
-                <select
-                  id="workspace-select"
-                  value={selectedPath}
-                  onChange={(e) => {
-                    setSelectedPath(e.target.value)
-                    setCustomPath('')
-                    setPreview(null)
-                  }}
-                  className="rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                  data-testid="workspace-select"
-                >
-                  {workspaces.map((p) => (
-                    <option key={p} value={p}>
-                      {p}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            ) : null}
-
-            {/* Custom path */}
+        {/* Body */}
+        <div className="flex flex-col gap-4 py-2">
+          {/* Workspace dropdown */}
+          {detecting ? (
+            <p className="text-sm text-muted-foreground">Detecting recent workspaces…</p>
+          ) : workspaces.length > 0 ? (
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="custom-path" className="text-sm font-medium">
-                {workspaces.length > 0 ? 'Or enter a custom path' : 'Project directory path'}
-              </label>
-              <div className="flex gap-2">
-                <input
-                  id="custom-path"
-                  type="text"
-                  value={customPath}
-                  onChange={(e) => {
-                    setCustomPath(e.target.value)
-                    setPreview(null)
-                  }}
-                  placeholder="C:\Users\me\my-project"
-                  className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring font-mono"
-                  data-testid="custom-path-input"
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    void (async () => {
-                      const result = await window.api.showOpenDialog({
-                        properties: ['openDirectory'],
-                        title: 'Select project directory',
-                      })
-                      if (!result.canceled && result.filePaths[0]) {
-                        setCustomPath(result.filePaths[0])
-                        setSelectedPath('')
-                        setPreview(null)
-                      }
-                    })()
-                  }}
-                  className="rounded-md border border-input px-3 py-2 text-sm hover:bg-accent transition-colors"
-                  aria-label="Browse for directory"
-                  data-testid="browse-button"
-                >
-                  <FolderOpen size={14} aria-hidden="true" />
-                </button>
-              </div>
-            </div>
-
-            {/* Scan button */}
-            <button
-              type="button"
-              onClick={() => void handleScan()}
-              disabled={scanning || !activePath}
-              className="inline-flex items-center gap-1.5 self-start rounded-md border border-input px-3 py-2 text-sm hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              data-testid="scan-button"
-            >
-              <RefreshCw size={14} className={scanning ? 'animate-spin' : ''} aria-hidden="true" />
-              {scanning ? 'Scanning…' : 'Scan for rules'}
-            </button>
-
-            {/* Preview result */}
-            {preview && (
-              <div
-                className={cn(
-                  'rounded-md border px-4 py-3 text-sm',
-                  preview.imported > 0
-                    ? 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800/40 dark:bg-emerald-950/30 dark:text-emerald-300'
-                    : 'border-muted bg-muted/40 text-muted-foreground',
-                )}
-                data-testid="import-preview"
+              <Label htmlFor="workspace-select">Recent workspace</Label>
+              <Select
+                value={selectedPath}
+                onValueChange={(v) => {
+                  setSelectedPath(v)
+                  setCustomPath('')
+                  setPreview(null)
+                }}
               >
-                {preview.imported === 0 && preview.skipped === 0
-                  ? 'No rule files found in this directory.'
-                  : `Found ${preview.imported} new rule${preview.imported !== 1 ? 's' : ''}` +
-                    (preview.skipped > 0 ? `, ${preview.skipped} already exist` : '') +
-                    '.'}
-                {preview.errors.length > 0 && (
-                  <ul className="mt-1 list-disc list-inside text-destructive">
-                    {preview.errors.map((e, i) => (
-                      <li key={i}>{e}</li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            )}
+                <SelectTrigger id="workspace-select" data-testid="workspace-select">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {workspaces.filter(Boolean).map((p) => (
+                    <SelectItem key={p} value={p}>
+                      {p}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : null}
+
+          {/* Custom path */}
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="custom-path">
+              {workspaces.length > 0 ? 'Or enter a custom path' : 'Project directory path'}
+            </Label>
+            <div className="flex gap-2">
+              <Input
+                id="custom-path"
+                type="text"
+                value={customPath}
+                onChange={(e) => {
+                  setCustomPath(e.target.value)
+                  setPreview(null)
+                }}
+                placeholder="C:\Users\me\my-project"
+                className="flex-1 font-mono"
+                data-testid="custom-path-input"
+              />
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() => {
+                      void (async () => {
+                        const result = await window.api.showOpenDialog({
+                          properties: ['openDirectory'],
+                          title: 'Select project directory',
+                        })
+                        if (!result.canceled && result.filePaths[0]) {
+                          setCustomPath(result.filePaths[0])
+                          setSelectedPath('')
+                          setPreview(null)
+                        }
+                      })()
+                    }}
+                    aria-label="Browse for directory"
+                    data-testid="browse-button"
+                  >
+                    <FolderOpen size={14} aria-hidden="true" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Browse for directory</TooltipContent>
+              </Tooltip>
+            </div>
           </div>
 
-          {/* Footer */}
-          <footer className="flex justify-end gap-2 px-6 py-4 border-t border-border">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-md px-4 py-2 text-sm border border-input hover:bg-accent transition-colors"
-              data-testid="import-dialog-cancel"
+          {/* Scan button */}
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => void handleScan()}
+            disabled={scanning || !activePath}
+            className="self-start gap-1.5"
+            data-testid="scan-button"
+          >
+            <RefreshCw size={14} className={scanning ? 'animate-spin' : ''} aria-hidden="true" />
+            {scanning ? 'Scanning…' : 'Scan for rules'}
+          </Button>
+
+          {/* Preview result */}
+          {preview && (
+            <div
+              className={cn(
+                'rounded-md border px-4 py-3 text-sm',
+                preview.imported > 0
+                  ? 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800/40 dark:bg-emerald-950/30 dark:text-emerald-300'
+                  : 'border-muted bg-muted/40 text-muted-foreground',
+              )}
+              data-testid="import-preview"
             >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={() => void handleImport()}
-              disabled={importing || !preview || preview.imported === 0}
-              className="rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              data-testid="import-confirm-button"
-            >
-              {importing
-                ? 'Importing…'
-                : `Import${preview ? ` ${preview.imported} rule${preview.imported !== 1 ? 's' : ''}` : ''}`}
-            </button>
-          </footer>
+              {preview.imported === 0 && preview.skipped === 0
+                ? 'No rule files found in this directory.'
+                : `Found ${preview.imported} new rule${preview.imported !== 1 ? 's' : ''}` +
+                  (preview.skipped > 0 ? `, ${preview.skipped} already exist` : '') +
+                  '.'}
+              {preview.errors.length > 0 && (
+                <ul className="mt-1 list-disc list-inside text-destructive">
+                  {preview.errors.map((e, i) => (
+                    <li key={i}>{e}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
         </div>
-      </div>
-    </>
+
+        <DialogFooter>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onClose}
+            data-testid="import-dialog-cancel"
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            onClick={() => void handleImport()}
+            disabled={importing || !preview || preview.imported === 0}
+            data-testid="import-confirm-button"
+          >
+            {importing
+              ? 'Importing…'
+              : `Import${preview ? ` ${preview.imported} rule${preview.imported !== 1 ? 's' : ''}` : ''}`}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
 

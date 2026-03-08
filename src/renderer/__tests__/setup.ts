@@ -2,7 +2,7 @@
  * @file src/renderer/__tests__/setup.ts
  *
  * @created 07.03.2026
- * @modified 07.03.2026
+ * @modified 08.03.2026
  *
  * @author Christian Blank <aidrelay@proton.me>
  * @copyright 2026
@@ -21,3 +21,25 @@ Object.defineProperty(window, 'api', {
   writable: true,
   configurable: true,
 })
+
+// Radix UI uses ResizeObserver to measure popper/tooltip content dimensions.
+// jsdom does not implement it, so we stub it with a no-op.
+if (typeof window.ResizeObserver === 'undefined') {
+  window.ResizeObserver = class ResizeObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+}
+
+// Radix UI Dialog and other primitives use hasPointerCapture / setPointerCapture
+// internally. jsdom does not implement them on HTMLElement.
+if (!HTMLElement.prototype.hasPointerCapture) {
+  HTMLElement.prototype.hasPointerCapture = () => false
+}
+if (!HTMLElement.prototype.setPointerCapture) {
+  HTMLElement.prototype.setPointerCapture = () => {}
+}
+if (!HTMLElement.prototype.releasePointerCapture) {
+  HTMLElement.prototype.releasePointerCapture = () => {}
+}
