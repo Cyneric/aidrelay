@@ -51,9 +51,11 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { ServerEditor } from '@/components/servers/ServerEditor'
 import { ToggleMatrix } from '@/components/servers/ToggleMatrix'
+import { ConfirmActionDialog } from '@/components/common/ConfirmActionDialog'
 import { useServersStore } from '@/stores/servers.store'
 import { useClientsStore } from '@/stores/clients.store'
 import { useFeatureGate } from '@/lib/useFeatureGate'
+import { useServersActions } from '@/hooks/useServersActions'
 import type { McpServer } from '@shared/types'
 
 // ─── Column helper ────────────────────────────────────────────────────────────
@@ -76,9 +78,16 @@ const ServersPage = () => {
   const [editingServer, setEditingServer] = useState<McpServer | undefined>(undefined)
   const [showEditor, setShowEditor] = useState(false)
   const [matrixExpanded, setMatrixExpanded] = useState(false)
-  const [syncingAll, setSyncingAll] = useState(false)
-  const [importingFromClients, setImportingFromClients] = useState(false)
-  const [testingServerId, setTestingServerId] = useState<string | null>(null)
+  const [pendingDeleteServer, setPendingDeleteServer] = useState<McpServer | null>(null)
+  const [deletingServer, setDeletingServer] = useState(false)
+  const {
+    syncingAll,
+    importingFromClients,
+    testingServerId,
+    handleTest,
+    handleSyncAll,
+    handleImportFromClients,
+  } = useServersActions({ onImported: load, t })
 
   useEffect(() => {
     void load()
@@ -101,74 +110,21 @@ const ServersPage = () => {
     void load()
   }, [load])
 
-  const handleDelete = useCallback(
-    async (server: McpServer) => {
-      if (!window.confirm(`Delete "${server.name}"? This cannot be undone.`)) return
-      await deleteServer(server.id)
+  const handleDelete = useCallback((server: McpServer) => {
+    setPendingDeleteServer(server)
+  }, [])
+
+  const handleDeleteConfirm = useCallback(async () => {
+    if (!pendingDeleteServer) return
+    setDeletingServer(true)
+    try {
+      await deleteServer(pendingDeleteServer.id)
       toast.success(t('servers.deleted'))
-    },
-    [deleteServer, t],
-  )
-
-  const handleTest = useCallback(async (server: McpServer) => {
-    setTestingServerId(server.id)
-    try {
-      const result = await window.api.serversTest(server.id)
-      if (result.success) {
-        toast.success(result.message)
-      } else {
-        toast.error(result.message)
-      }
-    } catch {
-      toast.error(t('servers.testFailed', { name: server.name }))
+      setPendingDeleteServer(null)
     } finally {
-      setTestingServerId(null)
+      setDeletingServer(false)
     }
-  }, [])
-
-  const handleSyncAll = useCallback(async () => {
-    setSyncingAll(true)
-    try {
-      const results = await window.api.clientsSyncAll()
-      const succeeded = results.filter((r) => r.success).length
-      toast.success(
-        t('servers.syncSummary', { succeeded, total: results.length, count: results.length }),
-      )
-    } catch {
-      toast.error(t('servers.syncFailedGeneric'))
-    } finally {
-      setSyncingAll(false)
-    }
-  }, [])
-
-  const handleImportFromClients = useCallback(async () => {
-    setImportingFromClients(true)
-    try {
-      const result = await window.api.serversImportFromClients()
-      await load()
-      if (result.errors.length > 0) {
-        toast.info(
-          t('servers.importSuccessErrors', {
-            imported: result.imported,
-            skipped: result.skipped,
-            count: result.errors.length,
-          }),
-          { description: result.errors.slice(0, 3).join(' ') },
-        )
-      } else {
-        toast.success(
-          t('servers.importSuccess', {
-            imported: result.imported,
-            skipped: result.skipped,
-          }),
-        )
-      }
-    } catch {
-      toast.error(t('common.error'))
-    } finally {
-      setImportingFromClients(false)
-    }
-  }, [load, t])
+  }, [deleteServer, pendingDeleteServer, t])
 
   // ─── Table columns ──────────────────────────────────────────────────────────
 
@@ -199,7 +155,7 @@ const ServersPage = () => {
           onClick={() => column.toggleSorting()}
           className="gap-1 -ml-1 text-muted-foreground hover:text-foreground"
         >
-          Name <ArrowUpDown size={12} />
+          {t('servers.name')} <ArrowUpDown size={12} />
         </Button>
       ),
       cell: ({ getValue, row }) => (
@@ -261,7 +217,7 @@ const ServersPage = () => {
                 size="icon-sm"
                 onClick={() => void handleTest(row.original)}
                 disabled={!serverTestingEnabled || testingServerId === row.original.id}
-                aria-label={`Test ${row.original.name}`}
+                aria-label={t('servers.testAria', { name: row.original.name })}
                 data-testid={`server-test-${row.original.id}`}
               >
                 <FlaskConical
@@ -283,7 +239,7 @@ const ServersPage = () => {
                 variant="ghost"
                 size="icon-sm"
                 onClick={() => openEdit(row.original)}
-                aria-label={`Edit ${row.original.name}`}
+                aria-label={t('servers.editAria', { name: row.original.name })}
                 data-testid={`server-edit-${row.original.id}`}
               >
                 <Pencil size={14} />
@@ -298,7 +254,7 @@ const ServersPage = () => {
                 variant="ghost"
                 size="icon-sm"
                 onClick={() => void handleDelete(row.original)}
-                aria-label={`Delete ${row.original.name}`}
+                aria-label={t('servers.deleteAria', { name: row.original.name })}
                 data-testid={`server-delete-${row.original.id}`}
               >
                 <Trash2 size={14} />
@@ -523,6 +479,23 @@ const ServersPage = () => {
           onClose={closeEditor}
         />
       )}
+
+      <ConfirmActionDialog
+        open={pendingDeleteServer !== null}
+        title={t('servers.deleteDialogTitle')}
+        description={
+          pendingDeleteServer
+            ? t('servers.deleteDialogDescription', { name: pendingDeleteServer.name })
+            : ''
+        }
+        confirmLabel={t('servers.delete')}
+        pending={deletingServer}
+        variant="destructive"
+        onCancel={() => {
+          if (!deletingServer) setPendingDeleteServer(null)
+        }}
+        onConfirm={() => void handleDeleteConfirm()}
+      />
     </>
   )
 }

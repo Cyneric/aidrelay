@@ -14,15 +14,7 @@
  */
 
 import { useEffect, useState, useCallback, useMemo } from 'react'
-import {
-  useReactTable,
-  getCoreRowModel,
-  getSortedRowModel,
-  getFilteredRowModel,
-  flexRender,
-  createColumnHelper,
-  type SortingState,
-} from '@tanstack/react-table'
+import { flexRender } from '@tanstack/react-table'
 import {
   Plus,
   RefreshCw,
@@ -53,12 +45,11 @@ import { ScopeToggle } from '@/components/rules/ScopeToggle'
 import { RuleEditor } from '@/components/rules/RuleEditor'
 import { TokenBudgetPanel } from '@/components/rules/TokenBudgetPanel'
 import { ImportRulesDialog } from '@/components/rules/ImportRulesDialog'
+import { ConfirmActionDialog } from '@/components/common/ConfirmActionDialog'
 import { useRulesStore } from '@/stores/rules.store'
+import { rulesService } from '@/services/rules.service'
+import { rulesColumnHelper, useRulesTable } from '@/hooks/useRulesTable'
 import type { AiRule, RuleScope } from '@shared/types'
-
-// ─── Column helper ────────────────────────────────────────────────────────────
-
-const columnHelper = createColumnHelper<AiRule>()
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -98,8 +89,6 @@ const RulesPage = () => {
   const { rules, loading, error, load, delete: deleteRule, toggleEnabled } = useRulesStore()
   const { t } = useTranslation()
 
-  const [sorting, setSorting] = useState<SortingState>([])
-  const [globalFilter, setGlobalFilter] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [scope, setScope] = useState<RuleScope>('global')
   const [projectPath, setProjectPath] = useState('')
@@ -108,11 +97,13 @@ const RulesPage = () => {
   const [editingRule, setEditingRule] = useState<AiRule | undefined>(undefined)
   const [showEditor, setShowEditor] = useState(false)
   const [showImport, setShowImport] = useState(false)
+  const [pendingDeleteRule, setPendingDeleteRule] = useState<AiRule | null>(null)
+  const [deletingRule, setDeletingRule] = useState(false)
 
   const openCreate = useCallback(() => {
     setEditingRule(undefined)
     setShowEditor(true)
-  }, [])
+  }, [t])
 
   const openEdit = useCallback((rule: AiRule) => {
     setEditingRule(rule)
@@ -152,19 +143,26 @@ const RulesPage = () => {
     [displayedRules],
   )
 
-  const handleDelete = useCallback(
-    async (rule: AiRule) => {
-      if (!window.confirm(`Delete "${rule.name}"? This cannot be undone.`)) return
-      await deleteRule(rule.id)
+  const handleDelete = useCallback((rule: AiRule) => {
+    setPendingDeleteRule(rule)
+  }, [])
+
+  const handleDeleteConfirm = useCallback(async () => {
+    if (!pendingDeleteRule) return
+    setDeletingRule(true)
+    try {
+      await deleteRule(pendingDeleteRule.id)
       toast.success(t('rules.deleted'))
-    },
-    [deleteRule, t],
-  )
+      setPendingDeleteRule(null)
+    } finally {
+      setDeletingRule(false)
+    }
+  }, [deleteRule, pendingDeleteRule, t])
 
   const handleSyncAll = useCallback(async () => {
     setSyncingAll(true)
     try {
-      const results = await window.api.rulesSyncAll()
+      const results = await rulesService.syncAll()
       const succeeded = results.filter((r) => r.success).length
       if (results.length === 0) {
         toast.info(t('rules.noClientsToSync'))
@@ -183,7 +181,7 @@ const RulesPage = () => {
   // ─── Table columns ──────────────────────────────────────────────────────────
 
   const columns = [
-    columnHelper.accessor('enabled', {
+    rulesColumnHelper.accessor('enabled', {
       header: '',
       size: 48,
       cell: ({ row }) => (
@@ -200,7 +198,7 @@ const RulesPage = () => {
         </div>
       ),
     }),
-    columnHelper.accessor('name', {
+    rulesColumnHelper.accessor('name', {
       header: ({ column }) => (
         <Button
           type="button"
@@ -209,7 +207,7 @@ const RulesPage = () => {
           onClick={() => column.toggleSorting()}
           className="gap-1 -ml-1 text-muted-foreground hover:text-foreground"
         >
-          Name <ArrowUpDown size={12} />
+          {t('rules.name')} <ArrowUpDown size={12} />
         </Button>
       ),
       cell: ({ getValue, row }) => (
@@ -223,14 +221,14 @@ const RulesPage = () => {
         </span>
       ),
     }),
-    columnHelper.accessor('category', {
+    rulesColumnHelper.accessor('category', {
       header: () => t('rules.category'),
       size: 120,
       cell: ({ getValue }) => (
         <span className="rounded bg-muted px-1.5 py-0.5 text-xs font-mono">{getValue()}</span>
       ),
     }),
-    columnHelper.accessor('scope', {
+    rulesColumnHelper.accessor('scope', {
       header: () => t('rules.scope'),
       size: 80,
       cell: ({ getValue }) => {
@@ -249,7 +247,7 @@ const RulesPage = () => {
         )
       },
     }),
-    columnHelper.accessor('priority', {
+    rulesColumnHelper.accessor('priority', {
       header: () => t('rules.priority'),
       size: 90,
       cell: ({ getValue }) => {
@@ -261,7 +259,7 @@ const RulesPage = () => {
         )
       },
     }),
-    columnHelper.accessor('tokenEstimate', {
+    rulesColumnHelper.accessor('tokenEstimate', {
       header: ({ column }) => (
         <Button
           type="button"
@@ -283,7 +281,7 @@ const RulesPage = () => {
         )
       },
     }),
-    columnHelper.display({
+    rulesColumnHelper.display({
       id: 'actions',
       header: '',
       size: 80,
@@ -296,7 +294,7 @@ const RulesPage = () => {
                 variant="ghost"
                 size="icon-sm"
                 onClick={() => openEdit(row.original)}
-                aria-label={`Edit ${row.original.name}`}
+                aria-label={t('rules.editAria', { name: row.original.name })}
                 data-testid={`rule-edit-${row.original.id}`}
               >
                 <Pencil size={14} />
@@ -311,7 +309,7 @@ const RulesPage = () => {
                 variant="ghost"
                 size="icon-sm"
                 onClick={() => void handleDelete(row.original)}
-                aria-label={`Delete ${row.original.name}`}
+                aria-label={t('rules.deleteAria', { name: row.original.name })}
                 data-testid={`rule-delete-${row.original.id}`}
               >
                 <Trash2 size={14} />
@@ -324,16 +322,10 @@ const RulesPage = () => {
     }),
   ]
 
-  const table = useReactTable({
-    data: displayedRules,
-    columns,
-    state: { sorting, globalFilter },
-    onSortingChange: setSorting,
-    onGlobalFilterChange: setGlobalFilter,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-  })
+  const { table, globalFilter, setGlobalFilter } = useRulesTable(
+    displayedRules,
+    columns as Parameters<typeof useRulesTable>[1],
+  )
 
   // ─── Render ──────────────────────────────────────────────────────────────────
 
@@ -543,6 +535,23 @@ const RulesPage = () => {
 
       {/* Import rules dialog */}
       {showImport && <ImportRulesDialog onClose={() => setShowImport(false)} />}
+
+      <ConfirmActionDialog
+        open={pendingDeleteRule !== null}
+        title={t('rules.deleteDialogTitle')}
+        description={
+          pendingDeleteRule
+            ? t('rules.deleteDialogDescription', { name: pendingDeleteRule.name })
+            : ''
+        }
+        confirmLabel={t('rules.delete')}
+        pending={deletingRule}
+        variant="destructive"
+        onCancel={() => {
+          if (!deletingRule) setPendingDeleteRule(null)
+        }}
+        onConfirm={() => void handleDeleteConfirm()}
+      />
     </>
   )
 }

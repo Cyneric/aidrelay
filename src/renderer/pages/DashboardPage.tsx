@@ -22,6 +22,8 @@ import { CardGrid } from '@/components/ui/card-grid'
 import { ClientCard } from '@/components/clients/ClientCard'
 import { CreateConfigConfirmDialog } from '@/components/clients/CreateConfigConfirmDialog'
 import { useClientsStore } from '@/stores/clients.store'
+import { isConfigCreationRequiredError } from '@/lib/sync-errors'
+import { clientsService } from '@/services/clients.service'
 import type { ClientStatus, ConfigChangedPayload, SyncClientOptions } from '@shared/types'
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -43,7 +45,7 @@ const DashboardPage = () => {
 
   // Listen for external config changes detected by the file watcher
   useEffect(() => {
-    const unsubscribe = window.api.onConfigChanged((payload: ConfigChangedPayload) => {
+    const unsubscribe = clientsService.onConfigChanged((payload: ConfigChangedPayload) => {
       toast.info(t('dashboard.configChangedTitle'), {
         description: t('dashboard.configChangedDescription', { clientId: payload.clientId }),
         action: {
@@ -152,8 +154,3 @@ const DashboardPage = () => {
 }
 
 export { DashboardPage }
-const isConfigCreationRequiredError = (err: unknown): boolean =>
-  typeof err === 'object' &&
-  err !== null &&
-  'code' in err &&
-  (err as { code?: string }).code === 'config_creation_required'

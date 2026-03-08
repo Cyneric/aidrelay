@@ -45,7 +45,7 @@ export const useLicense = (): {
   const [activating, setActivating] = useState(false)
 
   useEffect(() => {
-    void window.api.licenseStatus().then((s) => {
+    void window.api.licenseStatus().then((s: LicenseStatus) => {
       setStatus(s)
       setLoading(false)
     })

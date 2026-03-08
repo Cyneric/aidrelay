@@ -14,6 +14,7 @@
 
 import { create } from 'zustand'
 import type { ClientStatus, SyncClientOptions, SyncResult } from '@shared/types'
+import { clientsService } from '@/services/clients.service'
 import '../lib/ipc'
 
 // ─── State Shape ──────────────────────────────────────────────────────────────
@@ -69,7 +70,7 @@ export const useClientsStore = create<ClientsState>((set) => ({
   detectAll: async () => {
     set({ loading: true, error: null })
     try {
-      const clients = await window.api.clientsDetectAll()
+      const clients = await clientsService.detectAll()
       set({ clients, loading: false })
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Detection failed'
@@ -78,9 +79,9 @@ export const useClientsStore = create<ClientsState>((set) => ({
   },
 
   syncClient: async (clientId, options) => {
-    const result = await window.api.clientsSync(clientId, options)
+    const result = await clientsService.sync(clientId, options)
     // Re-detect so the UI reflects the updated state
-    const clients = await window.api.clientsDetectAll()
+    const clients = await clientsService.detectAll()
     set({ clients })
     if (!result.success) {
       throw new ClientSyncError(result.error ?? `Sync failed for ${clientId}`, result.errorCode)

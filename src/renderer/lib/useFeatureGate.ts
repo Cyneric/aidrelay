@@ -41,7 +41,7 @@ export const useFeatureGate = <K extends keyof FeatureGates>(feature: K): Featur
     if (gatesFetched) return
     gatesFetched = true
 
-    void window.api.licenseFeatureGates().then((fetched) => {
+    void window.api.licenseFeatureGates().then((fetched: FeatureGates) => {
       cachedGates = fetched
       setGates(fetched)
     })

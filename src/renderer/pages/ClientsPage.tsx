@@ -41,6 +41,8 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { CreateConfigConfirmDialog } from '@/components/clients/CreateConfigConfirmDialog'
 import { useClientsStore } from '@/stores/clients.store'
+import { isConfigCreationRequiredError } from '@/lib/sync-errors'
+import { clientsService } from '@/services/clients.service'
 import type { ClientStatus, SyncClientOptions, SyncResult } from '@shared/types'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -66,12 +68,6 @@ const SYNC_STATUS_KEYS = {
   ClientStatus['syncStatus'],
   { labelKey: string; icon: typeof CheckCircle2; className: string }
 >
-
-const isConfigCreationRequiredError = (err: unknown): boolean =>
-  typeof err === 'object' &&
-  err !== null &&
-  'code' in err &&
-  (err as { code?: string }).code === 'config_creation_required'
 
 // ─── Row Component ────────────────────────────────────────────────────────────
 
@@ -284,7 +280,7 @@ const ClientsPage = () => {
     async (clientId: ClientStatus['id']) => {
       setValidatingId(clientId)
       try {
-        const result = await window.api.clientsValidateConfig(clientId)
+        const result = await clientsService.validateConfig(clientId)
         if (result.valid) {
           toast.success(t('clients.configValid', { clientId }))
         } else {

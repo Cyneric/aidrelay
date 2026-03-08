@@ -15,6 +15,7 @@
 import { create } from 'zustand'
 import type { Profile, SyncResult } from '@shared/types'
 import type { CreateProfileInput, UpdateProfileInput } from '@shared/channels'
+import { profilesService } from '@/services/profiles.service'
 
 // ─── State Shape ──────────────────────────────────────────────────────────────
 
@@ -54,7 +55,7 @@ export const useProfilesStore = create<ProfilesState>((set, get) => ({
   load: async () => {
     set({ loading: true, error: null })
     try {
-      const profiles = await window.api.profilesList()
+      const profiles = await profilesService.list()
       set({ profiles, loading: false })
     } catch (err) {
       set({ loading: false, error: err instanceof Error ? err.message : 'Failed to load profiles' })
@@ -63,7 +64,7 @@ export const useProfilesStore = create<ProfilesState>((set, get) => ({
 
   create: async (input) => {
     try {
-      const profile = await window.api.profilesCreate(input)
+      const profile = await profilesService.create(input)
       set((s) => ({
         profiles: [...s.profiles, profile].sort((a, b) => a.name.localeCompare(b.name)),
       }))
@@ -76,7 +77,7 @@ export const useProfilesStore = create<ProfilesState>((set, get) => ({
 
   update: async (id, updates) => {
     try {
-      const profile = await window.api.profilesUpdate(id, updates)
+      const profile = await profilesService.update(id, updates)
       set((s) => ({
         profiles: s.profiles.map((p) => (p.id === id ? profile : p)),
       }))
@@ -91,7 +92,7 @@ export const useProfilesStore = create<ProfilesState>((set, get) => ({
     const snapshot = get().profiles
     set((s) => ({ profiles: s.profiles.filter((p) => p.id !== id) }))
     try {
-      await window.api.profilesDelete(id)
+      await profilesService.remove(id)
     } catch (err) {
       set({
         profiles: snapshot,
@@ -102,7 +103,7 @@ export const useProfilesStore = create<ProfilesState>((set, get) => ({
 
   activate: async (id) => {
     try {
-      const results = await window.api.profilesActivate(id)
+      const results = await profilesService.activate(id)
       // Reload to reflect the updated isActive flags
       await get().load()
       return results

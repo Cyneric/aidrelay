@@ -18,6 +18,7 @@
 import { useEffect } from 'react'
 import { RouterProvider, createRouter, createRootRoute, createRoute } from '@tanstack/react-router'
 import { Toaster, toast } from 'sonner'
+import { useTranslation } from 'react-i18next'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { Shell } from '@/components/layout/Shell'
 import { DashboardPage } from '@/pages/DashboardPage'
@@ -32,6 +33,8 @@ import { HistoryPage } from '@/pages/HistoryPage'
 import { ClientsPage } from '@/pages/ClientsPage'
 import { StartupSplash } from '@/components/layout/StartupSplash'
 import { useStartupSplash } from '@/hooks/useStartupSplash'
+import { clientsService } from '@/services/clients.service'
+import { profilesService } from '@/services/profiles.service'
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
 
@@ -130,22 +133,23 @@ declare module '@tanstack/react-router' {
  */
 const App = () => {
   const startupSplash = useStartupSplash()
+  const { t } = useTranslation()
 
   // Handle profile quick-switch from the system tray
   useEffect(() => {
     const handleTrayActivate = (profileId: string): void => {
-      void window.api
-        .profilesActivate(profileId)
+      void profilesService
+        .activate(profileId)
         .then(() => {
-          toast.success('Profile activated from tray.')
+          toast.success(t('app.trayProfileActivated'))
         })
         .catch(() => {
-          toast.error('Failed to activate profile from tray.')
+          toast.error(t('app.trayProfileActivationFailed'))
         })
     }
-    const unsub = window.api.onActivateProfileFromTray(handleTrayActivate)
+    const unsub = clientsService.onActivateProfileFromTray(handleTrayActivate)
     return unsub
-  }, [])
+  }, [t])
 
   return (
     <TooltipProvider>

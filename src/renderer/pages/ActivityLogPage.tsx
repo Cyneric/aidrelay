@@ -27,6 +27,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { ActivityLogTable } from '@/components/log/ActivityLogTable'
+import { logService } from '@/services/log.service'
 import type { ActivityLogEntry } from '@shared/channels'
 import type { ClientId } from '@shared/types'
 
@@ -55,7 +56,7 @@ const ActivityLogPage = () => {
         ...(sinceFilter ? { since: new Date(sinceFilter).toISOString() } : {}),
         limit: 500,
       }
-      const results = await window.api.logQuery(filters)
+      const results = await logService.query(filters)
       setEntries(results)
     } catch (err) {
       console.error('Failed to load activity log:', err)
