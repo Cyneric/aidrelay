@@ -14,6 +14,7 @@
  */
 
 import { useState, useEffect, useCallback, type ElementType } from 'react'
+import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { RotateCcw, Shield, RefreshCw, Clock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -53,29 +54,29 @@ const relativeTime = (iso: string): string => {
 }
 
 /**
- * Icon and label for each backup type.
+ * Icon and i18n keys for each backup type.
  */
 const BACKUP_TYPE_META: Record<
   BackupEntry['backupType'],
-  { label: string; icon: ElementType; className: string; description: string }
+  { labelKey: string; icon: ElementType; className: string; descriptionKey: string }
 > = {
   pristine: {
-    label: 'Pristine',
+    labelKey: 'history.backupTypePristine',
     icon: Shield,
     className: 'text-blue-600 dark:text-blue-400',
-    description: 'Original config captured before aidrelay first wrote to this client',
+    descriptionKey: 'history.backupDescPristine',
   },
   sync: {
-    label: 'Sync',
+    labelKey: 'history.backupTypeSync',
     icon: RefreshCw,
     className: 'text-muted-foreground',
-    description: 'Automatic backup taken before a profile sync',
+    descriptionKey: 'history.backupDescSync',
   },
   manual: {
-    label: 'Manual',
+    labelKey: 'history.backupTypeManual',
     icon: Clock,
     className: 'text-amber-600 dark:text-amber-400',
-    description: 'Manual backup created by the user',
+    descriptionKey: 'history.backupDescManual',
   },
 }
 
@@ -96,6 +97,7 @@ interface Props {
  * @param props - The client ID to display backups for.
  */
 const BackupTimeline = ({ clientId }: Readonly<Props>) => {
+  const { t } = useTranslation()
   const [backups, setBackups] = useState<BackupEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [restoringId, setRestoringId] = useState<number | null>(null)
@@ -106,7 +108,7 @@ const BackupTimeline = ({ clientId }: Readonly<Props>) => {
       const entries = await window.api.backupsList(clientId)
       setBackups(entries)
     } catch {
-      toast.error(`Failed to load backups for ${clientId}.`)
+      toast.error(t('history.loadFailed', { clientId }))
     } finally {
       setLoading(false)
     }
@@ -126,7 +128,7 @@ const BackupTimeline = ({ clientId }: Readonly<Props>) => {
     setRestoringId(backup.id)
     try {
       await window.api.backupsRestore(backup.backupPath, clientId)
-      toast.success(`Restored ${clientId} config from ${relativeTime(backup.createdAt)}.`)
+      toast.success(t('history.restoreSuccess', { clientId, time: relativeTime(backup.createdAt) }))
       await load()
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Restore failed.'
@@ -139,7 +141,7 @@ const BackupTimeline = ({ clientId }: Readonly<Props>) => {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8 text-sm text-muted-foreground">
-        Loading backups…
+        {t('history.loading')}
       </div>
     )
   }
@@ -147,7 +149,7 @@ const BackupTimeline = ({ clientId }: Readonly<Props>) => {
   if (backups.length === 0) {
     return (
       <p className="py-4 text-sm text-muted-foreground" data-testid="no-backups">
-        No backups yet for this client. A backup is created automatically before each sync.
+        {t('history.noBackups')}
       </p>
     )
   }
@@ -157,6 +159,8 @@ const BackupTimeline = ({ clientId }: Readonly<Props>) => {
       {backups.map((backup) => {
         const meta = BACKUP_TYPE_META[backup.backupType]
         const TypeIcon = meta.icon
+        const label = t(meta.labelKey as Parameters<typeof t>[0])
+        const description = t(meta.descriptionKey as Parameters<typeof t>[0])
         const isRestoring = restoringId === backup.id
 
         return (
@@ -168,12 +172,12 @@ const BackupTimeline = ({ clientId }: Readonly<Props>) => {
             <div className="flex items-center gap-3 min-w-0">
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <TypeIcon size={15} className={meta.className} aria-label={meta.label} />
+                  <TypeIcon size={15} className={meta.className} aria-label={label} />
                 </TooltipTrigger>
-                <TooltipContent>{meta.description}</TooltipContent>
+                <TooltipContent>{description}</TooltipContent>
               </Tooltip>
               <div className="min-w-0">
-                <span className="font-medium">{meta.label}</span>
+                <span className="font-medium">{label}</span>
                 <span className="mx-2 text-muted-foreground">·</span>
                 <time
                   dateTime={backup.createdAt}
@@ -201,12 +205,10 @@ const BackupTimeline = ({ clientId }: Readonly<Props>) => {
                     data-testid={`btn-restore-${backup.id}`}
                   >
                     <RotateCcw size={11} aria-hidden="true" />
-                    {isRestoring ? 'Restoring…' : 'Restore'}
+                    {isRestoring ? t('history.restoringButton') : t('history.restoreButton')}
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>
-                  Restore config to this snapshot — a safety backup is created first
-                </TooltipContent>
+                <TooltipContent>{t('history.restoreTooltip')}</TooltipContent>
               </Tooltip>
             </div>
           </li>

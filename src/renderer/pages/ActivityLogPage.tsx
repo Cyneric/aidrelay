@@ -94,7 +94,7 @@ const ActivityLogPage = () => {
             {t('activityLog.title')}
           </h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            {entries.length} entr{entries.length !== 1 ? 'ies' : 'y'} matching current filters
+            {t('activityLog.entriesCount', { count: entries.length })}
           </p>
         </div>
         <Button
@@ -106,7 +106,7 @@ const ActivityLogPage = () => {
           data-testid="log-refresh-button"
         >
           <RefreshCw size={14} className={loading ? 'animate-spin' : ''} aria-hidden="true" />
-          Refresh
+          {t('activityLog.refresh')}
         </Button>
       </header>
 
@@ -126,7 +126,7 @@ const ActivityLogPage = () => {
             type="text"
             value={actionFilter}
             onChange={(e) => setActionFilter(e.target.value)}
-            placeholder="e.g. server.created"
+            placeholder={t('activityLog.actionPlaceholder')}
             className="h-8 text-sm"
             data-testid="log-action-filter"
           />
@@ -162,7 +162,7 @@ const ActivityLogPage = () => {
         {/* Since date */}
         <div className="flex flex-col gap-1">
           <Label htmlFor="log-since-filter" className="text-xs text-muted-foreground">
-            Since
+            {t('activityLog.since')}
           </Label>
           <Input
             id="log-since-filter"
@@ -187,7 +187,7 @@ const ActivityLogPage = () => {
             }}
             data-testid="log-clear-filters"
           >
-            Clear filters
+            {t('activityLog.clearFilters')}
           </Button>
         )}
       </div>

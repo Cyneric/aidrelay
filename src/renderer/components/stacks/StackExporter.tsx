@@ -13,6 +13,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Download } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -31,6 +32,7 @@ import { useFeatureGate } from '@/lib/useFeatureGate'
  * Export form that builds a McpStack JSON bundle from selected servers and rules.
  */
 const StackExporter = () => {
+  const { t } = useTranslation()
   const canExport = useFeatureGate('stackExport')
   const { servers, load: loadServers } = useServersStore()
   const { rules, load: loadRules } = useRulesStore()
@@ -71,7 +73,7 @@ const StackExporter = () => {
 
   const handleExport = useCallback(async () => {
     if (!name.trim()) {
-      toast.error('Please enter a name for the stack')
+      toast.error(t('stacks.exportNameRequired'))
       return
     }
     setExporting(true)
@@ -88,7 +90,7 @@ const StackExporter = () => {
       anchor.download = `${name.trim().replace(/\s+/g, '-').toLowerCase()}.json`
       anchor.click()
       URL.revokeObjectURL(url)
-      toast.success(`Stack "${name.trim()}" exported`)
+      toast.success(t('stacks.exportSuccess', { name: name.trim() }))
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Export failed'
       toast.error(message)
@@ -101,18 +103,18 @@ const StackExporter = () => {
 
   return (
     <div className="flex flex-col gap-5" data-testid="stack-exporter">
-      <h2 className="text-base font-semibold">Export Stack</h2>
+      <h2 className="text-base font-semibold">{t('stacks.exportTitle')}</h2>
 
       {!canExport && (
         <p className="text-sm text-muted-foreground rounded-md border border-border bg-muted/40 px-4 py-3">
-          Stack export is a Pro feature. Upgrade to create portable server + rule bundles.
+          {t('stacks.exportProGate')}
         </p>
       )}
 
       {/* Stack name */}
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="stack-name">
-          Stack name{' '}
+          {t('stacks.stackName')}{' '}
           <span aria-hidden="true" className="text-destructive">
             *
           </span>
@@ -122,7 +124,7 @@ const StackExporter = () => {
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="e.g. My Dev Setup"
+          placeholder={t('stacks.stackNamePlaceholder')}
           disabled={!canExport}
           className="max-w-sm"
           data-testid="stack-name-input"
@@ -133,11 +135,11 @@ const StackExporter = () => {
         {/* Servers */}
         <fieldset>
           <legend className="text-sm font-medium mb-2">
-            Servers ({selectedServers.size} selected)
+            {t('stacks.serversLegend', { count: selectedServers.size })}
           </legend>
           <div className="rounded-md border border-border divide-y divide-border max-h-64 overflow-y-auto">
             {servers.length === 0 ? (
-              <p className="px-3 py-2 text-sm text-muted-foreground">No servers</p>
+              <p className="px-3 py-2 text-sm text-muted-foreground">{t('stacks.noServers')}</p>
             ) : (
               servers.map((server) => (
                 <Label
@@ -162,11 +164,11 @@ const StackExporter = () => {
         {/* Rules */}
         <fieldset>
           <legend className="text-sm font-medium mb-2">
-            Rules ({selectedRules.size} selected)
+            {t('stacks.rulesLegend', { count: selectedRules.size })}
           </legend>
           <div className="rounded-md border border-border divide-y divide-border max-h-64 overflow-y-auto">
             {rules.length === 0 ? (
-              <p className="px-3 py-2 text-sm text-muted-foreground">No rules</p>
+              <p className="px-3 py-2 text-sm text-muted-foreground">{t('stacks.noRules')}</p>
             ) : (
               rules.map((rule) => (
                 <Label
@@ -199,11 +201,11 @@ const StackExporter = () => {
             data-testid="stack-export-button"
           >
             <Download size={14} aria-hidden="true" />
-            {exporting ? 'Exporting…' : 'Export'}
+            {exporting ? t('stacks.exportingButton') : t('stacks.exportButton')}
           </Button>
         </TooltipTrigger>
         <TooltipContent>
-          {!canExport ? 'Upgrade to Pro to export stacks' : 'Download as .json file'}
+          {!canExport ? t('stacks.exportUpgradeTooltip') : t('stacks.exportTooltip')}
         </TooltipContent>
       </Tooltip>
     </div>

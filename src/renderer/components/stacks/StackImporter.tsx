@@ -14,6 +14,7 @@
  */
 
 import { useState, useCallback, useRef, type ChangeEvent } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Upload } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -29,6 +30,7 @@ import type { ImportResult } from '@shared/channels'
  * Import form that accepts a McpStack JSON bundle from a file or pasted text.
  */
 const StackImporter = () => {
+  const { t } = useTranslation()
   const { load: loadServers } = useServersStore()
   const { load: loadRules } = useRulesStore()
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -45,12 +47,13 @@ const StackImporter = () => {
         const importResult = await window.api.stacksImport(json)
         setResult(importResult)
         if (importResult.errors.length > 0) {
-          toast.warning(
-            `Import completed with ${importResult.errors.length} error(s). See summary below.`,
-          )
+          toast.warning(t('stacks.importWithErrors', { count: importResult.errors.length }))
         } else {
           toast.success(
-            `Imported ${importResult.imported} item(s), skipped ${importResult.skipped} duplicate(s)`,
+            t('stacks.importSuccess', {
+              imported: importResult.imported,
+              skipped: importResult.skipped,
+            }),
           )
         }
         await loadServers()
@@ -81,7 +84,7 @@ const StackImporter = () => {
 
   const handlePasteImport = useCallback(async () => {
     if (!pastedJson.trim()) {
-      toast.error('Paste JSON content before importing')
+      toast.error(t('stacks.importPasteEmpty'))
       return
     }
     await runImport(pastedJson)
@@ -89,11 +92,11 @@ const StackImporter = () => {
 
   return (
     <div className="flex flex-col gap-5" data-testid="stack-importer">
-      <h2 className="text-base font-semibold">Import Stack</h2>
+      <h2 className="text-base font-semibold">{t('stacks.importTitle')}</h2>
 
       {/* File picker */}
       <div className="flex flex-col gap-1.5">
-        <span className="text-sm font-medium">From file</span>
+        <span className="text-sm font-medium">{t('stacks.fromFile')}</span>
         <div className="flex items-center gap-3">
           <input
             ref={fileInputRef}
@@ -111,13 +114,15 @@ const StackImporter = () => {
 
       <div className="relative flex items-center gap-3">
         <hr className="flex-1 border-border" />
-        <span className="text-xs text-muted-foreground uppercase tracking-wider">or</span>
+        <span className="text-xs text-muted-foreground uppercase tracking-wider">
+          {t('stacks.or')}
+        </span>
         <hr className="flex-1 border-border" />
       </div>
 
       {/* Paste JSON */}
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="stack-paste">Paste JSON</Label>
+        <Label htmlFor="stack-paste">{t('stacks.pasteJson')}</Label>
         <Textarea
           id="stack-paste"
           value={pastedJson}
@@ -136,7 +141,7 @@ const StackImporter = () => {
           data-testid="stack-import-button"
         >
           <Upload size={14} aria-hidden="true" />
-          {importing ? 'Importing…' : 'Import'}
+          {importing ? t('stacks.importingButton') : t('stacks.importButton')}
         </Button>
       </div>
 
@@ -148,10 +153,13 @@ const StackImporter = () => {
           className="rounded-md border border-border bg-muted/30 px-4 py-3 text-sm flex flex-col gap-1"
           data-testid="stack-import-result"
         >
-          <p className="font-medium">Import complete</p>
+          <p className="font-medium">{t('stacks.importComplete')}</p>
           <p className="text-muted-foreground">
-            {result.imported} imported · {result.skipped} duplicate{result.skipped !== 1 ? 's' : ''}{' '}
-            skipped
+            {t('stacks.importSummary', {
+              count: result.skipped,
+              imported: result.imported,
+              skipped: result.skipped,
+            })}
           </p>
           {result.errors.length > 0 && (
             <ul className="mt-1 list-disc list-inside text-destructive space-y-0.5">

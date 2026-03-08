@@ -76,11 +76,11 @@ const DashboardPage = () => {
           onClick={() => void detectAll()}
           disabled={loading}
           className="gap-1.5"
-          aria-label="Refresh client detection"
+          aria-label={t('dashboard.refresh')}
           data-testid="detect-all-button"
         >
           <RefreshCw size={14} className={loading ? 'animate-spin' : ''} aria-hidden="true" />
-          {loading ? t('common.loading') : 'Refresh'}
+          {loading ? t('common.loading') : t('dashboard.refresh')}
         </Button>
       </header>
 
@@ -91,7 +91,7 @@ const DashboardPage = () => {
           className="mb-6 rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive"
           data-testid="detection-error"
         >
-          Detection failed: {error}
+          {t('dashboard.detectionFailed', { error })}
         </div>
       )}
 

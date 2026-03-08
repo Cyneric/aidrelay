@@ -105,9 +105,9 @@ const ServersPage = () => {
     async (server: McpServer) => {
       if (!window.confirm(`Delete "${server.name}"? This cannot be undone.`)) return
       await deleteServer(server.id)
-      toast.success(`"${server.name}" deleted`)
+      toast.success(t('servers.deleted'))
     },
-    [deleteServer],
+    [deleteServer, t],
   )
 
   const handleTest = useCallback(async (server: McpServer) => {
@@ -120,7 +120,7 @@ const ServersPage = () => {
         toast.error(result.message)
       }
     } catch {
-      toast.error(`Failed to test "${server.name}"`)
+      toast.error(t('servers.testFailed', { name: server.name }))
     } finally {
       setTestingServerId(null)
     }
@@ -131,9 +131,11 @@ const ServersPage = () => {
     try {
       const results = await window.api.clientsSyncAll()
       const succeeded = results.filter((r) => r.success).length
-      toast.success(`Synced to ${succeeded} of ${results.length} client(s)`)
+      toast.success(
+        t('servers.syncSummary', { succeeded, total: results.length, count: results.length }),
+      )
     } catch {
-      toast.error('Sync failed')
+      toast.error(t('servers.syncFailedGeneric'))
     } finally {
       setSyncingAll(false)
     }
@@ -179,7 +181,10 @@ const ServersPage = () => {
           <Checkbox
             checked={row.original.enabled}
             onCheckedChange={() => void toggleEnabled(row.original.id)}
-            aria-label={`${row.original.enabled ? 'Disable' : 'Enable'} ${row.original.name}`}
+            aria-label={t('servers.enableDisable', {
+              action: row.original.enabled ? t('servers.disable') : t('servers.enable'),
+              name: row.original.name,
+            })}
             data-testid={`server-enabled-${row.original.id}`}
           />
         </div>
@@ -209,14 +214,14 @@ const ServersPage = () => {
       ),
     }),
     columnHelper.accessor('type', {
-      header: 'Type',
+      header: () => t('servers.type'),
       size: 80,
       cell: ({ getValue }) => (
         <span className="rounded bg-muted px-1.5 py-0.5 text-xs font-mono">{getValue()}</span>
       ),
     }),
     columnHelper.accessor('command', {
-      header: 'Command',
+      header: () => t('servers.command'),
       cell: ({ getValue, row }) => (
         <span className="font-mono text-xs text-muted-foreground">
           {getValue()} {row.original.args.join(' ')}
@@ -224,7 +229,7 @@ const ServersPage = () => {
       ),
     }),
     columnHelper.accessor('tags', {
-      header: 'Tags',
+      header: () => t('servers.tags'),
       enableSorting: false,
       cell: ({ getValue }) => {
         const tags = getValue()
@@ -267,8 +272,8 @@ const ServersPage = () => {
             </TooltipTrigger>
             <TooltipContent>
               {serverTestingEnabled
-                ? `Test ${row.original.name}`
-                : 'Upgrade to Pro to test servers'}
+                ? t('servers.testTooltip', { name: row.original.name })
+                : t('servers.testUpgradeTooltip')}
             </TooltipContent>
           </Tooltip>
           <Tooltip>
@@ -284,7 +289,7 @@ const ServersPage = () => {
                 <Pencil size={14} />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Edit server</TooltipContent>
+            <TooltipContent>{t('servers.editTooltip')}</TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -299,7 +304,7 @@ const ServersPage = () => {
                 <Trash2 size={14} />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Delete server</TooltipContent>
+            <TooltipContent>{t('servers.deleteTooltip')}</TooltipContent>
           </Tooltip>
         </div>
       ),
@@ -335,7 +340,7 @@ const ServersPage = () => {
               {t('servers.title')}
             </h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              {servers.length} server{servers.length !== 1 ? 's' : ''} in the registry
+              {t('servers.countInRegistry', { count: servers.length })}
             </p>
           </div>
 
@@ -358,7 +363,7 @@ const ServersPage = () => {
                   {importingFromClients ? t('common.loading') : t('servers.importFromClients')}
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Import server configs from installed AI clients</TooltipContent>
+              <TooltipContent>{t('servers.importFromClientsTooltip')}</TooltipContent>
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -378,7 +383,7 @@ const ServersPage = () => {
                   {syncingAll ? t('common.loading') : t('servers.syncAll')}
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Write active profile to all installed clients</TooltipContent>
+              <TooltipContent>{t('servers.syncAllTooltip')}</TooltipContent>
             </Tooltip>
             <Button
               type="button"
@@ -422,14 +427,14 @@ const ServersPage = () => {
               className="flex items-center justify-center py-16 text-sm text-muted-foreground"
               data-testid="servers-loading"
             >
-              Loading servers…
+              {t('servers.loading')}
             </div>
           ) : servers.length === 0 ? (
             <div
               className="flex flex-col items-center justify-center py-16 gap-3"
               data-testid="servers-empty"
             >
-              <p className="text-sm text-muted-foreground">No servers yet.</p>
+              <p className="text-sm text-muted-foreground">{t('servers.noServersYet')}</p>
               <div className="flex items-center gap-4">
                 <Button
                   type="button"
@@ -440,14 +445,14 @@ const ServersPage = () => {
                 >
                   {t('servers.importFromClients')}
                 </Button>
-                <span className="text-muted-foreground">or</span>
+                <span className="text-muted-foreground">{t('servers.or')}</span>
                 <Button
                   type="button"
                   variant="link"
                   onClick={openCreate}
                   className="h-auto p-0 text-sm"
                 >
-                  Add your first server
+                  {t('servers.addFirst')}
                 </Button>
               </div>
             </div>
@@ -500,7 +505,7 @@ const ServersPage = () => {
             aria-expanded={matrixExpanded}
             data-testid="toggle-matrix-expand"
           >
-            <span>Per-client enable / disable</span>
+            <span>{t('servers.perClientEnableDisable')}</span>
             {matrixExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
           </Button>
           {matrixExpanded && (

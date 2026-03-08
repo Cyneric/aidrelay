@@ -2,7 +2,7 @@
  * @file src/renderer/components/log/ActivityLogTable.tsx
  *
  * @created 07.03.2026
- * @modified 07.03.2026
+ * @modified 08.03.2026
  *
  * @author Christian Blank <aidrelay@proton.me>
  * @copyright 2026
@@ -13,6 +13,7 @@
  */
 
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   useReactTable,
   getCoreRowModel,
@@ -66,6 +67,7 @@ interface ActivityLogTableProps {
  * `details` JSON object for deeper inspection.
  */
 const ActivityLogTable = ({ entries, loading = false }: ActivityLogTableProps) => {
+  const { t } = useTranslation()
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set())
 
   const toggleRow = (id: number) =>
@@ -81,7 +83,7 @@ const ActivityLogTable = ({ entries, loading = false }: ActivityLogTableProps) =
 
   const columns = [
     columnHelper.accessor('timestamp', {
-      header: 'Time',
+      header: () => t('activityLog.time'),
       size: 160,
       cell: ({ getValue }) => (
         <time dateTime={getValue()} className="text-xs text-muted-foreground whitespace-nowrap">
@@ -90,13 +92,13 @@ const ActivityLogTable = ({ entries, loading = false }: ActivityLogTableProps) =
       ),
     }),
     columnHelper.accessor('action', {
-      header: 'Action',
+      header: () => t('activityLog.action'),
       cell: ({ getValue }) => (
         <span className="rounded bg-muted px-1.5 py-0.5 text-xs font-mono">{getValue()}</span>
       ),
     }),
     columnHelper.accessor('clientId', {
-      header: 'Client',
+      header: () => t('activityLog.client'),
       size: 120,
       cell: ({ getValue }) => {
         const val = getValue()
@@ -108,7 +110,7 @@ const ActivityLogTable = ({ entries, loading = false }: ActivityLogTableProps) =
       },
     }),
     columnHelper.accessor('serverId', {
-      header: 'Server',
+      header: () => t('activityLog.server'),
       cell: ({ getValue }) => {
         const val = getValue()
         return val ? (
@@ -122,7 +124,7 @@ const ActivityLogTable = ({ entries, loading = false }: ActivityLogTableProps) =
     }),
     columnHelper.display({
       id: 'details',
-      header: 'Details',
+      header: () => t('activityLog.details'),
       cell: ({ row }) => {
         const id = row.original.id
         const expanded = expandedRows.has(id)
@@ -140,10 +142,12 @@ const ActivityLogTable = ({ entries, loading = false }: ActivityLogTableProps) =
               onClick={() => toggleRow(id)}
               className="gap-1 text-muted-foreground hover:text-foreground"
               aria-expanded={expanded}
-              aria-label={expanded ? 'Collapse details' : 'Expand details'}
+              aria-label={
+                expanded ? t('activityLog.collapseDetails') : t('activityLog.expandDetails')
+              }
             >
               {expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-              {expanded ? 'Hide' : 'Show'}
+              {expanded ? t('activityLog.hideDetails') : t('activityLog.showDetails')}
             </Button>
             {expanded && (
               <pre className="mt-2 rounded bg-muted p-2 text-xs overflow-x-auto max-w-[300px]">
@@ -168,7 +172,7 @@ const ActivityLogTable = ({ entries, loading = false }: ActivityLogTableProps) =
         className="flex items-center justify-center py-16 text-sm text-muted-foreground"
         data-testid="log-loading"
       >
-        Loading activity log…
+        {t('activityLog.loading')}
       </div>
     )
   }
@@ -179,7 +183,7 @@ const ActivityLogTable = ({ entries, loading = false }: ActivityLogTableProps) =
         className="flex items-center justify-center py-16 text-sm text-muted-foreground"
         data-testid="log-empty"
       >
-        No log entries match the current filters.
+        {t('activityLog.noFilteredResults')}
       </div>
     )
   }

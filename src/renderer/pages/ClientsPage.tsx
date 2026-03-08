@@ -17,6 +17,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { toast } from 'sonner'
+import { useTranslation } from 'react-i18next'
 import {
   CheckCircle2,
   AlertCircle,
@@ -42,18 +43,26 @@ import type { ClientStatus } from '@shared/types'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const SYNC_STATUS_META = {
-  synced: { label: 'Synced', icon: CheckCircle2, className: 'text-green-600 dark:text-green-400' },
+const SYNC_STATUS_KEYS = {
+  synced: {
+    labelKey: 'dashboard.synced',
+    icon: CheckCircle2,
+    className: 'text-green-600 dark:text-green-400',
+  },
   'out-of-sync': {
-    label: 'Out of sync',
+    labelKey: 'dashboard.outOfSync',
     icon: AlertCircle,
     className: 'text-amber-600 dark:text-amber-400',
   },
-  'never-synced': { label: 'Never synced', icon: Clock, className: 'text-muted-foreground' },
-  error: { label: 'Error', icon: XCircle, className: 'text-destructive' },
+  'never-synced': {
+    labelKey: 'dashboard.neverSynced',
+    icon: Clock,
+    className: 'text-muted-foreground',
+  },
+  error: { labelKey: 'dashboard.error', icon: XCircle, className: 'text-destructive' },
 } as const satisfies Record<
   ClientStatus['syncStatus'],
-  { label: string; icon: typeof CheckCircle2; className: string }
+  { labelKey: string; icon: typeof CheckCircle2; className: string }
 >
 
 // ─── Row Component ────────────────────────────────────────────────────────────
@@ -70,8 +79,10 @@ interface RowProps {
  * A single table row for one client.
  */
 const ClientRow = ({ client, syncing, validating, onSync, onValidate }: Readonly<RowProps>) => {
-  const meta = SYNC_STATUS_META[client.syncStatus]
-  const StatusIcon = meta.icon
+  const { t } = useTranslation()
+  const metaBase = SYNC_STATUS_KEYS[client.syncStatus]
+  const StatusIcon = metaBase.icon
+  const meta = { ...metaBase, label: t(metaBase.labelKey as Parameters<typeof t>[0]) }
 
   return (
     <TableRow
@@ -92,7 +103,7 @@ const ClientRow = ({ client, syncing, validating, onSync, onValidate }: Readonly
             )}
             data-testid={`client-install-${client.id}`}
           >
-            {client.installed ? 'Installed' : 'Not installed'}
+            {client.installed ? t('clients.installed') : t('clients.notInstalled')}
           </span>
         </div>
       </TableCell>
@@ -157,13 +168,13 @@ const ClientRow = ({ client, syncing, validating, onSync, onValidate }: Readonly
                 data-testid={`btn-sync-${client.id}`}
               >
                 <RefreshCw size={11} className={syncing ? 'animate-spin' : ''} aria-hidden="true" />
-                {syncing ? 'Syncing…' : 'Sync'}
+                {syncing ? t('clients.syncingButton') : t('clients.syncButton')}
               </Button>
             </TooltipTrigger>
             <TooltipContent>
               {!client.installed
-                ? `${client.displayName} is not installed`
-                : `Write current profile config to ${client.displayName}`}
+                ? t('clients.notInstalledTooltip', { name: client.displayName })
+                : t('clients.syncTooltip', { name: client.displayName })}
             </TooltipContent>
           </Tooltip>
 
@@ -180,10 +191,10 @@ const ClientRow = ({ client, syncing, validating, onSync, onValidate }: Readonly
                 data-testid={`btn-validate-${client.id}`}
               >
                 <ShieldCheck size={11} aria-hidden="true" />
-                {validating ? 'Checking…' : 'Validate'}
+                {validating ? t('clients.checkingButton') : t('clients.validateButton')}
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Check the config file for schema errors</TooltipContent>
+            <TooltipContent>{t('clients.validateTooltip')}</TooltipContent>
           </Tooltip>
         </div>
       </TableCell>
@@ -198,6 +209,7 @@ const ClientRow = ({ client, syncing, validating, onSync, onValidate }: Readonly
  * status, config paths, server counts, and sync/validate actions.
  */
 const ClientsPage = () => {
+  const { t } = useTranslation()
   const { clients, loading, detectAll, syncClient } = useClientsStore()
   const [syncingId, setSyncingId] = useState<ClientStatus['id'] | null>(null)
   const [validatingId, setValidatingId] = useState<ClientStatus['id'] | null>(null)
@@ -220,12 +232,12 @@ const ClientsPage = () => {
     try {
       const result = await window.api.clientsValidateConfig(clientId)
       if (result.valid) {
-        toast.success(`${clientId} config is valid.`)
+        toast.success(t('clients.configValid', { clientId }))
       } else {
-        toast.warning(`${clientId} config has issues: ${result.errors.join(', ')}`)
+        toast.warning(t('clients.configHasIssues', { clientId, errors: result.errors.join(', ') }))
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Validation failed.'
+      const message = err instanceof Error ? err.message : t('common.error')
       toast.error(message)
     } finally {
       setValidatingId(null)
@@ -237,7 +249,7 @@ const ClientsPage = () => {
     for (const client of installed) {
       await handleSync(client.id)
     }
-    toast.success('All clients synced.')
+    toast.success(t('clients.allClientsSynced'))
   }, [clients, handleSync])
 
   const installedCount = clients.filter((c) => c.installed).length
@@ -246,11 +258,11 @@ const ClientsPage = () => {
     <main className="flex flex-col gap-6" data-testid="clients-page">
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Clients</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{t('clients.title')}</h1>
           <p className="text-sm text-muted-foreground mt-1">
             {loading
-              ? 'Detecting installed AI tools…'
-              : `${installedCount} of ${clients.length} supported tools installed`}
+              ? t('clients.detecting')
+              : t('clients.installedCount', { installed: installedCount, total: clients.length })}
           </p>
         </div>
 
@@ -264,7 +276,7 @@ const ClientsPage = () => {
             data-testid="btn-refresh-clients"
           >
             <RefreshCw size={14} className={loading ? 'animate-spin' : ''} aria-hidden="true" />
-            {loading ? 'Detecting…' : 'Refresh'}
+            {loading ? t('clients.detecting_button') : t('clients.refresh')}
           </Button>
 
           <Button
@@ -275,7 +287,7 @@ const ClientsPage = () => {
             data-testid="btn-sync-all"
           >
             <RefreshCw size={14} aria-hidden="true" />
-            Sync all
+            {t('clients.syncAll')}
           </Button>
         </div>
       </div>
@@ -285,22 +297,22 @@ const ClientsPage = () => {
           <TableHeader className="border-b bg-muted/50">
             <TableRow>
               <TableHead className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">
-                Client
+                {t('clients.colClient')}
               </TableHead>
               <TableHead className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">
-                Config path
+                {t('clients.colConfigPath')}
               </TableHead>
               <TableHead className="px-4 py-2.5 text-center text-xs font-medium text-muted-foreground">
-                Servers
+                {t('clients.colServers')}
               </TableHead>
               <TableHead className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">
-                Status
+                {t('clients.colStatus')}
               </TableHead>
               <TableHead className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">
-                Last synced
+                {t('clients.colLastSynced')}
               </TableHead>
               <TableHead className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">
-                Actions
+                {t('clients.colActions')}
               </TableHead>
             </TableRow>
           </TableHeader>

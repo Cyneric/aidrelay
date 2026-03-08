@@ -17,6 +17,7 @@
 
 import { useState, useEffect } from 'react'
 import { ChevronDown, ChevronRight } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import type { ClientStatus } from '@shared/types'
 import { BackupTimeline } from '@/components/history/BackupTimeline'
@@ -66,6 +67,7 @@ const ClientHistorySection = ({ client }: Readonly<{ client: ClientStatus }>) =>
  * Backup history page listing all installed clients with their snapshot timelines.
  */
 const HistoryPage = () => {
+  const { t } = useTranslation()
   const [clients, setClients] = useState<ClientStatus[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -79,17 +81,15 @@ const HistoryPage = () => {
   return (
     <main className="flex flex-col gap-6" data-testid="history-page">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Backup History</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Per-client config snapshots — restore any previous state with one click.
-        </p>
+        <h1 className="text-2xl font-bold tracking-tight">{t('history.title')}</h1>
+        <p className="text-sm text-muted-foreground mt-1">{t('history.subtitle')}</p>
       </div>
 
-      {loading && <p className="text-sm text-muted-foreground">Detecting installed clients…</p>}
+      {loading && <p className="text-sm text-muted-foreground">{t('history.detecting')}</p>}
 
       {!loading && clients.length === 0 && (
         <p className="text-sm text-muted-foreground" data-testid="no-clients">
-          No AI tools detected on this machine.
+          {t('history.noClients')}
         </p>
       )}
 
