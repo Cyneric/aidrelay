@@ -179,6 +179,23 @@ describe('profiles:update', () => {
       expect.objectContaining({ action: 'profile.updated' }),
     )
   })
+
+  it('throws when trying to rename the default profile', () => {
+    mockFindById.mockReturnValueOnce({ ...mockProfile, name: 'default' })
+    expect(() => call('profiles:update', 'p1', { name: 'renamed' })).toThrow(
+      'The default profile name cannot be changed',
+    )
+  })
+
+  it('allows non-name updates for the default profile', () => {
+    const defaultProfile = { ...mockProfile, name: 'default' }
+    mockFindById.mockReturnValueOnce(defaultProfile)
+    mockUpdate.mockReturnValueOnce({ ...defaultProfile, description: 'Updated description' })
+
+    const result = call<Profile>('profiles:update', 'p1', { description: 'Updated description' })
+    expect(result.description).toBe('Updated description')
+    expect(mockUpdate).toHaveBeenCalledWith('p1', { description: 'Updated description' })
+  })
 })
 
 describe('profiles:delete', () => {
@@ -197,6 +214,11 @@ describe('profiles:delete', () => {
   it('throws when trying to delete the active profile', () => {
     mockFindById.mockReturnValueOnce({ ...mockProfile, isActive: true })
     expect(() => call('profiles:delete', 'p1')).toThrow('Cannot delete the active profile')
+  })
+
+  it('throws when trying to delete the default profile', () => {
+    mockFindById.mockReturnValueOnce({ ...mockProfile, name: 'default', isActive: false })
+    expect(() => call('profiles:delete', 'p1')).toThrow('The default profile cannot be deleted')
   })
 })
 

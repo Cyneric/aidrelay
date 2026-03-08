@@ -29,6 +29,7 @@ import log from 'electron-log'
 import type { Database } from 'better-sqlite3'
 import type { ImportResult } from '@shared/channels'
 import { RulesRepo } from '@main/db/rules.repo'
+import { estimateTokens } from '@main/rules/token-estimator'
 import { parseCursorMdc, parseClaudeCodeMd, parseConcatMd } from './format-converter'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -230,7 +231,7 @@ export class RuleImporter {
       }
 
       try {
-        this.repo.create({
+        const created = this.repo.create({
           name: candidate.name,
           content: candidate.content,
           category: candidate.source,
@@ -241,6 +242,9 @@ export class RuleImporter {
           alwaysApply: false,
           tags: candidate.tags ?? [candidate.source],
         })
+
+        // Persist a token estimate so table/budget views are consistent with editor badges.
+        this.repo.update(created.id, { tokenEstimate: estimateTokens(candidate.content) })
         existing.add(candidate.name.toLowerCase())
         imported++
         log.debug(`[rule-importer] Imported rule "${candidate.name}" from ${candidate.source}`)

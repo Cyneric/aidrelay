@@ -83,6 +83,7 @@ publish:
 
 mac:
   target: dmg
+  icon: resources/icon.icns
   category: public.app-category.developer-tools
   # hardenedRuntime: true
   # gatekeeperAssess: false
@@ -92,4 +93,5 @@ mac:
 
 linux:
   target: AppImage
+  icon: resources/icon-512.png
   category: Development

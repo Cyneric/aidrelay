@@ -19,11 +19,12 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
-import { Save, RotateCcw, Key, Globe, Info, Download } from 'lucide-react'
+import { Save, RotateCcw, Key, Globe, Info, Download, AlertTriangle } from 'lucide-react'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Checkbox } from '@/components/ui/checkbox'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import {
   Select,
@@ -32,6 +33,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { useLicense } from '@/lib/useLicense'
 import { useTheme, type Theme } from '@/lib/useTheme'
 
@@ -293,11 +302,14 @@ const GeneralSection = () => {
     })
   }, [])
 
-  const saveLanguage = useCallback(async (lang: string) => {
-    setLanguage(lang)
-    await window.api.settingsSet('language', lang)
-    toast.success(t('settings.languageSaved'))
-  }, [])
+  const saveLanguage = useCallback(
+    async (lang: string) => {
+      setLanguage(lang)
+      await window.api.settingsSet('language', lang)
+      toast.success(t('settings.languageSaved'))
+    },
+    [t],
+  )
 
   return (
     <Section
@@ -439,6 +451,234 @@ const AboutSection = () => {
   )
 }
 
+// ─── Danger Zone Section ─────────────────────────────────────────────────────
+
+interface ResetSelection {
+  uiPreferences: boolean
+  gitRemoteForm: boolean
+  gitSyncConnection: boolean
+}
+
+const DEFAULT_RESET_SELECTION: ResetSelection = {
+  uiPreferences: true,
+  gitRemoteForm: true,
+  gitSyncConnection: false,
+}
+
+const DangerZoneSection = () => {
+  const { t } = useTranslation()
+  const [open, setOpen] = useState(false)
+  const [factoryConfirmOpen, setFactoryConfirmOpen] = useState(false)
+  const [resetting, setResetting] = useState(false)
+  const [factoryResetting, setFactoryResetting] = useState(false)
+  const [selection, setSelection] = useState<ResetSelection>(DEFAULT_RESET_SELECTION)
+
+  const selectedCount = Object.values(selection).filter(Boolean).length
+
+  const updateSelection = useCallback((key: keyof ResetSelection, checked: boolean) => {
+    setSelection((prev) => ({ ...prev, [key]: checked }))
+  }, [])
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    setOpen(nextOpen)
+    if (nextOpen) {
+      setSelection(DEFAULT_RESET_SELECTION)
+    }
+  }
+
+  const handlePartialConfirm = async () => {
+    if (selectedCount === 0) return
+    setResetting(true)
+    try {
+      await window.api.settingsReset({
+        scope: 'partial',
+        ...selection,
+      })
+      if (selection.uiPreferences) {
+        localStorage.removeItem('theme')
+      }
+      toast.success(t('settings.resetSuccess'))
+      setOpen(false)
+    } catch {
+      toast.error(t('settings.resetError'))
+    } finally {
+      setResetting(false)
+    }
+  }
+
+  const handleFactoryConfirm = async () => {
+    setFactoryResetting(true)
+    try {
+      await window.api.settingsReset({
+        scope: 'factory',
+        uiPreferences: false,
+        gitRemoteForm: false,
+        gitSyncConnection: false,
+      })
+      localStorage.removeItem('theme')
+      toast.info(t('settings.factoryResetRestarting'))
+      setFactoryConfirmOpen(false)
+      setOpen(false)
+    } catch {
+      toast.error(t('settings.factoryResetError'))
+    } finally {
+      setFactoryResetting(false)
+    }
+  }
+
+  return (
+    <Section
+      title={t('settings.dangerTitle')}
+      description={t('settings.dangerDescription')}
+      icon={AlertTriangle}
+    >
+      <div
+        className="rounded-md border border-destructive/40 bg-destructive/5 p-4"
+        data-testid="settings-danger-zone"
+      >
+        <p className="text-sm text-muted-foreground">{t('settings.resetWarning')}</p>
+        <Button
+          type="button"
+          variant="destructive"
+          className="mt-3"
+          onClick={() => handleOpenChange(true)}
+          data-testid="btn-open-reset-settings"
+        >
+          {t('settings.resetButton')}
+        </Button>
+      </div>
+
+      <Dialog open={open} onOpenChange={handleOpenChange}>
+        <DialogContent showCloseButton={!resetting} className="sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle>{t('settings.resetDialogTitle')}</DialogTitle>
+            <DialogDescription>{t('settings.resetDialogDescription')}</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3" data-testid="reset-options">
+            <div className="flex items-start gap-3 rounded-md border p-3">
+              <Checkbox
+                id="reset-ui-preferences"
+                checked={selection.uiPreferences}
+                onCheckedChange={(checked) => updateSelection('uiPreferences', checked === true)}
+                data-testid="reset-option-ui-preferences"
+              />
+              <div>
+                <Label htmlFor="reset-ui-preferences">{t('settings.resetOptionUiTitle')}</Label>
+                <p className="text-xs text-muted-foreground">
+                  {t('settings.resetOptionUiDescription')}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3 rounded-md border p-3">
+              <Checkbox
+                id="reset-git-remote"
+                checked={selection.gitRemoteForm}
+                onCheckedChange={(checked) => updateSelection('gitRemoteForm', checked === true)}
+                data-testid="reset-option-git-remote"
+              />
+              <div>
+                <Label htmlFor="reset-git-remote">{t('settings.resetOptionGitRemoteTitle')}</Label>
+                <p className="text-xs text-muted-foreground">
+                  {t('settings.resetOptionGitRemoteDescription')}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3 rounded-md border p-3">
+              <Checkbox
+                id="reset-git-sync"
+                checked={selection.gitSyncConnection}
+                onCheckedChange={(checked) =>
+                  updateSelection('gitSyncConnection', checked === true)
+                }
+                data-testid="reset-option-git-sync"
+              />
+              <div>
+                <Label htmlFor="reset-git-sync">{t('settings.resetOptionGitSyncTitle')}</Label>
+                <p className="text-xs text-muted-foreground">
+                  {t('settings.resetOptionGitSyncDescription')}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="sm:flex-wrap sm:justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setOpen(false)}
+              disabled={resetting}
+              className="w-full whitespace-normal text-center sm:w-auto sm:max-w-[14rem]"
+            >
+              {t('common.cancel')}
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => setFactoryConfirmOpen(true)}
+              disabled={resetting || factoryResetting}
+              data-testid="btn-open-factory-reset"
+              className="w-full whitespace-normal text-center sm:w-auto sm:max-w-[18rem]"
+            >
+              {t('settings.factoryResetButton')}
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => void handlePartialConfirm()}
+              disabled={resetting || selectedCount === 0}
+              data-testid="btn-confirm-reset-settings"
+              className="w-full whitespace-normal text-center sm:w-auto sm:max-w-[20rem]"
+            >
+              {resetting ? t('settings.resettingButton') : t('settings.resetConfirmButton')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={factoryConfirmOpen} onOpenChange={setFactoryConfirmOpen}>
+        <DialogContent showCloseButton={!factoryResetting} className="sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle>{t('settings.factoryResetTitle')}</DialogTitle>
+            <DialogDescription>{t('settings.factoryResetDescription')}</DialogDescription>
+          </DialogHeader>
+          <div
+            className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-muted-foreground"
+            data-testid="factory-reset-warning"
+          >
+            {t('settings.factoryResetWarning')}
+          </div>
+          <DialogFooter className="sm:flex-wrap sm:justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setFactoryConfirmOpen(false)}
+              disabled={factoryResetting}
+              className="w-full whitespace-normal text-center sm:w-auto sm:max-w-[14rem]"
+            >
+              {t('common.cancel')}
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => void handleFactoryConfirm()}
+              disabled={factoryResetting}
+              data-testid="btn-confirm-factory-reset"
+              className="w-full whitespace-normal text-center sm:w-auto sm:max-w-[20rem]"
+            >
+              {factoryResetting
+                ? t('settings.factoryResettingButton')
+                : t('settings.factoryResetConfirm')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </Section>
+  )
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 /**
@@ -457,6 +697,7 @@ const SettingsPage = () => {
       <LicensingSection />
       <GitRemoteSection />
       <AboutSection />
+      <DangerZoneSection />
     </main>
   )
 }

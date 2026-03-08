@@ -43,7 +43,24 @@ vi.mock('@tanstack/react-router', () => ({
 // ─── i18n Mock ────────────────────────────────────────────────────────────────
 
 vi.mock('react-i18next', () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
+  useTranslation: () => ({
+    t: (key: string) => {
+      if (key === 'nav.servers') return 'MCP Servers'
+      return key
+    },
+  }),
+}))
+
+// ─── Theme Hook Mock ──────────────────────────────────────────────────────────
+
+let mockEffectiveTheme: 'light' | 'dark' = 'light'
+
+vi.mock('@/lib/useTheme', () => ({
+  useTheme: () => ({
+    theme: mockEffectiveTheme,
+    setTheme: vi.fn(),
+    effectiveTheme: mockEffectiveTheme,
+  }),
 }))
 
 // ─── License Hook Mock ────────────────────────────────────────────────────────
@@ -72,6 +89,7 @@ import { Sidebar } from '../Sidebar'
 
 beforeEach(() => {
   // Reset to free tier before each test
+  mockEffectiveTheme = 'light'
   mockLicenseState.status = {
     tier: 'free',
     valid: false,
@@ -158,9 +176,33 @@ describe('Sidebar', () => {
       expect(logo).toHaveAttribute('alt', 'aidrelay logo')
     })
 
+    it('does not render standalone subtitle text', () => {
+      render(<Sidebar />)
+      expect(screen.queryByText('AI Developer Relay')).not.toBeInTheDocument()
+    })
+
+    it('uses the light sidebar logo in light theme', () => {
+      mockEffectiveTheme = 'light'
+      render(<Sidebar />)
+      const logo = screen.getByTestId('sidebar-logo')
+      expect(logo.getAttribute('src')).toContain('aidrelay_logo_with_slogan_for_lightmode')
+    })
+
+    it('uses the dark sidebar logo in dark theme', () => {
+      mockEffectiveTheme = 'dark'
+      render(<Sidebar />)
+      const logo = screen.getByTestId('sidebar-logo')
+      expect(logo.getAttribute('src')).toContain('aidrelay_logo_with_slogan_for_darkmode')
+    })
+
     it('renders settings nav link', () => {
       render(<Sidebar />)
       expect(screen.getByTestId('nav-link-settings')).toBeInTheDocument()
+    })
+
+    it('renders MCP Servers label in navigation', () => {
+      render(<Sidebar />)
+      expect(screen.getByText('MCP Servers')).toBeInTheDocument()
     })
   })
 })

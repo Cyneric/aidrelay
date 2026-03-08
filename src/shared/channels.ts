@@ -244,6 +244,29 @@ export interface FeatureGates {
   readonly ruleTemplates: boolean
 }
 
+/**
+ * Input payload for resetting selected application setting categories.
+ */
+export interface SettingsResetInput {
+  readonly scope: 'partial' | 'factory'
+  readonly uiPreferences: boolean
+  readonly gitRemoteForm: boolean
+  readonly gitSyncConnection: boolean
+}
+
+/**
+ * Result returned after a settings reset operation.
+ */
+export interface SettingsResetResult {
+  readonly resetKeys: readonly string[]
+  readonly disconnectedGitSync: boolean
+  readonly clearedAllSecrets: boolean
+  readonly clearedLicenseCache: boolean
+  readonly databaseReset: boolean
+  readonly deletedPaths: readonly string[]
+  readonly restartTriggered: boolean
+}
+
 // ─── IPC Channel Map ──────────────────────────────────────────────────────────
 
 /**
@@ -331,6 +354,7 @@ export interface IpcChannels {
   'settings:get': (key: string) => Promise<unknown>
   'settings:set': (key: string, value: unknown) => Promise<void>
   'settings:delete': (key: string) => Promise<void>
+  'settings:reset': (input: SettingsResetInput) => Promise<SettingsResetResult>
 
   // Dialog
   'dialog:show-open': (options?: ShowOpenDialogOptions) => Promise<ShowOpenDialogResult>

@@ -104,13 +104,13 @@ const ServerEditor = ({ server, onClose }: ServerEditorProps) => {
         className="fixed inset-y-0 right-0 z-50 w-full max-w-xl flex flex-col bg-background border-l border-border shadow-xl"
         role="dialog"
         aria-modal="true"
-        aria-label={server ? `Edit server: ${server.name}` : 'Add server'}
+        aria-label={server ? `Edit MCP Server: ${server.name}` : 'Add MCP Server'}
         data-testid="server-editor"
       >
         {/* Header */}
         <header className="flex items-center justify-between px-6 py-4 border-b border-border">
           <h2 className="font-semibold text-base">
-            {server ? `Edit: ${server.name}` : 'Add server'}
+            {server ? `Edit MCP Server: ${server.name}` : 'Add MCP Server'}
           </h2>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -208,7 +208,7 @@ const ServerEditor = ({ server, onClose }: ServerEditorProps) => {
               disabled={saving || !formState?.name || !formState?.command}
               data-testid="server-editor-json-save"
             >
-              {saving ? 'Saving…' : server ? 'Save changes' : 'Add server'}
+              {saving ? 'Saving…' : server ? 'Save changes' : 'Add MCP Server'}
             </Button>
           </footer>
         )}

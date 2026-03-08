@@ -89,4 +89,18 @@ describe('Database migration', () => {
 
     db.close()
   })
+
+  it('seeds a built-in default profile as active', () => {
+    const db = createTestDb()
+
+    const row = db.prepare(`SELECT name, is_active FROM profiles WHERE name = 'default'`).get() as
+      | { name: string; is_active: number }
+      | undefined
+
+    expect(row).toBeDefined()
+    expect(row?.name).toBe('default')
+    expect(row?.is_active).toBe(1)
+
+    db.close()
+  })
 })

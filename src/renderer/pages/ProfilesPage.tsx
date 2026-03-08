@@ -22,6 +22,7 @@ import { CardGrid } from '@/components/ui/card-grid'
 import { ProfileCard } from '@/components/profiles/ProfileCard'
 import { ProfileEditor } from '@/components/profiles/ProfileEditor'
 import { ProfileDiffView } from '@/components/profiles/ProfileDiffView'
+import { ProfileDeleteConfirmDialog } from '@/components/profiles/ProfileDeleteConfirmDialog'
 import { useProfilesStore } from '@/stores/profiles.store'
 import { useServersStore } from '@/stores/servers.store'
 import { useRulesStore } from '@/stores/rules.store'
@@ -42,6 +43,8 @@ const ProfilesPage = () => {
   const [showEditor, setShowEditor] = useState(false)
   const [editingProfile, setEditingProfile] = useState<Profile | undefined>(undefined)
   const [activatingProfile, setActivatingProfile] = useState<Profile | undefined>(undefined)
+  const [pendingDeleteProfile, setPendingDeleteProfile] = useState<Profile | undefined>(undefined)
+  const [deletingProfile, setDeletingProfile] = useState(false)
   const [activating, setActivating] = useState(false)
 
   useEffect(() => {
@@ -66,10 +69,16 @@ const ProfilesPage = () => {
     setEditingProfile(undefined)
   }, [])
 
-  const handleDelete = useCallback(
+  const handleDeleteConfirm = useCallback(
     async (profile: Profile) => {
-      await deleteProfile(profile.id)
-      toast.success(t('profiles.deleted'))
+      setDeletingProfile(true)
+      try {
+        await deleteProfile(profile.id)
+        toast.success(t('profiles.deleted'))
+      } finally {
+        setDeletingProfile(false)
+        setPendingDeleteProfile(undefined)
+      }
     },
     [deleteProfile, t],
   )
@@ -95,7 +104,7 @@ const ProfilesPage = () => {
       setActivating(false)
       setActivatingProfile(undefined)
     }
-  }, [activatingProfile, activate])
+  }, [activatingProfile, activate, t])
 
   // Exclude the profile being edited from its own parent options
   const availableParents = editingProfile
@@ -168,7 +177,7 @@ const ProfilesPage = () => {
               onActivate={handleActivateRequest}
               onEdit={openEdit}
               onDelete={(p) => {
-                void handleDelete(p)
+                setPendingDeleteProfile(p)
               }}
             />
           ))}
@@ -194,6 +203,20 @@ const ProfilesPage = () => {
           }}
           onCancel={() => {
             setActivatingProfile(undefined)
+          }}
+        />
+      )}
+
+      {/* Delete confirmation modal */}
+      {pendingDeleteProfile !== undefined && (
+        <ProfileDeleteConfirmDialog
+          profile={pendingDeleteProfile}
+          deleting={deletingProfile}
+          onConfirm={() => {
+            void handleDeleteConfirm(pendingDeleteProfile)
+          }}
+          onCancel={() => {
+            if (!deletingProfile) setPendingDeleteProfile(undefined)
           }}
         />
       )}

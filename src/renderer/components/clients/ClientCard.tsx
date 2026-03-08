@@ -68,6 +68,10 @@ interface ClientCardProps {
  */
 const ClientCard = ({ client, onSync, syncing = false }: ClientCardProps) => {
   const { t } = useTranslation()
+  const serverCount =
+    Number.isFinite(client.serverCount) && client.serverCount > 0
+      ? Math.trunc(client.serverCount)
+      : 0
   const statusMetaBase = SYNC_STATUS_MAP[client.syncStatus]
   const StatusIcon = statusMetaBase.icon
   const statusMeta = {
@@ -113,7 +117,7 @@ const ClientCard = ({ client, onSync, syncing = false }: ClientCardProps) => {
           className="text-sm text-muted-foreground"
           data-testid={`client-server-count-${client.id}`}
         >
-          {t('dashboard.servers', { count: client.serverCount })}
+          {t('dashboard.servers', { count: serverCount })}
         </p>
       </CardContent>
 

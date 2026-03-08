@@ -46,6 +46,18 @@ const baseProfile: Profile = {
   updatedAt: '2026-01-01T00:00:00.000Z',
 }
 
+const profileWithPresetIcon: Profile = {
+  ...baseProfile,
+  id: 'p2',
+  icon: '💻',
+}
+
+const profileWithLegacyIcon: Profile = {
+  ...baseProfile,
+  id: 'p3',
+  icon: '🏗️',
+}
+
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 describe('ProfileEditor', () => {
@@ -81,17 +93,37 @@ describe('ProfileEditor', () => {
   it('renders the profile form inside the drawer', () => {
     renderWithProviders(<ProfileEditor onClose={vi.fn()} />)
     expect(screen.getByTestId('profile-form')).toBeInTheDocument()
+    expect(screen.queryByTestId('profile-icon-input')).not.toBeInTheDocument()
+    expect(screen.getByTestId('icon-clear')).toBeInTheDocument()
+    expect(screen.getByTestId('icon-option-0')).toBeInTheDocument()
   })
 
-  it('calls store create with form values on new-profile submit', async () => {
+  it('calls store create with selected preset icon on new-profile submit', async () => {
     mockCreate.mockResolvedValue({ id: 'new', name: 'Test' })
     renderWithProviders(<ProfileEditor onClose={vi.fn()} />)
 
     await userEvent.clear(screen.getByTestId('profile-name-input'))
     await userEvent.type(screen.getByTestId('profile-name-input'), 'Test')
+    await userEvent.click(screen.getByTestId('icon-option-0'))
     await userEvent.click(screen.getByTestId('profile-form-submit'))
 
-    expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({ name: 'Test' }))
+    expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({ name: 'Test', icon: '🚀' }))
+  })
+
+  it('omits icon from create payload after clearing', async () => {
+    mockCreate.mockResolvedValue({ id: 'new', name: 'Test' })
+    renderWithProviders(<ProfileEditor onClose={vi.fn()} />)
+
+    await userEvent.clear(screen.getByTestId('profile-name-input'))
+    await userEvent.type(screen.getByTestId('profile-name-input'), 'Test')
+    await userEvent.click(screen.getByTestId('icon-option-1'))
+    await userEvent.click(screen.getByTestId('icon-clear'))
+    await userEvent.click(screen.getByTestId('profile-form-submit'))
+
+    const firstCall = mockCreate.mock.calls[0]
+    expect(firstCall).toBeDefined()
+    const [payload] = firstCall as [Record<string, unknown>]
+    expect(payload.icon).toBeUndefined()
   })
 
   it('calls store update when editing an existing profile', async () => {
@@ -104,5 +136,19 @@ describe('ProfileEditor', () => {
     await userEvent.click(screen.getByTestId('profile-form-submit'))
 
     expect(mockUpdate).toHaveBeenCalledWith('p1', expect.objectContaining({ name: 'Updated' }))
+  })
+
+  it('preselects preset icon in edit mode', () => {
+    renderWithProviders(<ProfileEditor profile={profileWithPresetIcon} onClose={vi.fn()} />)
+    expect(screen.getByTestId('icon-option-1')).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('preserves a legacy non-preset icon if unchanged in edit mode', async () => {
+    mockUpdate.mockResolvedValue({ id: 'p3', name: 'Work Mode' })
+    renderWithProviders(<ProfileEditor profile={profileWithLegacyIcon} onClose={vi.fn()} />)
+
+    await userEvent.click(screen.getByTestId('profile-form-submit'))
+
+    expect(mockUpdate).toHaveBeenCalledWith('p3', expect.objectContaining({ icon: '🏗️' }))
   })
 })

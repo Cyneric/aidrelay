@@ -13,9 +13,9 @@
   "scripts": {
     "prepare": "husky || true",
     "postinstall": "pnpm rebuild better-sqlite3 keytar",
-    "predev": "electron-rebuild -f -w better-sqlite3,keytar",
+    "predev": "node scripts/rebuild-native.mjs",
     "dev": "electron-vite dev",
-    "prebuild": "electron-rebuild -f -w better-sqlite3,keytar",
+    "prebuild": "node scripts/rebuild-native.mjs",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
     "dist": "pnpm build && electron-builder --config electron-builder.yml",

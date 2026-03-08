@@ -141,8 +141,8 @@ const ProfileDiffView = ({
           <div className="flex flex-col gap-5 py-2">
             {noChanges ? (
               <p className="text-sm text-muted-foreground">
-                This profile has no server or rule overrides. Activating it will trigger a full sync
-                with your current settings.
+                This profile has no MCP server or rule overrides. Activating it will trigger a full
+                sync with your current settings.
               </p>
             ) : (
               <>
@@ -152,7 +152,7 @@ const ProfileDiffView = ({
                       id="server-changes-heading"
                       className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2"
                     >
-                      Server changes
+                      MCP Server changes
                     </h3>
                     <ul className="flex flex-col gap-0.5">
                       {serverEntries.map((entry) => (

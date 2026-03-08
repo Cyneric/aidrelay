@@ -16,7 +16,9 @@
 
 import { useEffect, useState } from 'react'
 import { Minus, Square, Copy, X } from 'lucide-react'
-import logo from '../../assets/branding/logo.png'
+import { useTheme } from '@/lib/useTheme'
+import logoDark from '../../assets/branding/logo-dark.png'
+import logoLight from '../../assets/branding/logo-light.png'
 import '../../lib/electron.d'
 
 /**
@@ -26,6 +28,8 @@ import '../../lib/electron.d'
  */
 const TitleBar = () => {
   const [isMaximized, setIsMaximized] = useState(false)
+  const { effectiveTheme } = useTheme()
+  const titleLogo = effectiveTheme === 'dark' ? logoDark : logoLight
 
   useEffect(() => {
     const cleanup = window.api.onMaximizeChanged(({ isMaximized: maximized }) => {
@@ -36,15 +40,15 @@ const TitleBar = () => {
 
   return (
     <header
-      className="flex h-8 shrink-0 items-center justify-between bg-background border-b select-none"
+      className="flex h-10 shrink-0 items-center justify-between bg-background border-b select-none"
       style={{ WebkitAppRegion: 'drag' }}
       data-testid="title-bar"
     >
       <div className="flex items-center pl-3" data-testid="title-bar-brand">
         <img
-          src={logo as unknown as string}
+          src={titleLogo}
           alt="aidrelay logo"
-          className="h-5 w-auto object-contain"
+          className="h-6 w-auto object-contain"
           style={{ WebkitAppRegion: 'no-drag' }}
           data-testid="title-bar-logo"
         />
