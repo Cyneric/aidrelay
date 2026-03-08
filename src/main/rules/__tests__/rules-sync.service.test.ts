@@ -180,6 +180,30 @@ describe('RulesSyncService.sync — vscode', () => {
   })
 })
 
+describe('RulesSyncService.sync — vscode family', () => {
+  it.each(['vscode-insiders', 'visual-studio'] as const)(
+    'writes concatenated file for %s to .github/copilot-instructions.md',
+    (clientId) => {
+      const projectPath = join(tmpDir, `proj-${clientId}`)
+      mkdirSync(projectPath, { recursive: true })
+
+      storedRules.push(
+        makeRule({
+          name: 'rule-a',
+          scope: 'project',
+          projectPath,
+          content: 'Rule A content.',
+        }),
+      )
+      service.sync(clientId)
+
+      const filePath = join(projectPath, '.github', 'copilot-instructions.md')
+      expect(existsSync(filePath)).toBe(true)
+      expect(readFileSync(filePath, 'utf-8')).toContain('Rule A content.')
+    },
+  )
+})
+
 describe('RulesSyncService.sync — windsurf', () => {
   it('writes concatenated file to .windsurfrules', () => {
     const projectPath = join(tmpDir, 'ws-proj')
@@ -214,6 +238,30 @@ describe('RulesSyncService.sync — codex clients', () => {
       expect(existsSync(join(projectPath, '.codex', 'AGENTS.md'))).toBe(true)
     },
   )
+})
+
+describe('RulesSyncService.sync — opencode', () => {
+  it('writes concatenated instructions to opencode.json', () => {
+    const projectPath = join(tmpDir, 'opencode-proj')
+    mkdirSync(projectPath, { recursive: true })
+
+    storedRules.push(
+      makeRule({
+        name: 'open-rule',
+        scope: 'project',
+        projectPath,
+        content: 'Open body.',
+      }),
+    )
+
+    const result = service.sync('opencode')
+    expect(result.success).toBe(true)
+
+    const configPath = join(projectPath, 'opencode.json')
+    expect(existsSync(configPath)).toBe(true)
+    const content = JSON.parse(readFileSync(configPath, 'utf-8')) as { instructions?: string }
+    expect(content.instructions).toContain('Open body.')
+  })
 })
 
 describe('RulesSyncService.sync — unsupported clients', () => {

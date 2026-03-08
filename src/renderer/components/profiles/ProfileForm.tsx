@@ -18,6 +18,7 @@ import { z } from 'zod'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { cn } from '@/lib/utils'
 import {
   Select,
   SelectContent,
@@ -128,7 +129,6 @@ const ProfileForm = ({
   })
 
   const color = watch('color')
-  const icon = watch('icon')
 
   const handleValidSubmit = (values: ProfileFormValues) => {
     onSubmit({
@@ -189,43 +189,58 @@ const ProfileForm = ({
         <Label>
           Icon <span className="text-muted-foreground text-xs">(emoji)</span>
         </Label>
-        <input type="hidden" {...register('icon')} />
-        <div className="flex items-center gap-2 flex-wrap" role="group" aria-label="Profile icon">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => setValue('icon', '', { shouldDirty: true, shouldValidate: true })}
-            className="h-9 px-3"
-            aria-label="Clear icon"
-            aria-pressed={icon === ''}
-            data-testid="icon-clear"
-          >
-            None
-          </Button>
-          {ICON_EMOJIS.map((emoji, index) => {
-            const selected = icon === emoji
+        <Controller
+          control={control}
+          name="icon"
+          render={({ field }) => {
+            const selectedIcon = field.value ?? ''
             return (
-              <Button
-                key={emoji}
-                type="button"
-                variant="ghost"
-                size="icon"
-                onClick={() => setValue('icon', emoji, { shouldDirty: true, shouldValidate: true })}
-                className="w-9 h-9 rounded-md text-lg"
-                style={{
-                  boxShadow: selected
-                    ? '0 0 0 2px var(--background), 0 0 0 4px var(--primary)'
-                    : undefined,
-                }}
-                aria-label={`Select icon ${emoji}`}
-                aria-pressed={selected}
-                data-testid={`icon-option-${index}`}
+              <div
+                className="flex items-center gap-2 flex-wrap"
+                role="group"
+                aria-label="Profile icon"
               >
-                <span aria-hidden="true">{emoji}</span>
-              </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => field.onChange('')}
+                  className={cn(
+                    'h-9 px-3',
+                    selectedIcon === '' &&
+                      'ring-2 ring-primary ring-offset-2 ring-offset-background',
+                  )}
+                  aria-label="Clear icon"
+                  aria-pressed={selectedIcon === ''}
+                  data-testid="icon-clear"
+                >
+                  None
+                </Button>
+                {ICON_EMOJIS.map((emoji, index) => {
+                  const selected = selectedIcon === emoji
+                  return (
+                    <Button
+                      key={emoji}
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => field.onChange(emoji)}
+                      className={cn(
+                        'w-9 h-9 rounded-md text-lg',
+                        selected &&
+                          'bg-accent text-accent-foreground ring-2 ring-primary ring-offset-2 ring-offset-background',
+                      )}
+                      aria-label={`Select icon ${emoji}`}
+                      aria-pressed={selected}
+                      data-testid={`icon-option-${index}`}
+                    >
+                      <span aria-hidden="true">{emoji}</span>
+                    </Button>
+                  )
+                })}
+              </div>
             )
-          })}
-        </div>
+          }}
+        />
         {errors.icon && (
           <p className="text-xs text-destructive" role="alert">
             {errors.icon.message}
@@ -245,12 +260,11 @@ const ProfileForm = ({
                   variant="ghost"
                   size="icon"
                   onClick={() => setValue('color', c)}
-                  className="w-6 h-6 rounded-full p-0"
-                  style={{
-                    backgroundColor: c,
-                    boxShadow:
-                      color === c ? `0 0 0 2px var(--background), 0 0 0 4px ${c}` : undefined,
-                  }}
+                  className={cn(
+                    'w-6 h-6 rounded-full p-0',
+                    color === c && 'ring-2 ring-primary ring-offset-2 ring-offset-background',
+                  )}
+                  style={{ backgroundColor: c }}
                   aria-label={`Select colour ${c}`}
                   aria-pressed={color === c}
                   data-testid={`color-swatch-${c}`}

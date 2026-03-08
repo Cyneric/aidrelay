@@ -28,8 +28,10 @@ import { getDatabase } from '@main/db/connection'
 import { ServersRepo } from '@main/db/servers.repo'
 import { ActivityLogRepo } from '@main/db/activity-log.repo'
 import { BackupsRepo } from '@main/db/backups.repo'
+import { SettingsRepo } from '@main/db/settings.repo'
 import { BackupService } from '@main/sync/backup.service'
 import { SyncService } from '@main/sync/sync.service'
+import { VISUAL_STUDIO_CONFIG_SETTING_KEY } from '@main/clients/visual-studio.adapter'
 
 // ─── Service Factory ──────────────────────────────────────────────────────────
 
@@ -52,6 +54,10 @@ const resolveFallbackConfigPath = (clientId: ClientId): string | null => {
       const appData = process.env['APPDATA'] ?? ''
       return appData ? join(appData, 'Code', 'User', 'mcp.json') : null
     }
+    case 'vscode-insiders': {
+      const appData = process.env['APPDATA'] ?? ''
+      return appData ? join(appData, 'Code - Insiders', 'User', 'mcp.json') : null
+    }
     case 'codex-cli': {
       const userProfile = process.env['USERPROFILE'] ?? ''
       return userProfile ? join(userProfile, '.codex', 'config.json') : null
@@ -59,6 +65,18 @@ const resolveFallbackConfigPath = (clientId: ClientId): string | null => {
     case 'codex-gui': {
       const appData = process.env['APPDATA'] ?? ''
       return appData ? join(appData, 'Codex', 'config.json') : null
+    }
+    case 'opencode': {
+      const userProfile = process.env['USERPROFILE'] ?? ''
+      return userProfile ? join(userProfile, '.config', 'opencode', 'opencode.json') : null
+    }
+    case 'visual-studio': {
+      const repo = new SettingsRepo(getDatabase())
+      const configured = repo.get<string>(VISUAL_STUDIO_CONFIG_SETTING_KEY)
+      if (typeof configured === 'string' && configured.trim().length > 0) {
+        return configured.trim()
+      }
+      return null
     }
     default:
       return null

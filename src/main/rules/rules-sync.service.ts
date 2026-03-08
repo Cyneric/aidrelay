@@ -13,20 +13,23 @@
  *   - claude-code  → individual `.md` files in `%USERPROFILE%\.claude\rules\`
  *   - cursor       → individual `.mdc` files in `%USERPROFILE%\.cursor\rules\`
  *   - vscode       → single concatenated file: `{project}\.github\copilot-instructions.md`
+ *   - vscode-insiders → single concatenated file: `{project}\.github\copilot-instructions.md`
  *   - windsurf     → single concatenated file: `{project}\.windsurfrules`
  *   - codex-cli    → single concatenated file: `{project}\.codex\AGENTS.md`
  *   - codex-gui    → single concatenated file: `{project}\.codex\AGENTS.md`
+ *   - opencode     → project `opencode.json` top-level `instructions` field
+ *   - visual-studio → single concatenated file: `{project}\.github\copilot-instructions.md`
  *
  * Global-scope rules are written to the tool's global rules directory.
  * Project-scope rules are written to the matching project directory.
- * VS Code, Windsurf, Codex CLI, and Codex GUI do not have global paths — project-scoped
+ * VS Code-family, Windsurf, Codex, and OpenCode do not have global paths — project-scoped
  * rules without a valid `projectPath` are silently skipped with a warning.
  *
  * All writes are atomic: content is first written to a `.aidrelay.tmp` file,
  * then renamed to the final destination.
  */
 
-import { writeFileSync, mkdirSync, renameSync, existsSync } from 'fs'
+import { writeFileSync, mkdirSync, renameSync, existsSync, readFileSync } from 'fs'
 import { join, dirname } from 'path'
 import log from 'electron-log'
 import type { AiRule, SyncResult, ClientId } from '@shared/types'
@@ -170,6 +173,8 @@ export class RulesSyncService {
           toCursorMdc,
         )
       case 'vscode':
+      case 'vscode-insiders':
+      case 'visual-studio':
         return this.writeConcat(rules, (projectPath) =>
           join(projectPath, '.github', 'copilot-instructions.md'),
         )
@@ -178,6 +183,8 @@ export class RulesSyncService {
       case 'codex-cli':
       case 'codex-gui':
         return this.writeConcat(rules, (projectPath) => join(projectPath, '.codex', 'AGENTS.md'))
+      case 'opencode':
+        return this.writeOpenCode(rules)
       default:
         // Other clients (claude-desktop, zed, jetbrains) do not support rules files.
         log.debug(`[rules-sync] Client ${clientId} does not support rules sync — skipping`)
@@ -224,8 +231,8 @@ export class RulesSyncService {
 
   /**
    * Writes all rules for a given project path into a single concatenated file
-   * (vscode / windsurf / codex-cli / codex-gui strategy). Rules without a `projectPath`
-   * are silently skipped (no global path for these clients).
+   * (vscode-family / windsurf / codex strategy). Rules without a `projectPath`
+   * are skipped (no global path for these clients).
    */
   private writeConcat(rules: readonly AiRule[], pathFor: (projectPath: string) => string): number {
     // Group rules by project path (only project-scoped rules have one)
@@ -245,6 +252,43 @@ export class RulesSyncService {
     for (const [projectPath, projectRules] of byProject) {
       const filePath = pathFor(projectPath)
       atomicWrite(filePath, toConcat(projectRules))
+      written += projectRules.length
+    }
+    return written
+  }
+
+  /**
+   * Writes OpenCode project config files with concatenated instructions under
+   * the top-level `instructions` key.
+   */
+  private writeOpenCode(rules: readonly AiRule[]): number {
+    const byProject = new Map<string, AiRule[]>()
+
+    for (const rule of rules) {
+      if (!rule.projectPath) {
+        log.warn(`[rules-sync] Rule "${rule.name}" has no projectPath — skipping for opencode`)
+        continue
+      }
+      const existing = byProject.get(rule.projectPath) ?? []
+      existing.push(rule)
+      byProject.set(rule.projectPath, existing)
+    }
+
+    let written = 0
+    for (const [projectPath, projectRules] of byProject) {
+      const filePath = join(projectPath, 'opencode.json')
+      let existing: Record<string, unknown> = {}
+
+      if (existsSync(filePath)) {
+        try {
+          existing = JSON.parse(readFileSync(filePath, 'utf-8')) as Record<string, unknown>
+        } catch {
+          existing = {}
+        }
+      }
+
+      const merged = { ...existing, instructions: toConcat(projectRules) }
+      atomicWrite(filePath, JSON.stringify(merged, null, 2))
       written += projectRules.length
     }
     return written

@@ -33,6 +33,7 @@ import {
   ArrowUpDown,
   FlaskConical,
   Download,
+  Copy,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
@@ -126,6 +127,21 @@ const ServersPage = () => {
     }
   }, [deleteServer, pendingDeleteServer, t])
 
+  const handleCopyCommand = useCallback(
+    async (fullCommand: string) => {
+      try {
+        if (typeof navigator === 'undefined' || !navigator.clipboard?.writeText) {
+          throw new Error('Clipboard unavailable')
+        }
+        await navigator.clipboard.writeText(fullCommand)
+        toast.success(t('servers.copyCommandSuccess'))
+      } catch {
+        toast.error(t('servers.copyCommandFailed'))
+      }
+    },
+    [t],
+  )
+
   // ─── Table columns ──────────────────────────────────────────────────────────
 
   const columns = [
@@ -171,18 +187,50 @@ const ServersPage = () => {
     }),
     columnHelper.accessor('type', {
       header: () => t('servers.type'),
-      size: 80,
+      size: 72,
       cell: ({ getValue }) => (
         <span className="rounded bg-muted px-1.5 py-0.5 text-xs font-mono">{getValue()}</span>
       ),
     }),
     columnHelper.accessor('command', {
       header: () => t('servers.command'),
-      cell: ({ getValue, row }) => (
-        <span className="font-mono text-xs text-muted-foreground">
-          {getValue()} {row.original.args.join(' ')}
-        </span>
-      ),
+      size: 440,
+      cell: ({ getValue, row }) => {
+        const fullCommand = `${getValue()} ${row.original.args.join(' ')}`.trim()
+        return (
+          <div className="group relative w-full max-w-[36rem] min-w-0 pr-8">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span
+                  className="block min-w-0 cursor-default truncate font-mono text-xs text-muted-foreground"
+                  data-testid={`server-command-text-${row.original.id}`}
+                >
+                  {fullCommand}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-[56rem] break-all font-mono text-[11px] leading-relaxed">
+                {fullCommand}
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={() => void handleCopyCommand(fullCommand)}
+                  className="absolute right-0 top-1/2 h-6 w-6 -translate-y-1/2 opacity-0 pointer-events-none transition-opacity group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto"
+                  aria-label={t('servers.copyCommand', { name: row.original.name })}
+                  data-testid={`server-command-copy-${row.original.id}`}
+                >
+                  <Copy size={12} />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t('servers.copyCommandTooltip')}</TooltipContent>
+            </Tooltip>
+          </div>
+        )
+      },
     }),
     columnHelper.accessor('tags', {
       header: () => t('servers.tags'),
@@ -206,7 +254,7 @@ const ServersPage = () => {
     columnHelper.display({
       id: 'actions',
       header: '',
-      size: 112,
+      size: 104,
       cell: ({ row }) => (
         <div className="flex items-center justify-end gap-1">
           <Tooltip>

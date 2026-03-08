@@ -35,11 +35,11 @@ vi.mock('electron-log', () => ({
   default: { debug: vi.fn(), info: vi.fn(), error: vi.fn(), warn: vi.fn() },
 }))
 
-vi.mock('child_process', () => ({ spawn: vi.fn() }))
+vi.mock('cross-spawn', () => ({ default: vi.fn() }))
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-import { spawn } from 'child_process'
+import spawn from 'cross-spawn'
 import { ServerTesterService } from '../server-tester.service'
 
 const flushMicrotasks = async (): Promise<void> => {
@@ -62,11 +62,14 @@ const makeServer = (overrides: Partial<McpServer> = {}): McpServer => ({
     'claude-code': { enabled: true },
     cursor: { enabled: true },
     vscode: { enabled: true },
+    'vscode-insiders': { enabled: true },
     windsurf: { enabled: true },
     zed: { enabled: true },
     jetbrains: { enabled: true },
     'codex-cli': { enabled: true },
     'codex-gui': { enabled: true },
+    opencode: { enabled: true },
+    'visual-studio': { enabled: true },
   },
   tags: [],
   notes: '',
@@ -79,6 +82,7 @@ type SpawnInstance = {
   once: ReturnType<typeof vi.fn>
   off: ReturnType<typeof vi.fn>
   stdout: { on: ReturnType<typeof vi.fn> }
+  stderr: { on: ReturnType<typeof vi.fn> }
   stdin: { write: ReturnType<typeof vi.fn> }
   on: ReturnType<typeof vi.fn>
   kill: ReturnType<typeof vi.fn>
@@ -100,6 +104,7 @@ const makeSpawnMock = (): SpawnInstance => {
       )
     }),
     stdout: { on: vi.fn() },
+    stderr: { on: vi.fn() },
     stdin: { write: vi.fn() },
     on: vi.fn(),
     kill: vi.fn(),
@@ -126,6 +131,16 @@ const emitStdoutLine = (child: SpawnInstance, line: string): void => {
     | ((chunk: Buffer) => void)
     | undefined
   dataHandler?.(Buffer.from(line + '\n'))
+}
+
+/** Emits an MCP stdio framed JSON payload using Content-Length headers. */
+const emitStdoutFramed = (child: SpawnInstance, payload: unknown): void => {
+  const dataHandler = child.stdout.on.mock.calls.find((call) => call[0] === 'data')?.[1] as
+    | ((chunk: Buffer) => void)
+    | undefined
+  const json = JSON.stringify(payload)
+  const framed = `Content-Length: ${Buffer.byteLength(json, 'utf8')}\r\n\r\n${json}`
+  dataHandler?.(Buffer.from(framed))
 }
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
@@ -213,6 +228,20 @@ describe('ServerTesterService', () => {
       expect(result.message).toMatch(/executable not found/i)
     })
 
+    it('returns failure when command launch fails with non-ENOENT error', async () => {
+      setPlatform('win32')
+      const child = makeSpawnMock()
+      vi.mocked(spawn).mockReturnValue(child as unknown as ReturnType<typeof spawn>)
+
+      const promise = tester.testServer(makeServer())
+      await flushMicrotasks()
+      emitSpawnError(child, Object.assign(new Error('invalid'), { code: 'EINVAL' }))
+
+      const result = await promise
+      expect(result.success).toBe(false)
+      expect(result.message).toContain('Failed to spawn process')
+    })
+
     it('returns failure when the process emits an error event', async () => {
       const child = makeSpawnMock()
       vi.mocked(spawn).mockReturnValue(child as unknown as ReturnType<typeof spawn>)
@@ -251,6 +280,81 @@ describe('ServerTesterService', () => {
       const result = await promise
       expect(result.success).toBe(false)
       expect(result.message).toMatch(/exited/)
+    })
+
+    it('returns success when initialize response is Content-Length framed', async () => {
+      const child = makeSpawnMock()
+      vi.mocked(spawn).mockReturnValue(child as unknown as ReturnType<typeof spawn>)
+
+      const promise = tester.testServer(makeServer())
+      await flushMicrotasks()
+      emitSpawn(child)
+
+      setTimeout(() => {
+        emitStdoutFramed(child, {
+          jsonrpc: '2.0',
+          id: 1,
+          result: {
+            serverInfo: { name: 'Framed MCP Server', version: '1.0.0' },
+            capabilities: {},
+          },
+        })
+      }, 10)
+
+      const result = await promise
+      expect(result.success).toBe(true)
+      expect(result.message).toContain('Framed MCP Server')
+    })
+
+    it('includes stderr output in unexpected exit message', async () => {
+      const child = makeSpawnMock()
+      vi.mocked(spawn).mockReturnValue(child as unknown as ReturnType<typeof spawn>)
+
+      const promise = tester.testServer(makeServer())
+      await flushMicrotasks()
+      emitSpawn(child)
+
+      setTimeout(() => {
+        const stderrHandler = child.stderr?.on.mock.calls.find(
+          (call) => call[0] === 'data',
+        )?.[1] as ((chunk: Buffer) => void) | undefined
+        stderrHandler?.(Buffer.from('missing browser on port 9222'))
+        const closeHandler = child.on.mock.calls.find((call) => call[0] === 'close')?.[1] as
+          | ((code: number) => void)
+          | undefined
+        closeHandler?.(1)
+      }, 10)
+
+      const result = await promise
+      expect(result.success).toBe(false)
+      expect(result.message).toContain('code 1')
+      expect(result.message).toContain('missing browser on port 9222')
+    })
+
+    it('times out after 30s and includes stderr details', async () => {
+      vi.useFakeTimers()
+      try {
+        const child = makeSpawnMock()
+        vi.mocked(spawn).mockReturnValue(child as unknown as ReturnType<typeof spawn>)
+
+        const promise = tester.testServer(makeServer())
+        await flushMicrotasks()
+        emitSpawn(child)
+        await flushMicrotasks()
+
+        const stderrHandler = child.stderr.on.mock.calls.find((call) => call[0] === 'data')?.[1] as
+          | ((chunk: Buffer) => void)
+          | undefined
+        stderrHandler?.(Buffer.from('server booting...'))
+
+        await vi.advanceTimersByTimeAsync(30000)
+        const result = await promise
+        expect(result.success).toBe(false)
+        expect(result.message).toContain('30s')
+        expect(result.message).toContain('server booting...')
+      } finally {
+        vi.useRealTimers()
+      }
     })
   })
 })

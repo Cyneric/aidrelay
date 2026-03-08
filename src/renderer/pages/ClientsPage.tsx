@@ -26,10 +26,10 @@ import {
   RefreshCw,
   ShieldCheck,
   FolderOpen,
+  FileX2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import {
   Table,
   TableBody,
@@ -101,31 +101,34 @@ const ClientRow = ({ client, syncing, validating, onSync, onValidate }: Readonly
       <TableCell className="px-4 py-3">
         <div className="flex flex-col gap-0.5">
           <span className="text-sm font-medium">{client.displayName}</span>
-          <span
-            className={cn(
-              'text-xs',
-              client.installed ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground',
+          <div className="flex items-center gap-2">
+            <span
+              className={cn(
+                'text-xs',
+                client.installed ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground',
+              )}
+              data-testid={`client-install-${client.id}`}
+            >
+              {client.installed ? t('clients.installed') : t('clients.notInstalled')}
+            </span>
+            {missingConfig && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    aria-label={t('clients.missingConfigBadge')}
+                    className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-sm text-amber-500 transition-colors hover:text-amber-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    data-testid={`client-missing-config-badge-${client.id}`}
+                  >
+                    <FileX2 size={13} aria-hidden="true" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {t('clients.missingConfigTooltip', { name: client.displayName })}
+                </TooltipContent>
+              </Tooltip>
             )}
-            data-testid={`client-install-${client.id}`}
-          >
-            {client.installed ? t('clients.installed') : t('clients.notInstalled')}
-          </span>
-          {missingConfig && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Badge
-                  variant="outline"
-                  className="w-fit text-[10px] uppercase tracking-wide"
-                  data-testid={`client-missing-config-badge-${client.id}`}
-                >
-                  {t('clients.missingConfigBadge')}
-                </Badge>
-              </TooltipTrigger>
-              <TooltipContent>
-                {t('clients.missingConfigTooltip', { name: client.displayName })}
-              </TooltipContent>
-            </Tooltip>
-          )}
+          </div>
         </div>
       </TableCell>
 

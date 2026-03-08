@@ -9,13 +9,18 @@
  *
  * @description Cross-platform process launch helper for MCP stdio commands.
  * On Windows, known package-manager shims are normalized to `.cmd` first.
- * If launch still fails with ENOENT, a `cmd.exe /d /s /c` fallback is used.
+ * Launching is delegated to `cross-spawn` for reliable Windows behavior.
  */
 
-import { spawn } from 'child_process'
-import type { ChildProcessWithoutNullStreams, SpawnOptionsWithoutStdio } from 'child_process'
+import spawn from 'cross-spawn'
+import type {
+  ChildProcess,
+  ChildProcessWithoutNullStreams,
+  SpawnOptionsWithoutStdio,
+} from 'child_process'
 
-type LaunchMode = 'direct' | 'windows-alias' | 'windows-cmd-fallback'
+type LaunchMode = 'direct' | 'windows-alias'
+type ProcessEnvMap = Record<string, string | undefined>
 
 export interface LaunchSuccess {
   readonly child: ChildProcessWithoutNullStreams
@@ -23,7 +28,7 @@ export interface LaunchSuccess {
   readonly command: string
 }
 
-export type LaunchErrorKind = 'executable_not_found' | 'shell_fallback_failed' | 'spawn_failed'
+export type LaunchErrorKind = 'executable_not_found' | 'spawn_failed'
 
 export class CommandLaunchError extends Error {
   readonly kind: LaunchErrorKind
@@ -58,26 +63,49 @@ const normalizeWindowsCommand = (command: string): string => {
   return WINDOWS_CMD_ALIASES[lower] ?? command
 }
 
-const isEnoent = (err: unknown): boolean => {
-  if (!err || typeof err !== 'object') return false
-  const maybeCode = (err as { code?: unknown }).code
-  return maybeCode === 'ENOENT'
-}
-
 const asCode = (err: unknown): string | undefined => {
   if (!err || typeof err !== 'object') return undefined
   const maybeCode = (err as { code?: unknown }).code
   return typeof maybeCode === 'string' ? maybeCode : undefined
 }
 
-const quoteForCmd = (value: string): string => {
-  if (value.length === 0) return '""'
-  const escaped = value.replace(/"/g, '\\"')
-  return `"${escaped}"`
+const canonicalizeWindowsPathKey = (env: ProcessEnvMap): ProcessEnvMap => {
+  const out: ProcessEnvMap = {}
+  let firstPathValue: string | undefined
+  let firstNonEmptyPathValue: string | undefined
+
+  for (const [key, value] of Object.entries(env)) {
+    if (key.toLowerCase() === 'path') {
+      if (typeof value !== 'string') continue
+      if (firstPathValue === undefined) firstPathValue = value
+      if (firstNonEmptyPathValue === undefined && value.trim().length > 0) {
+        firstNonEmptyPathValue = value
+      }
+      continue
+    }
+    out[key] = value
+  }
+
+  const resolvedPath = firstNonEmptyPathValue ?? firstPathValue
+  if (resolvedPath !== undefined) out.Path = resolvedPath
+  return out
 }
 
-const buildCmdCommandLine = (command: string, args: readonly string[]): string => {
-  return [command, ...args].map((part) => quoteForCmd(part)).join(' ')
+const sanitizeSpawnEnv = (
+  env: SpawnOptionsWithoutStdio['env'],
+  windows: boolean,
+): SpawnOptionsWithoutStdio['env'] => {
+  if (env === undefined) return undefined
+
+  const out: ProcessEnvMap = {}
+  for (const [key, value] of Object.entries(env)) {
+    if (typeof value !== 'string') continue
+    if (key.length === 0) continue
+    if (key.includes('\u0000') || value.includes('\u0000')) continue
+    if (windows && key.includes('=')) continue
+    out[key] = value
+  }
+  return windows ? canonicalizeWindowsPathKey(out) : out
 }
 
 const waitForSpawn = (
@@ -88,7 +116,12 @@ const waitForSpawn = (
   return new Promise((resolve, reject) => {
     let child: ChildProcessWithoutNullStreams
     try {
-      child = spawn(command, [...args], options)
+      const spawned = spawn(command, [...args], options) as unknown as ChildProcess
+      if (!spawned.stdin || !spawned.stdout || !spawned.stderr) {
+        reject(new Error(`Spawned process "${command}" did not expose stdio pipes.`))
+        return
+      }
+      child = spawned as ChildProcessWithoutNullStreams
     } catch (err) {
       reject(err instanceof Error ? err : new Error(String(err)))
       return
@@ -120,33 +153,25 @@ export const spawnCommandWithWindowsFallback = async (
   const windows = isWindows()
   const normalized = windows ? normalizeWindowsCommand(command) : command
   const mode: LaunchMode = windows && normalized !== command ? 'windows-alias' : 'direct'
-
-  try {
-    const child = await waitForSpawn(normalized, args, options)
-    return { child, mode, command: normalized }
-  } catch (err) {
-    if (!windows || !isEnoent(err)) {
-      const code = asCode(err)
-      const message =
-        code === 'ENOENT'
-          ? `Executable not found: ${normalized}`
-          : `Failed to spawn process "${normalized}": ${String(err)}`
-      throw new CommandLaunchError(
-        code === 'ENOENT' ? 'executable_not_found' : 'spawn_failed',
-        message,
-        normalized,
-        code,
-      )
-    }
+  const sanitizedOptions: SpawnOptionsWithoutStdio = {
+    ...options,
+    ...(options.env !== undefined ? { env: sanitizeSpawnEnv(options.env, windows) } : {}),
   }
 
-  const cmdLine = buildCmdCommandLine(command, args)
   try {
-    const child = await waitForSpawn('cmd.exe', ['/d', '/s', '/c', cmdLine], options)
-    return { child, mode: 'windows-cmd-fallback', command: command }
+    const child = await waitForSpawn(normalized, args, sanitizedOptions)
+    return { child, mode, command: normalized }
   } catch (err) {
     const code = asCode(err)
-    const message = `Shell fallback failed for "${command}": ${String(err)}`
-    throw new CommandLaunchError('shell_fallback_failed', message, command, code)
+    const message =
+      code === 'ENOENT'
+        ? `Executable not found: ${normalized}. Ensure Node.js/npm is installed and available in PATH.`
+        : `Failed to spawn process "${normalized}": ${String(err)}`
+    throw new CommandLaunchError(
+      code === 'ENOENT' ? 'executable_not_found' : 'spawn_failed',
+      message,
+      normalized,
+      code,
+    )
   }
 }

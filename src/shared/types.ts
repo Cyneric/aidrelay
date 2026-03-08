@@ -23,11 +23,14 @@ export type ClientId =
   | 'claude-code'
   | 'cursor'
   | 'vscode'
+  | 'vscode-insiders'
   | 'windsurf'
   | 'zed'
   | 'jetbrains'
   | 'codex-cli'
   | 'codex-gui'
+  | 'opencode'
+  | 'visual-studio'
 
 /**
  * Result returned from a client adapter's `detect()` call.

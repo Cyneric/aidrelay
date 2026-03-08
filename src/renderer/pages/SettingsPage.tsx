@@ -62,6 +62,7 @@ const licenseSchema = z.object({
 })
 
 type LicenseForm = z.infer<typeof licenseSchema>
+const VISUAL_STUDIO_CONFIG_SETTING_KEY = 'clients.visualStudio.configPath'
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -350,6 +351,64 @@ const GeneralSection = () => {
             </SelectContent>
           </Select>
         </div>
+      </div>
+    </Section>
+  )
+}
+
+// ─── Client Paths Section ────────────────────────────────────────────────────
+
+const ClientPathsSection = () => {
+  const { t } = useTranslation()
+  const [visualStudioPath, setVisualStudioPath] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    void settingsService.get(VISUAL_STUDIO_CONFIG_SETTING_KEY).then((value) => {
+      if (typeof value === 'string') setVisualStudioPath(value)
+    })
+  }, [])
+
+  const saveVisualStudioPath = async () => {
+    setSaving(true)
+    try {
+      await settingsService.set(VISUAL_STUDIO_CONFIG_SETTING_KEY, visualStudioPath.trim())
+      toast.success(t('settings.visualStudioPathSaved'))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Section
+      title={t('settings.clientPathsTitle')}
+      description={t('settings.clientPathsDescription')}
+      icon={Info}
+    >
+      <div className="space-y-3">
+        <div>
+          <Label htmlFor="visual-studio-config-path" className="block mb-1">
+            {t('settings.visualStudioPathLabel')}
+          </Label>
+          <Input
+            id="visual-studio-config-path"
+            type="text"
+            value={visualStudioPath}
+            onChange={(e) => setVisualStudioPath(e.target.value)}
+            placeholder={t('settings.visualStudioPathPlaceholder')}
+            data-testid="input-visual-studio-config-path"
+          />
+        </div>
+        <Button
+          type="button"
+          onClick={() => void saveVisualStudioPath()}
+          disabled={saving}
+          className="gap-1.5"
+          data-testid="btn-save-visual-studio-path"
+        >
+          <Save size={14} aria-hidden="true" />
+          {t('settings.saveButton')}
+        </Button>
       </div>
     </Section>
   )
@@ -691,6 +750,7 @@ const SettingsPage = () => {
   const { t } = useTranslation()
   const sections = useSettingsSections([
     GeneralSection,
+    ClientPathsSection,
     LicensingSection,
     GitRemoteSection,
     AboutSection,

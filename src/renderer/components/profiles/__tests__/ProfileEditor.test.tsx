@@ -105,6 +105,8 @@ describe('ProfileEditor', () => {
     await userEvent.clear(screen.getByTestId('profile-name-input'))
     await userEvent.type(screen.getByTestId('profile-name-input'), 'Test')
     await userEvent.click(screen.getByTestId('icon-option-0'))
+    expect(screen.getByTestId('icon-option-0')).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByTestId('icon-clear')).toHaveAttribute('aria-pressed', 'false')
     await userEvent.click(screen.getByTestId('profile-form-submit'))
 
     expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({ name: 'Test', icon: '🚀' }))
@@ -124,6 +126,24 @@ describe('ProfileEditor', () => {
     expect(firstCall).toBeDefined()
     const [payload] = firstCall as [Record<string, unknown>]
     expect(payload.icon).toBeUndefined()
+  })
+
+  it('toggles pressed states between "None" and selected icon', async () => {
+    renderWithProviders(<ProfileEditor onClose={vi.fn()} />)
+
+    const clearButton = screen.getByTestId('icon-clear')
+    const firstIcon = screen.getByTestId('icon-option-0')
+
+    expect(clearButton).toHaveAttribute('aria-pressed', 'true')
+    expect(firstIcon).toHaveAttribute('aria-pressed', 'false')
+
+    await userEvent.click(firstIcon)
+    expect(firstIcon).toHaveAttribute('aria-pressed', 'true')
+    expect(clearButton).toHaveAttribute('aria-pressed', 'false')
+
+    await userEvent.click(clearButton)
+    expect(clearButton).toHaveAttribute('aria-pressed', 'true')
+    expect(firstIcon).toHaveAttribute('aria-pressed', 'false')
   })
 
   it('calls store update when editing an existing profile', async () => {
@@ -150,5 +170,32 @@ describe('ProfileEditor', () => {
     await userEvent.click(screen.getByTestId('profile-form-submit'))
 
     expect(mockUpdate).toHaveBeenCalledWith('p3', expect.objectContaining({ icon: '🏗️' }))
+  })
+
+  it('uses class-based selected styling for icon and colour options', async () => {
+    renderWithProviders(<ProfileEditor onClose={vi.fn()} />)
+
+    const iconButton = screen.getByTestId('icon-option-0')
+    await userEvent.click(iconButton)
+    expect(iconButton).toHaveClass(
+      'ring-2',
+      'ring-primary',
+      'ring-offset-2',
+      'ring-offset-background',
+    )
+
+    const colorButton = screen.getByTestId('color-swatch-#8b5cf6')
+    await userEvent.click(colorButton)
+    expect(colorButton).toHaveClass(
+      'ring-2',
+      'ring-primary',
+      'ring-offset-2',
+      'ring-offset-background',
+    )
+
+    const style = colorButton.getAttribute('style') ?? ''
+    expect(style).toContain('background-color')
+    expect(style).not.toContain('--background')
+    expect(style).not.toContain('--primary')
   })
 })

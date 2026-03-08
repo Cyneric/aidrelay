@@ -17,11 +17,14 @@ import { claudeDesktopAdapter } from './claude-desktop.adapter'
 import { claudeCodeAdapter } from './claude-code.adapter'
 import { cursorAdapter } from './cursor.adapter'
 import { vscodeAdapter } from './vscode.adapter'
+import { vscodeInsidersAdapter } from './vscode-insiders.adapter'
 import { windsurfAdapter } from './windsurf.adapter'
 import { zedAdapter } from './zed.adapter'
 import { jetbrainsAdapter } from './jetbrains.adapter'
 import { codexCliAdapter } from './codex-cli.adapter'
 import { codexGuiAdapter } from './codex-gui.adapter'
+import { opencodeAdapter } from './opencode.adapter'
+import { visualStudioAdapter } from './visual-studio.adapter'
 
 /**
  * All registered client adapters indexed by `ClientId`.
@@ -32,11 +35,14 @@ export const ADAPTERS: Readonly<Map<ClientId, ClientAdapter>> = new Map<ClientId
   ['claude-code', claudeCodeAdapter],
   ['cursor', cursorAdapter],
   ['vscode', vscodeAdapter],
+  ['vscode-insiders', vscodeInsidersAdapter],
   ['windsurf', windsurfAdapter],
   ['zed', zedAdapter],
   ['jetbrains', jetbrainsAdapter],
   ['codex-cli', codexCliAdapter],
   ['codex-gui', codexGuiAdapter],
+  ['opencode', opencodeAdapter],
+  ['visual-studio', visualStudioAdapter],
 ])
 
 /**
@@ -48,9 +54,12 @@ export const ADAPTER_IDS: readonly ClientId[] = [
   'claude-code',
   'cursor',
   'vscode',
+  'vscode-insiders',
   'windsurf',
   'zed',
   'jetbrains',
   'codex-cli',
   'codex-gui',
+  'opencode',
+  'visual-studio',
 ]

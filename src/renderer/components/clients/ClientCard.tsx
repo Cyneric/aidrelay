@@ -12,11 +12,10 @@
  * one-click Sync button.
  */
 
-import { RefreshCw, CheckCircle2, AlertCircle, Clock, XCircle } from 'lucide-react'
+import { RefreshCw, CheckCircle2, AlertCircle, Clock, XCircle, FileX2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { ClientStatus } from '@shared/types'
@@ -102,13 +101,14 @@ const ClientCard = ({ client, onSync, syncing = false }: ClientCardProps) => {
             {missingConfig && (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Badge
-                    variant="outline"
-                    className="text-[10px] uppercase tracking-wide"
+                  <button
+                    type="button"
+                    aria-label={t('clients.missingConfigBadge')}
+                    className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-sm text-amber-500 transition-colors hover:text-amber-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     data-testid={`client-missing-config-badge-${client.id}`}
                   >
-                    {t('clients.missingConfigBadge')}
-                  </Badge>
+                    <FileX2 size={13} aria-hidden="true" />
+                  </button>
                 </TooltipTrigger>
                 <TooltipContent>
                   {t('clients.missingConfigTooltip', { name: client.displayName })}
