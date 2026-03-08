@@ -30,6 +30,16 @@ import type {
   ManualGitConfig,
 } from './types'
 
+// ─── Push-event Payload Types ─────────────────────────────────────────────────
+
+/**
+ * Payload sent from the main process whenever the window maximize state changes.
+ * Delivered via the `window:maximize-changed` push channel.
+ */
+export interface WindowMaximizeChangedPayload {
+  readonly isMaximized: boolean
+}
+
 // ─── Input Types (used in create/update calls) ────────────────────────────────
 
 /**

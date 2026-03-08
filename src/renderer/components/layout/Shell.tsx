@@ -2,7 +2,7 @@
  * @file src/renderer/components/layout/Shell.tsx
  *
  * @created 07.03.2026
- * @modified 07.03.2026
+ * @modified 08.03.2026
  *
  * @author Christian Blank <aidrelay@proton.me>
  * @copyright 2026
@@ -14,17 +14,25 @@
 
 import { Outlet } from '@tanstack/react-router'
 import { Sidebar } from './Sidebar'
+import { TitleBar } from './TitleBar'
 
 /**
- * Full-window layout with sidebar on the left and the active page content
- * on the right. The `<Outlet />` renders whichever route is currently active.
+ * Full-window layout with a custom title bar on top, then sidebar on the left
+ * and the active page content on the right. The `<Outlet />` renders whichever
+ * route is currently active.
  */
 const Shell = () => (
-  <div className="flex h-screen overflow-hidden bg-background text-foreground" data-testid="shell">
-    <Sidebar />
-    <main className="flex-1 overflow-y-auto p-6" role="main" id="main-content">
-      <Outlet />
-    </main>
+  <div
+    className="flex flex-col h-screen overflow-hidden bg-background text-foreground"
+    data-testid="shell"
+  >
+    <TitleBar />
+    <div className="flex flex-1 overflow-hidden">
+      <Sidebar />
+      <main className="flex-1 overflow-y-auto p-6" role="main" id="main-content">
+        <Outlet />
+      </main>
+    </div>
   </div>
 )
 
