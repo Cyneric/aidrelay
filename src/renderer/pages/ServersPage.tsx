@@ -147,7 +147,7 @@ const ServersPage = () => {
   const columns = [
     columnHelper.accessor('enabled', {
       header: '',
-      size: 48,
+      size: 44,
       cell: ({ row }) => (
         <div className="flex justify-center">
           <Checkbox
@@ -187,18 +187,18 @@ const ServersPage = () => {
     }),
     columnHelper.accessor('type', {
       header: () => t('servers.type'),
-      size: 72,
+      size: 64,
       cell: ({ getValue }) => (
         <span className="rounded bg-muted px-1.5 py-0.5 text-xs font-mono">{getValue()}</span>
       ),
     }),
     columnHelper.accessor('command', {
       header: () => t('servers.command'),
-      size: 440,
+      size: 396,
       cell: ({ getValue, row }) => {
         const fullCommand = `${getValue()} ${row.original.args.join(' ')}`.trim()
         return (
-          <div className="group relative w-full max-w-[36rem] min-w-0 pr-8">
+          <div className="group relative w-full max-w-[32rem] min-w-0 pr-8">
             <Tooltip>
               <TooltipTrigger asChild>
                 <span
@@ -208,7 +208,7 @@ const ServersPage = () => {
                   {fullCommand}
                 </span>
               </TooltipTrigger>
-              <TooltipContent className="max-w-[56rem] break-all font-mono text-[11px] leading-relaxed">
+              <TooltipContent className="max-w-[50rem] break-all font-mono text-[11px] leading-relaxed">
                 {fullCommand}
               </TooltipContent>
             </Tooltip>
@@ -254,7 +254,7 @@ const ServersPage = () => {
     columnHelper.display({
       id: 'actions',
       header: '',
-      size: 104,
+      size: 94,
       cell: ({ row }) => (
         <div className="flex items-center justify-end gap-1">
           <Tooltip>
@@ -470,7 +470,7 @@ const ServersPage = () => {
                         key={header.id}
                         scope="col"
                         style={{ width: header.getSize() !== 150 ? header.getSize() : undefined }}
-                        className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider first:rounded-tl-md last:rounded-tr-md"
+                        className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider first:rounded-tl-md last:rounded-tr-md"
                       >
                         {header.isPlaceholder
                           ? null
@@ -488,7 +488,7 @@ const ServersPage = () => {
                     data-testid={`server-row-${row.original.id}`}
                   >
                     {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id} className="px-4 py-3">
+                      <TableCell key={cell.id} className="px-3 py-2.5">
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </TableCell>
                     ))}

@@ -84,7 +84,7 @@ const ActivityLogTable = ({ entries, loading = false }: ActivityLogTableProps) =
   const columns = [
     columnHelper.accessor('timestamp', {
       header: () => t('activityLog.time'),
-      size: 160,
+      size: 144,
       cell: ({ getValue }) => (
         <time dateTime={getValue()} className="text-xs text-muted-foreground whitespace-nowrap">
           {formatTimestamp(getValue())}
@@ -99,7 +99,7 @@ const ActivityLogTable = ({ entries, loading = false }: ActivityLogTableProps) =
     }),
     columnHelper.accessor('clientId', {
       header: () => t('activityLog.client'),
-      size: 120,
+      size: 108,
       cell: ({ getValue }) => {
         const val = getValue()
         return val ? (
@@ -114,7 +114,7 @@ const ActivityLogTable = ({ entries, loading = false }: ActivityLogTableProps) =
       cell: ({ getValue }) => {
         const val = getValue()
         return val ? (
-          <span className="text-xs font-mono text-muted-foreground truncate max-w-[120px] block">
+          <span className="text-xs font-mono text-muted-foreground truncate max-w-[108px] block">
             {val}
           </span>
         ) : (
@@ -202,7 +202,7 @@ const ActivityLogTable = ({ entries, loading = false }: ActivityLogTableProps) =
                   key={header.id}
                   scope="col"
                   style={{ width: header.getSize() !== 150 ? header.getSize() : undefined }}
-                  className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider"
+                  className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider"
                 >
                   {flexRender(header.column.columnDef.header, header.getContext())}
                 </TableHead>
@@ -218,7 +218,7 @@ const ActivityLogTable = ({ entries, loading = false }: ActivityLogTableProps) =
               data-testid={`log-row-${row.original.id}`}
             >
               {row.getVisibleCells().map((cell) => (
-                <TableCell key={cell.id} className="px-4 py-3 align-top">
+                <TableCell key={cell.id} className="px-3 py-2.5 align-top">
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}
                 </TableCell>
               ))}

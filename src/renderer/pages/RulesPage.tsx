@@ -183,7 +183,7 @@ const RulesPage = () => {
   const columns = [
     rulesColumnHelper.accessor('enabled', {
       header: '',
-      size: 48,
+      size: 44,
       cell: ({ row }) => (
         <div className="flex justify-center">
           <Checkbox
@@ -223,14 +223,14 @@ const RulesPage = () => {
     }),
     rulesColumnHelper.accessor('category', {
       header: () => t('rules.category'),
-      size: 120,
+      size: 108,
       cell: ({ getValue }) => (
         <span className="rounded bg-muted px-1.5 py-0.5 text-xs font-mono">{getValue()}</span>
       ),
     }),
     rulesColumnHelper.accessor('scope', {
       header: () => t('rules.scope'),
-      size: 80,
+      size: 72,
       cell: ({ getValue }) => {
         const s = getValue()
         return (
@@ -249,7 +249,7 @@ const RulesPage = () => {
     }),
     rulesColumnHelper.accessor('priority', {
       header: () => t('rules.priority'),
-      size: 90,
+      size: 82,
       cell: ({ getValue }) => {
         const p = getValue()
         return (
@@ -271,7 +271,7 @@ const RulesPage = () => {
           {t('rules.tokens')} <ArrowUpDown size={12} />
         </Button>
       ),
-      size: 90,
+      size: 82,
       cell: ({ getValue }) => {
         const count = getValue()
         return (
@@ -284,7 +284,7 @@ const RulesPage = () => {
     rulesColumnHelper.display({
       id: 'actions',
       header: '',
-      size: 80,
+      size: 72,
       cell: ({ row }) => (
         <div className="flex items-center justify-end gap-1">
           <Tooltip>
@@ -461,7 +461,7 @@ const RulesPage = () => {
                           style={{
                             width: header.getSize() !== 150 ? header.getSize() : undefined,
                           }}
-                          className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider first:rounded-tl-md last:rounded-tr-md"
+                          className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider first:rounded-tl-md last:rounded-tr-md"
                         >
                           {header.isPlaceholder
                             ? null
@@ -479,7 +479,7 @@ const RulesPage = () => {
                       data-testid={`rule-row-${row.original.id}`}
                     >
                       {row.getVisibleCells().map((cell) => (
-                        <TableCell key={cell.id} className="px-4 py-3">
+                        <TableCell key={cell.id} className="px-3 py-2.5">
                           {flexRender(cell.column.columnDef.cell, cell.getContext())}
                         </TableCell>
                       ))}
@@ -489,7 +489,7 @@ const RulesPage = () => {
               </Table>
 
               {/* Token summary footer */}
-              <div className="border-t border-border px-4 py-2 flex items-center justify-end gap-2 text-xs text-muted-foreground bg-muted/20">
+              <div className="border-t border-border px-3 py-2 flex items-center justify-end gap-2 text-xs text-muted-foreground bg-muted/20">
                 <span>{t('rules.shownCount', { count: table.getRowModel().rows.length })}</span>
                 {totalVisibleTokens > 0 && (
                   <>
