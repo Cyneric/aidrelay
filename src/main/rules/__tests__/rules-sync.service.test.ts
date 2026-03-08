@@ -194,18 +194,26 @@ describe('RulesSyncService.sync — windsurf', () => {
   })
 })
 
-describe('RulesSyncService.sync — codex-cli', () => {
-  it('writes concatenated file to .codex/AGENTS.md', () => {
-    const projectPath = join(tmpDir, 'codex-proj')
-    mkdirSync(projectPath, { recursive: true })
+describe('RulesSyncService.sync — codex clients', () => {
+  it.each(['codex-cli', 'codex-gui'] as const)(
+    'writes concatenated file to .codex/AGENTS.md for %s',
+    (clientId) => {
+      const projectPath = join(tmpDir, `codex-proj-${clientId}`)
+      mkdirSync(projectPath, { recursive: true })
 
-    storedRules.push(
-      makeRule({ name: 'codex-rule', scope: 'project', projectPath, content: 'Codex body.' }),
-    )
-    service.sync('codex-cli')
+      storedRules.push(
+        makeRule({
+          name: 'codex-rule',
+          scope: 'project',
+          projectPath,
+          content: 'Codex body.',
+        }),
+      )
+      service.sync(clientId)
 
-    expect(existsSync(join(projectPath, '.codex', 'AGENTS.md'))).toBe(true)
-  })
+      expect(existsSync(join(projectPath, '.codex', 'AGENTS.md'))).toBe(true)
+    },
+  )
 })
 
 describe('RulesSyncService.sync — unsupported clients', () => {

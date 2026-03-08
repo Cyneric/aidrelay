@@ -2,7 +2,7 @@
  * @file src/main/clients/codex-cli.adapter.ts
  *
  * @created 07.03.2026
- * @modified 07.03.2026
+ * @modified 08.03.2026
  *
  * @author Christian Blank <aidrelay@proton.me>
  * @copyright 2026
@@ -29,6 +29,56 @@ interface CodexConfig {
 
 const configPath = (): string => join(process.env['USERPROFILE'] ?? '', '.codex', 'config.json')
 
+/**
+ * Returns true when an executable with one of the given basenames is found in PATH.
+ */
+const isOnPath = (baseNames: readonly string[]): boolean => {
+  const pathEnv = process.env['PATH'] ?? ''
+  const pathDirs = pathEnv.split(';').filter(Boolean)
+  if (pathDirs.length === 0) return false
+
+  const pathExt = (process.env['PATHEXT'] ?? '.EXE;.CMD;.BAT;.COM')
+    .split(';')
+    .map((ext) => ext.toLowerCase())
+
+  for (const dir of pathDirs) {
+    for (const base of baseNames) {
+      const normalizedBase = base.toLowerCase()
+      for (const ext of pathExt) {
+        const candidate = join(dir, `${normalizedBase}${ext}`)
+        if (existsSync(candidate)) {
+          return true
+        }
+      }
+    }
+  }
+
+  return false
+}
+
+/**
+ * Checks common Codex CLI install locations and PATH command aliases.
+ */
+const isCodexCliInstalled = (): boolean => {
+  if (process.platform !== 'win32') return false
+
+  if (isOnPath(['codex'])) {
+    return true
+  }
+
+  const appData = process.env['APPDATA'] ?? ''
+  const localAppData = process.env['LOCALAPPDATA'] ?? ''
+
+  const candidates = [
+    join(appData, 'npm', 'codex.cmd'),
+    join(appData, 'npm', 'codex.exe'),
+    join(localAppData, 'Microsoft', 'WindowsApps', 'codex.exe'),
+    join(localAppData, 'Microsoft', 'WindowsApps', 'codex.cmd'),
+  ]
+
+  return candidates.some((path) => existsSync(path))
+}
+
 // ─── Adapter ──────────────────────────────────────────────────────────────────
 
 /** OpenAI Codex CLI client adapter for Windows. */
@@ -39,10 +89,11 @@ export const codexCliAdapter: ClientAdapter = {
 
   detect(): Promise<ClientDetectionResult> {
     const path = configPath()
-    const installed = existsSync(path)
+    const hasConfig = existsSync(path)
+    const installed = hasConfig || isCodexCliInstalled()
     let serverCount = 0
 
-    if (installed) {
+    if (hasConfig) {
       try {
         const raw = JSON.parse(readFileSync(path, 'utf-8')) as CodexConfig
         serverCount = Object.keys(raw.mcpServers ?? {}).length
@@ -55,7 +106,7 @@ export const codexCliAdapter: ClientAdapter = {
 
     return Promise.resolve({
       installed,
-      configPaths: installed ? [path] : [],
+      configPaths: hasConfig ? [path] : [],
       serverCount,
     })
   },

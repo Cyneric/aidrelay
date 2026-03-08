@@ -2,7 +2,7 @@
  * @file src/main/clients/__tests__/vscode.adapter.test.ts
  *
  * @created 07.03.2026
- * @modified 07.03.2026
+ * @modified 08.03.2026
  *
  * @author Christian Blank <aidrelay@proton.me>
  * @copyright 2026
@@ -26,15 +26,28 @@ const makeTmpDir = (): string => {
 describe('vscodeAdapter', () => {
   let tmpDir: string
   let originalAppData: string | undefined
+  let originalLocalAppData: string | undefined
+  let originalProgramFiles: string | undefined
+  let originalProgramFilesX86: string | undefined
 
   beforeEach(() => {
     tmpDir = makeTmpDir()
     originalAppData = process.env['APPDATA']
-    process.env['APPDATA'] = tmpDir
+    originalLocalAppData = process.env['LOCALAPPDATA']
+    originalProgramFiles = process.env['ProgramFiles']
+    originalProgramFilesX86 = process.env['ProgramFiles(x86)']
+
+    process.env['APPDATA'] = join(tmpDir, 'appdata')
+    process.env['LOCALAPPDATA'] = join(tmpDir, 'localappdata')
+    process.env['ProgramFiles'] = join(tmpDir, 'programfiles')
+    process.env['ProgramFiles(x86)'] = join(tmpDir, 'programfiles-x86')
   })
 
   afterEach(() => {
     process.env['APPDATA'] = originalAppData
+    process.env['LOCALAPPDATA'] = originalLocalAppData
+    process.env['ProgramFiles'] = originalProgramFiles
+    process.env['ProgramFiles(x86)'] = originalProgramFilesX86
     rmSync(tmpDir, { recursive: true, force: true })
   })
 
@@ -49,13 +62,31 @@ describe('vscodeAdapter', () => {
   })
 
   describe('detect()', () => {
-    it('returns installed=false when config does not exist', async () => {
+    it('returns installed=false when neither config nor executable exists', async () => {
       const result = await vscodeAdapter.detect()
       expect(result.installed).toBe(false)
+      expect(result.configPaths).toHaveLength(0)
+      expect(result.serverCount).toBe(0)
+    })
+
+    it('detects installed=true when executable exists but config does not', async () => {
+      const exePath = join(
+        process.env['LOCALAPPDATA'] ?? '',
+        'Programs',
+        'Microsoft VS Code',
+        'Code.exe',
+      )
+      mkdirSync(join(exePath, '..'), { recursive: true })
+      writeFileSync(exePath, '')
+
+      const result = await vscodeAdapter.detect()
+      expect(result.installed).toBe(true)
+      expect(result.configPaths).toHaveLength(0)
+      expect(result.serverCount).toBe(0)
     })
 
     it('detects the config when it exists under Code/User/mcp.json', async () => {
-      const configDir = join(tmpDir, 'Code', 'User')
+      const configDir = join(process.env['APPDATA'] ?? '', 'Code', 'User')
       mkdirSync(configDir, { recursive: true })
       writeFileSync(
         join(configDir, 'mcp.json'),
@@ -64,6 +95,7 @@ describe('vscodeAdapter', () => {
 
       const result = await vscodeAdapter.detect()
       expect(result.installed).toBe(true)
+      expect(result.configPaths).toHaveLength(1)
       expect(result.serverCount).toBe(1)
     })
   })

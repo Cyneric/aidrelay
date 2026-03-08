@@ -16,6 +16,7 @@
 
 import { useEffect, useState } from 'react'
 import { Minus, Square, Copy, X } from 'lucide-react'
+import logo from '../../assets/branding/logo.png'
 import '../../lib/electron.d'
 
 /**
@@ -39,9 +40,15 @@ const TitleBar = () => {
       style={{ WebkitAppRegion: 'drag' }}
       data-testid="title-bar"
     >
-      <span className="pl-3 text-xs text-muted-foreground" data-testid="title-bar-label">
-        aidrelay
-      </span>
+      <div className="flex items-center pl-3" data-testid="title-bar-brand">
+        <img
+          src={logo as unknown as string}
+          alt="aidrelay logo"
+          className="h-5 w-auto object-contain"
+          style={{ WebkitAppRegion: 'no-drag' }}
+          data-testid="title-bar-logo"
+        />
+      </div>
 
       <div
         className="flex h-full"

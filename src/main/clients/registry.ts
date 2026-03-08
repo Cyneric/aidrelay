@@ -2,7 +2,7 @@
  * @file src/main/clients/registry.ts
  *
  * @created 07.03.2026
- * @modified 07.03.2026
+ * @modified 08.03.2026
  *
  * @author Christian Blank <aidrelay@proton.me>
  * @copyright 2026
@@ -21,6 +21,7 @@ import { windsurfAdapter } from './windsurf.adapter'
 import { zedAdapter } from './zed.adapter'
 import { jetbrainsAdapter } from './jetbrains.adapter'
 import { codexCliAdapter } from './codex-cli.adapter'
+import { codexGuiAdapter } from './codex-gui.adapter'
 
 /**
  * All registered client adapters indexed by `ClientId`.
@@ -35,6 +36,7 @@ export const ADAPTERS: Readonly<Map<ClientId, ClientAdapter>> = new Map<ClientId
   ['zed', zedAdapter],
   ['jetbrains', jetbrainsAdapter],
   ['codex-cli', codexCliAdapter],
+  ['codex-gui', codexGuiAdapter],
 ])
 
 /**
@@ -50,4 +52,5 @@ export const ADAPTER_IDS: readonly ClientId[] = [
   'zed',
   'jetbrains',
   'codex-cli',
+  'codex-gui',
 ]

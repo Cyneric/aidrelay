@@ -151,6 +151,13 @@ describe('Sidebar', () => {
       expect(screen.getByTestId('sidebar')).toBeInTheDocument()
     })
 
+    it('renders the full logo in the brand area', () => {
+      render(<Sidebar />)
+      const logo = screen.getByTestId('sidebar-logo')
+      expect(logo).toBeInTheDocument()
+      expect(logo).toHaveAttribute('alt', 'aidrelay logo')
+    })
+
     it('renders settings nav link', () => {
       render(<Sidebar />)
       expect(screen.getByTestId('nav-link-settings')).toBeInTheDocument()

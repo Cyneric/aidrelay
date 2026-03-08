@@ -77,6 +77,7 @@ const ActivityLogPage = () => {
     'zed',
     'jetbrains',
     'codex-cli',
+    'codex-gui',
   ]
 
   const hasFilters = Boolean(actionFilter || clientFilter || sinceFilter)

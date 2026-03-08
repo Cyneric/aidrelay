@@ -27,6 +27,7 @@ import { Link, useRouterState } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import { useLicense } from '@/lib/useLicense'
+import logo from '../../assets/branding/logo.png'
 
 // ─── Nav Config ───────────────────────────────────────────────────────────────
 
@@ -62,14 +63,19 @@ const Sidebar = () => {
 
   return (
     <aside
-      className="flex flex-col w-60 shrink-0 border-r bg-sidebar h-full"
+      className="flex h-full min-h-0 w-60 shrink-0 flex-col border-r bg-sidebar"
       role="navigation"
       aria-label="Main navigation"
       data-testid="sidebar"
     >
       {/* Brand */}
       <div className="px-5 py-4 border-b">
-        <span className="text-base font-bold tracking-tight select-none">aidrelay</span>
+        <img
+          src={logo}
+          alt="aidrelay logo"
+          className="h-9 w-auto object-contain select-none"
+          data-testid="sidebar-logo"
+        />
         <p className="text-[11px] text-muted-foreground mt-0.5">AI Developer Relay</p>
       </div>
 

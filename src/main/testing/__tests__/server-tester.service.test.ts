@@ -51,6 +51,7 @@ const makeServer = (overrides: Partial<McpServer> = {}): McpServer => ({
     zed: { enabled: true },
     jetbrains: { enabled: true },
     'codex-cli': { enabled: true },
+    'codex-gui': { enabled: true },
   },
   tags: [],
   notes: '',

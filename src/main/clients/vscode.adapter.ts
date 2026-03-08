@@ -2,7 +2,7 @@
  * @file src/main/clients/vscode.adapter.ts
  *
  * @created 07.03.2026
- * @modified 07.03.2026
+ * @modified 08.03.2026
  *
  * @author Christian Blank <aidrelay@proton.me>
  * @copyright 2026
@@ -36,6 +36,29 @@ interface VsCodeConfig {
  */
 const configPath = (): string => join(process.env['APPDATA'] ?? '', 'Code', 'User', 'mcp.json')
 
+/**
+ * Checks common VS Code installation locations.
+ * Installation detection should not depend on mcp.json existing.
+ */
+const isVsCodeInstalled = (): boolean => {
+  if (process.platform !== 'win32') return false
+
+  const localAppData = process.env['LOCALAPPDATA'] ?? ''
+  const programFiles = process.env['ProgramFiles'] ?? 'C:\\Program Files'
+  const programFilesX86 = process.env['ProgramFiles(x86)'] ?? 'C:\\Program Files (x86)'
+
+  const candidates = [
+    join(localAppData, 'Programs', 'Microsoft VS Code', 'Code.exe'),
+    join(programFiles, 'Microsoft VS Code', 'Code.exe'),
+    join(programFilesX86, 'Microsoft VS Code', 'Code.exe'),
+    join(localAppData, 'Programs', 'Microsoft VS Code Insiders', 'Code - Insiders.exe'),
+    join(programFiles, 'Microsoft VS Code Insiders', 'Code - Insiders.exe'),
+    join(programFilesX86, 'Microsoft VS Code Insiders', 'Code - Insiders.exe'),
+  ]
+
+  return candidates.some((path) => existsSync(path))
+}
+
 // ─── Adapter ──────────────────────────────────────────────────────────────────
 
 /**
@@ -50,10 +73,11 @@ export const vscodeAdapter: ClientAdapter = {
 
   detect(): Promise<ClientDetectionResult> {
     const path = configPath()
-    const installed = existsSync(path)
+    const hasConfig = existsSync(path)
+    const installed = hasConfig || isVsCodeInstalled()
     let serverCount = 0
 
-    if (installed) {
+    if (hasConfig) {
       try {
         const raw = JSON.parse(readFileSync(path, 'utf-8')) as VsCodeConfig
         serverCount = Object.keys(raw.servers ?? {}).length
@@ -66,7 +90,7 @@ export const vscodeAdapter: ClientAdapter = {
 
     return Promise.resolve({
       installed,
-      configPaths: installed ? [path] : [],
+      configPaths: hasConfig ? [path] : [],
       serverCount,
     })
   },

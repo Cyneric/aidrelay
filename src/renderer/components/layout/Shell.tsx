@@ -23,13 +23,17 @@ import { TitleBar } from './TitleBar'
  */
 const Shell = () => (
   <div
-    className="flex flex-col h-screen overflow-hidden bg-background text-foreground"
+    className="flex flex-col h-screen min-h-0 overflow-hidden bg-background text-foreground"
     data-testid="shell"
   >
     <TitleBar />
-    <div className="flex flex-1 overflow-hidden">
+    <div className="flex flex-1 min-h-0 overflow-hidden">
       <Sidebar />
-      <main className="flex-1 overflow-y-auto p-6" role="main" id="main-content">
+      <main
+        className="flex-1 min-h-0 overflow-x-hidden overflow-y-auto p-6"
+        role="main"
+        id="main-content"
+      >
         <Outlet />
       </main>
     </div>
