@@ -29,6 +29,7 @@ import type {
   GitPullResult,
   ManualGitConfig,
   ValidationResult,
+  SyncClientOptions,
 } from '../shared/types'
 import type {
   CreateServerInput,
@@ -41,6 +42,7 @@ import type {
   ActivityLogEntry,
   LogFilters,
   FeatureGates,
+  RegistryProvider,
   RegistryServer,
   TestResult,
   BackupEntry,
@@ -81,8 +83,8 @@ const api = {
    * @param clientId - The client to sync.
    * @returns Sync result with success flag and server count.
    */
-  clientsSync: (clientId: ClientId): Promise<SyncResult> =>
-    ipcRenderer.invoke('clients:sync', clientId),
+  clientsSync: (clientId: ClientId, options?: SyncClientOptions): Promise<SyncResult> =>
+    ipcRenderer.invoke('clients:sync', clientId, options),
 
   /**
    * Syncs all enabled aidrelay servers to every installed client's config.
@@ -435,14 +437,14 @@ const api = {
   // ── Registry ──────────────────────────────────────────────────────────────
 
   /**
-   * Searches the Smithery registry for MCP servers matching the query.
-   * Returns an empty array if no API key is configured or the request fails.
+   * Searches the selected registry provider for MCP servers matching the query.
    *
+   * @param provider - Registry provider (e.g. `smithery`, `official`).
    * @param query - Free-text search string.
    * @returns Matching registry server entries.
    */
-  registrySearch: (query: string): Promise<RegistryServer[]> =>
-    ipcRenderer.invoke('registry:search', query),
+  registrySearch: (provider: RegistryProvider, query: string): Promise<RegistryServer[]> =>
+    ipcRenderer.invoke('registry:search', provider, query),
 
   /**
    * Installs a registry server by its qualified name (Pro only).

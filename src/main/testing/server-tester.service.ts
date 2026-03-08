@@ -14,14 +14,15 @@
  * success.
  */
 
-import { spawn } from 'child_process'
 import http from 'node:http'
 import https from 'node:https'
 import { URL } from 'node:url'
+import type { ChildProcessWithoutNullStreams } from 'child_process'
 import log from 'electron-log'
 import type { McpServer } from '@shared/types'
 import type { TestResult } from '@shared/channels'
 import { getSecret } from '@main/secrets/keytar.service'
+import { CommandLaunchError, spawnCommandWithWindowsFallback } from './command-launch.util'
 
 /** How long to wait for an initialize response before declaring a timeout. */
 const TIMEOUT_MS = 5000
@@ -93,39 +94,60 @@ export class ServerTesterService {
    * @param server - The `McpServer` record to test.
    * @returns A `TestResult` describing whether the handshake succeeded.
    */
-  private testStdioServer(
+  private async testStdioServer(
     server: McpServer,
     env: Record<string, string | undefined>,
   ): Promise<TestResult> {
+    const startedAt = Date.now()
+
+    let child: ChildProcessWithoutNullStreams
+    try {
+      const launch = await spawnCommandWithWindowsFallback(server.command, [...server.args], {
+        env,
+        stdio: 'pipe',
+        windowsHide: true,
+      })
+      child = launch.child
+    } catch (err) {
+      if (err instanceof CommandLaunchError) {
+        if (err.kind === 'executable_not_found') {
+          return {
+            success: false,
+            message: `Executable not found: ${server.command}`,
+          }
+        }
+        if (err.kind === 'shell_fallback_failed') {
+          return {
+            success: false,
+            message: `Shell fallback failed while starting "${server.command}".`,
+          }
+        }
+        return {
+          success: false,
+          message: `Failed to spawn process "${server.command}": ${err.message}`,
+        }
+      }
+      return {
+        success: false,
+        message: `Failed to spawn process "${server.command}": ${String(err)}`,
+      }
+    }
+
+    const request: JsonRpcRequest = {
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'initialize',
+      params: {
+        protocolVersion: PROTOCOL_VERSION,
+        capabilities: {},
+        clientInfo: { name: 'aidrelay', version: '0.1.0' },
+      },
+    }
+
+    let stdoutBuffer = ''
+    let settled = false
+
     return new Promise<TestResult>((resolve) => {
-      const startedAt = Date.now()
-
-      let child: ReturnType<typeof spawn>
-      try {
-        child = spawn(server.command, [...server.args], {
-          env,
-          stdio: 'pipe',
-          windowsHide: true,
-        })
-      } catch (err) {
-        resolve({ success: false, message: `Failed to spawn process: ${String(err)}` })
-        return
-      }
-
-      const request: JsonRpcRequest = {
-        jsonrpc: '2.0',
-        id: 1,
-        method: 'initialize',
-        params: {
-          protocolVersion: PROTOCOL_VERSION,
-          capabilities: {},
-          clientInfo: { name: 'aidrelay', version: '0.1.0' },
-        },
-      }
-
-      let stdoutBuffer = ''
-      let settled = false
-
       const settle = (result: TestResult): void => {
         if (settled) return
         settled = true

@@ -18,8 +18,11 @@ import { useTranslation } from 'react-i18next'
 import { Search } from 'lucide-react'
 import { useFeatureGate } from '@/lib/useFeatureGate'
 import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
 import { RegistryServerCard } from './RegistryServerCard'
-import type { RegistryServer } from '@shared/channels'
+import type { RegistryProvider, RegistryServer } from '@shared/channels'
+
+type AvailabilityFilter = 'all' | 'deployable' | 'hosted'
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -30,16 +33,18 @@ const RegistryBrowser = () => {
   const { t } = useTranslation()
   const canInstall = useFeatureGate('registryInstall')
   const [query, setQuery] = useState('')
+  const [provider, setProvider] = useState<RegistryProvider>('smithery')
+  const [availabilityFilter, setAvailabilityFilter] = useState<AvailabilityFilter>('all')
   const [results, setResults] = useState<RegistryServer[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const search = useCallback(async (q: string) => {
+  const search = useCallback(async (currentProvider: RegistryProvider, q: string) => {
     setLoading(true)
     setError(null)
     try {
-      const servers = await window.api.registrySearch(q)
+      const servers = await window.api.registrySearch(currentProvider, q)
       setResults(servers)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Registry search failed')
@@ -54,7 +59,7 @@ const RegistryBrowser = () => {
       clearTimeout(debounceRef.current)
     }
     debounceRef.current = setTimeout(() => {
-      void search(query)
+      void search(provider, query)
     }, 300)
 
     return () => {
@@ -62,26 +67,71 @@ const RegistryBrowser = () => {
         clearTimeout(debounceRef.current)
       }
     }
-  }, [query, search])
+  }, [provider, query, search])
+
+  const filteredResults = results.filter((server) => {
+    if (availabilityFilter === 'all') return true
+    if (availabilityFilter === 'deployable') return !server.remote
+    return server.remote
+  })
 
   return (
     <div className="flex flex-col gap-4" data-testid="registry-browser">
-      {/* Search input */}
-      <div className="relative max-w-sm">
-        <Search
-          size={14}
-          className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
-          aria-hidden="true"
-        />
-        <Input
-          type="search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder={t('registry.searchPlaceholder')}
-          className="pl-8"
-          aria-label={t('registry.searchAriaLabel')}
-          data-testid="registry-search"
-        />
+      <div className="flex flex-wrap gap-2 items-center">
+        <div className="relative max-w-sm min-w-[14rem] flex-1">
+          <Search
+            size={14}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
+            aria-hidden="true"
+          />
+          <Input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={t('registry.searchPlaceholder')}
+            className="pl-8"
+            aria-label={t('registry.searchAriaLabel')}
+            data-testid="registry-search"
+          />
+        </div>
+
+        <div
+          className="inline-flex rounded-md border border-border p-1"
+          data-testid="registry-provider"
+        >
+          {(['smithery', 'official'] as const).map((value) => (
+            <Button
+              key={value}
+              type="button"
+              size="sm"
+              variant={provider === value ? 'default' : 'ghost'}
+              className="h-7 px-3"
+              onClick={() => setProvider(value)}
+              data-testid={`registry-provider-${value}`}
+            >
+              {t(`registry.providers.${value}`)}
+            </Button>
+          ))}
+        </div>
+
+        <div
+          className="inline-flex rounded-md border border-border p-1"
+          data-testid="registry-availability"
+        >
+          {(['all', 'deployable', 'hosted'] as const).map((value) => (
+            <Button
+              key={value}
+              type="button"
+              size="sm"
+              variant={availabilityFilter === value ? 'default' : 'ghost'}
+              className="h-7 px-3"
+              onClick={() => setAvailabilityFilter(value)}
+              data-testid={`registry-availability-${value}`}
+            >
+              {t(`registry.availability.${value}`)}
+            </Button>
+          ))}
+        </div>
       </div>
 
       {/* Error */}
@@ -106,7 +156,7 @@ const RegistryBrowser = () => {
       )}
 
       {/* Empty state */}
-      {!loading && !error && results.length === 0 && (
+      {!loading && !error && filteredResults.length === 0 && (
         <p className="text-sm text-muted-foreground py-8 text-center" data-testid="registry-empty">
           {query.trim().length === 0
             ? t('registry.startTyping')
@@ -115,12 +165,12 @@ const RegistryBrowser = () => {
       )}
 
       {/* Results grid */}
-      {!loading && results.length > 0 && (
+      {!loading && filteredResults.length > 0 && (
         <div
           className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
           data-testid="registry-results"
         >
-          {results.map((server) => (
+          {filteredResults.map((server) => (
             <RegistryServerCard key={server.id} server={server} canInstall={canInstall} />
           ))}
         </div>

@@ -12,8 +12,12 @@
  * install is a Pro feature; browsing is available to all tiers.
  */
 
+import { useEffect } from 'react'
+import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
+import { Button } from '@/components/ui/button'
 import { RegistryBrowser } from '@/components/registry/RegistryBrowser'
+import { useServersStore } from '@/stores/servers.store'
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -22,6 +26,12 @@ import { RegistryBrowser } from '@/components/registry/RegistryBrowser'
  */
 const RegistryPage = () => {
   const { t } = useTranslation()
+  const { servers, load } = useServersStore()
+
+  useEffect(() => {
+    void load()
+  }, [load])
+
   return (
     <section
       aria-labelledby="registry-heading"
@@ -33,7 +43,28 @@ const RegistryPage = () => {
           {t('registry.title')}
         </h1>
         <p className="text-sm text-muted-foreground mt-0.5">{t('registry.subtitle')}</p>
+        <p className="text-xs text-muted-foreground mt-1">{t('registry.helperText')}</p>
       </header>
+
+      <article
+        className="rounded-lg border border-border bg-card p-4"
+        data-testid="registry-local-panel"
+      >
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="text-sm font-semibold">{t('registry.localPanel.title')}</h2>
+            <p className="text-xs text-muted-foreground mt-1">{t('registry.localPanel.body')}</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {t('registry.localPanel.count', { count: servers.length })}
+            </p>
+          </div>
+          <Button asChild type="button" variant="outline" size="sm">
+            <Link to="/servers" data-testid="registry-manage-local-link">
+              {t('registry.localPanel.cta')}
+            </Link>
+          </Button>
+        </div>
+      </article>
 
       <RegistryBrowser />
     </section>

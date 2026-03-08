@@ -2,7 +2,7 @@
  * @file src/main/registry/smithery.client.ts
  *
  * @created 07.03.2026
- * @modified 07.03.2026
+ * @modified 08.03.2026
  *
  * @author Christian Blank <aidrelay@proton.me>
  * @copyright 2026
@@ -18,6 +18,7 @@ import type { IncomingMessage } from 'http'
 import log from 'electron-log'
 import type { RegistryServer } from '@shared/channels'
 import { getSecret } from '@main/secrets/keytar.service'
+import type { McpServerType } from '@shared/types'
 
 /** Base URL for the Smithery registry REST API. */
 const SMITHERY_API_BASE = 'https://registry.smithery.ai'
@@ -50,6 +51,127 @@ interface SmitheryServerItem {
 interface SmitheryListResponse {
   servers: SmitheryServerItem[]
   pagination?: { total: number; page: number; pageSize: number }
+}
+
+/**
+ * Resolved install shape for native remote MCP servers.
+ */
+export interface RemoteInstallRecipe {
+  readonly type: Extract<McpServerType, 'http' | 'sse'>
+  readonly url: string
+}
+
+/**
+ * Converts unknown API strings into supported remote transport values.
+ */
+const normalizeRemoteType = (value: unknown): RemoteInstallRecipe['type'] | null => {
+  if (typeof value !== 'string') return null
+  const normalized = value.trim().toLowerCase().replace(/_/g, '-')
+  if (normalized === 'sse') return 'sse'
+  if (
+    normalized === 'http' ||
+    normalized === 'streamable-http' ||
+    normalized === 'streamablehttp'
+  ) {
+    return 'http'
+  }
+  return null
+}
+
+/**
+ * Returns a normalized URL string if valid, otherwise null.
+ */
+const normalizeUrl = (value: unknown): string | null => {
+  if (typeof value !== 'string') return null
+  const trimmed = value.trim()
+  if (!trimmed) return null
+
+  try {
+    const parsed = new URL(trimmed)
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      return null
+    }
+    return parsed.toString()
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Tries to build a remote install recipe from one arbitrary object node.
+ */
+const recipeFromNode = (node: Record<string, unknown>): RemoteInstallRecipe | null => {
+  const url =
+    normalizeUrl(node['url']) ??
+    normalizeUrl(node['endpoint']) ??
+    normalizeUrl(node['endpointUrl']) ??
+    normalizeUrl(node['remoteUrl']) ??
+    normalizeUrl(node['httpUrl']) ??
+    normalizeUrl(node['sseUrl'])
+  if (!url) return null
+
+  const explicitType =
+    normalizeRemoteType(node['type']) ??
+    normalizeRemoteType(node['transport']) ??
+    normalizeRemoteType(node['protocol'])
+
+  if (explicitType) {
+    return { type: explicitType, url }
+  }
+
+  if ('sseUrl' in node && normalizeUrl(node['sseUrl'])) {
+    return { type: 'sse', url }
+  }
+  if ('httpUrl' in node && normalizeUrl(node['httpUrl'])) {
+    return { type: 'http', url }
+  }
+
+  // Conservative default when the endpoint exists but transport is omitted.
+  return { type: 'http', url }
+}
+
+/**
+ * Extracts a remote install recipe from a Smithery detail response.
+ */
+const deriveRemoteInstallRecipe = (payload: unknown): RemoteInstallRecipe | null => {
+  if (typeof payload !== 'object' || payload === null) return null
+  const root = payload as Record<string, unknown>
+
+  const candidateNodes: Record<string, unknown>[] = [root]
+
+  const nestedKeys = [
+    'server',
+    'deployment',
+    'remote',
+    'connection',
+    'connections',
+    'endpoint',
+    'endpoints',
+    'transport',
+    'transports',
+  ]
+
+  for (const key of nestedKeys) {
+    const value = root[key]
+    if (typeof value === 'object' && value !== null) {
+      if (Array.isArray(value)) {
+        for (const item of value) {
+          if (typeof item === 'object' && item !== null) {
+            candidateNodes.push(item as Record<string, unknown>)
+          }
+        }
+      } else {
+        candidateNodes.push(value as Record<string, unknown>)
+      }
+    }
+  }
+
+  for (const node of candidateNodes) {
+    const recipe = recipeFromNode(node)
+    if (recipe) return recipe
+  }
+
+  return null
 }
 
 // ─── Client ───────────────────────────────────────────────────────────────────
@@ -126,6 +248,27 @@ export class SmitheryClient {
     } catch (err) {
       log.warn(`[smithery] search failed: ${String(err)}`)
       return []
+    }
+  }
+
+  /**
+   * Fetches and derives a native remote install recipe for one registry entry.
+   * Returns null when the detail response has no usable remote endpoint.
+   *
+   * @param qualifiedName - Registry server identifier (e.g. "@anthropic/github-mcp").
+   * @returns Native remote install recipe or null when unresolved.
+   */
+  async getRemoteInstallRecipe(qualifiedName: string): Promise<RemoteInstallRecipe | null> {
+    const apiKey = await getSecret(SMITHERY_SERVICE, SMITHERY_ACCOUNT)
+    const encoded = encodeURIComponent(qualifiedName.trim())
+    if (!encoded) return null
+
+    try {
+      const details = await this.fetch<unknown>(`/servers/${encoded}`, apiKey)
+      return deriveRemoteInstallRecipe(details)
+    } catch (err) {
+      log.warn(`[smithery] details lookup failed for "${qualifiedName}": ${String(err)}`)
+      return null
     }
   }
 }

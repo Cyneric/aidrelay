@@ -21,9 +21,8 @@ export const StartupSplash = ({ progress, message }: StartupSplashProps) => (
   >
     <div className="w-full max-w-md rounded-xl border border-border bg-card p-8 shadow-xl">
       <div className="mb-6 flex items-center gap-3">
-        <img src={logo} alt="aidrelay logo" className="h-10 w-10 rounded-md" />
+        <img src={logo} alt="aidrelay logo" className="h-10 w-auto flex-shrink-0 object-contain" />
         <div>
-          <p className="text-base font-semibold text-foreground">aidrelay</p>
           <p className="text-xs text-muted-foreground">Initializing workspace</p>
         </div>
       </div>

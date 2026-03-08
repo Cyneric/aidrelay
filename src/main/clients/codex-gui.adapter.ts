@@ -11,7 +11,8 @@
  * where the app executable exists before any MCP config file is created.
  */
 
-import { existsSync, readFileSync, writeFileSync, renameSync, mkdirSync, readdirSync } from 'fs'
+import { existsSync, readFileSync, writeFileSync, renameSync, mkdirSync } from 'fs'
+import { execFileSync } from 'child_process'
 import { dirname, join } from 'path'
 import log from 'electron-log'
 import type { ClientAdapter } from './types'
@@ -37,20 +38,42 @@ const resolveExistingConfigPath = (): string | undefined =>
   configPathCandidates().find((path) => existsSync(path))
 
 /**
- * Detects Codex installed via Microsoft Store by checking package executable path.
+ * Detects Codex installed via Microsoft Store by querying AppX registration.
  */
-const hasCodexWindowsStoreExecutable = (): boolean => {
+const hasCodexWindowsStorePackage = (): boolean => {
   if (process.platform !== 'win32') return false
 
-  const programFiles = process.env['ProgramFiles'] ?? 'C:\\Program Files'
-  const windowsAppsDir = join(programFiles, 'WindowsApps')
-  if (!existsSync(windowsAppsDir)) return false
-
   try {
-    return readdirSync(windowsAppsDir)
-      .filter((entry) => entry.startsWith('OpenAI.Codex_'))
-      .some((entry) => existsSync(join(windowsAppsDir, entry, 'app', 'resources', 'codex.exe')))
-  } catch {
+    const defaultPowerShellPath = 'C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe'
+    const systemRoot = process.env['SystemRoot'] ?? 'C:\\Windows'
+    const powerShellPath = join(
+      systemRoot,
+      'System32',
+      'WindowsPowerShell',
+      'v1.0',
+      'powershell.exe',
+    )
+    const executable = existsSync(powerShellPath) ? powerShellPath : defaultPowerShellPath
+    const command = [
+      '$pkg = Get-AppxPackage -Name OpenAI.Codex -ErrorAction SilentlyContinue |',
+      'Select-Object -First 1 Name, Status;',
+      'if ($null -eq $pkg) { "" } else { $pkg | ConvertTo-Json -Compress }',
+    ].join(' ')
+
+    const raw = execFileSync(executable, ['-NoProfile', '-NonInteractive', '-Command', command], {
+      encoding: 'utf-8',
+      timeout: 2000,
+      windowsHide: true,
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim()
+
+    if (raw.length === 0) return false
+
+    const parsed = JSON.parse(raw) as { Status?: string }
+    return parsed.Status?.toLowerCase() === 'ok'
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    log.debug(`[codex-gui] appx detection failed: ${message}`)
     return false
   }
 }
@@ -59,7 +82,7 @@ const hasCodexWindowsStoreExecutable = (): boolean => {
  * Checks common Codex GUI installation locations.
  * Intentionally avoids generic PATH aliases to keep CLI and GUI detection separate.
  */
-const isCodexGuiInstalled = (): boolean => {
+const hasCodexGuiExecutable = (): boolean => {
   if (process.platform !== 'win32') return false
 
   const localAppData = process.env['LOCALAPPDATA'] ?? ''
@@ -76,7 +99,16 @@ const isCodexGuiInstalled = (): boolean => {
     join(programFilesX86, 'OpenAI Codex', 'Codex.exe'),
   ]
 
-  return hasCodexWindowsStoreExecutable() || candidates.some((path) => existsSync(path))
+  return candidates.some((path) => existsSync(path))
+}
+
+type CodexGuiDetectionSource = 'config' | 'appx' | 'exe' | 'none'
+
+const detectInstallSource = (hasConfig: boolean): CodexGuiDetectionSource => {
+  if (hasConfig) return 'config'
+  if (hasCodexWindowsStorePackage()) return 'appx'
+  if (hasCodexGuiExecutable()) return 'exe'
+  return 'none'
 }
 
 export const codexGuiAdapter: ClientAdapter = {
@@ -86,7 +118,8 @@ export const codexGuiAdapter: ClientAdapter = {
 
   detect(): Promise<ClientDetectionResult> {
     const existingConfig = resolveExistingConfigPath()
-    const installed = existingConfig !== undefined || isCodexGuiInstalled()
+    const source = detectInstallSource(existingConfig !== undefined)
+    const installed = source !== 'none'
     let serverCount = 0
 
     if (existingConfig) {
@@ -98,7 +131,9 @@ export const codexGuiAdapter: ClientAdapter = {
       }
     }
 
-    log.debug(`[codex-gui] detect: installed=${installed}, servers=${serverCount}`)
+    log.debug(
+      `[codex-gui] detect: installed=${installed}, source=${source}, servers=${serverCount}`,
+    )
 
     return Promise.resolve({
       installed,

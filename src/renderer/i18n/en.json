@@ -153,7 +153,14 @@
     "shownCount_one": "{{count}} rule shown",
     "shownCount_other": "{{count}} rules shown",
     "tokensEnabled": "~{{count}} tokens (enabled)",
-    "tokenBudgetPerClient": "Token budget per client"
+    "tokenBudgetPerClient": "Token budget per client",
+    "scopeToggleAriaLabel": "Rule scope",
+    "scopeGlobal": "Global rules",
+    "scopeProject": "Project rules",
+    "scopeProjectPathPlaceholder": "C:\\dev\\my-project",
+    "scopeProjectPathAriaLabel": "Project directory path",
+    "scopeProjectBrowse": "Browse",
+    "scopeProjectBrowseTitle": "Select project root directory"
   },
   "ruleEditor": {
     "createTitle": "New Rule",
@@ -252,6 +259,7 @@
     "detecting_button": "Detecting…",
     "syncAll": "Sync all",
     "allClientsSynced": "All clients synced.",
+    "syncSummary": "Synced {{succeeded}} of {{total}} clients ({{failed}} failed).",
     "installed": "Installed",
     "notInstalled": "Not installed",
     "colClient": "Client",
@@ -266,7 +274,14 @@
     "checkingButton": "Checking…",
     "validateTooltip": "Check the config file for schema errors",
     "notInstalledTooltip": "{{name}} is not installed",
+    "notInstalledCodexGuiTooltip": "{{name}} is not detected. If installed from Microsoft Store, open Codex once, click Refresh, and if needed run Get-AppxPackage -Name OpenAI.Codex then restart aidrelay.",
     "syncTooltip": "Write current profile config to {{name}}",
+    "missingConfigBadge": "No configuration",
+    "missingConfigTooltip": "{{name}} is installed, but no configuration file was found yet.",
+    "noConfigPath": "No configuration file yet",
+    "createConfigTitle": "Create new configuration?",
+    "createConfigDescription": "{{name}} has no configuration file yet. Do you want aidrelay to create one now?",
+    "createConfigConfirm": "Create configuration",
     "configValid": "{{clientId}} config is valid.",
     "configHasIssues": "{{clientId}} config has issues: {{errors}}"
   },
@@ -291,12 +306,33 @@
   },
   "registry": {
     "title": "Registry",
-    "subtitle": "Browse and install MCP servers from the Smithery registry.",
+    "subtitle": "Browse and install MCP servers from published registries.",
+    "helperText": "Registry search shows published catalog entries, not this machine's configured local servers.",
     "searchPlaceholder": "Search MCP servers…",
     "searchAriaLabel": "Search registry",
     "searching": "Searching registry…",
-    "startTyping": "Start typing to search the Smithery registry.",
-    "noResults": "No results for \"{{query}}\"."
+    "startTyping": "Start typing to search the selected registry.",
+    "noResults": "No results for \"{{query}}\".",
+    "providers": {
+      "smithery": "Smithery",
+      "official": "Official MCP"
+    },
+    "availability": {
+      "all": "All",
+      "deployable": "Deployable",
+      "hosted": "Hosted"
+    },
+    "badges": {
+      "deployable": "Deployable",
+      "hosted": "Hosted"
+    },
+    "localPanel": {
+      "title": "My Local Servers",
+      "body": "These are servers configured on this machine. Registry search shows published catalog entries.",
+      "count_one": "{{count}} local server configured",
+      "count_other": "{{count}} local servers configured",
+      "cta": "Manage Local Servers"
+    }
   },
   "stacks": {
     "title": "Stacks",

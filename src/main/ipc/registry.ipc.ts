@@ -2,7 +2,7 @@
  * @file src/main/ipc/registry.ipc.ts
  *
  * @created 07.03.2026
- * @modified 07.03.2026
+ * @modified 08.03.2026
  *
  * @author Christian Blank <aidrelay@proton.me>
  * @copyright 2026
@@ -15,12 +15,13 @@
 import { ipcMain } from 'electron'
 import log from 'electron-log'
 import type { McpServer } from '@shared/types'
-import type { RegistryServer } from '@shared/channels'
+import type { RegistryProvider, RegistryServer } from '@shared/channels'
 import { getDatabase } from '@main/db/connection'
 import { ServersRepo } from '@main/db/servers.repo'
 import { ActivityLogRepo } from '@main/db/activity-log.repo'
 import { checkGate } from '@main/licensing/feature-gates'
 import { smitheryClient } from '@main/registry/smithery.client'
+import { searchRegistry } from '@main/registry/providers'
 
 // ─── Service Factory ──────────────────────────────────────────────────────────
 
@@ -37,13 +38,16 @@ const createRepos = (): { servers: ServersRepo; log: ActivityLogRepo } => {
  */
 export const registerRegistryIpc = (): void => {
   // ── registry:search ─────────────────────────────────────────────────────
-  ipcMain.handle('registry:search', async (_event, query: string): Promise<RegistryServer[]> => {
-    log.debug(`[ipc] registry:search "${query}"`)
-    return smitheryClient.searchServers(query)
-  })
+  ipcMain.handle(
+    'registry:search',
+    async (_event, provider: RegistryProvider, query: string): Promise<RegistryServer[]> => {
+      log.debug(`[ipc] registry:search provider="${provider}" query="${query}"`)
+      return searchRegistry(provider, query)
+    },
+  )
 
   // ── registry:install ────────────────────────────────────────────────────
-  ipcMain.handle('registry:install', (_event, qualifiedName: string): Promise<McpServer> => {
+  ipcMain.handle('registry:install', async (_event, qualifiedName: string): Promise<McpServer> => {
     log.debug(`[ipc] registry:install "${qualifiedName}"`)
 
     // Pro-only feature.
@@ -68,24 +72,45 @@ export const registerRegistryIpc = (): void => {
     // Derive a friendly name from the qualified name (last path segment).
     const name = qualifiedName.split('/').pop() ?? qualifiedName
 
-    const server = servers.create({
-      name,
-      type: 'stdio',
-      command: 'npx',
-      args: ['-y', qualifiedName],
-      env: {},
-      secretEnvKeys: [],
-      tags: ['registry'],
-      notes: `Installed from Smithery registry: ${qualifiedName}`,
-    })
+    const remoteRecipe = await smitheryClient.getRemoteInstallRecipe(qualifiedName)
+
+    const server = servers.create(
+      remoteRecipe
+        ? {
+            name,
+            type: remoteRecipe.type,
+            url: remoteRecipe.url,
+            // Non-stdio entries still need a command field in the current schema.
+            command: 'fetch',
+            args: [],
+            env: {},
+            secretEnvKeys: [],
+            tags: ['registry'],
+            notes: `Installed from Smithery registry: ${qualifiedName}`,
+          }
+        : {
+            name,
+            type: 'stdio',
+            command: 'npx',
+            args: ['-y', qualifiedName],
+            env: {},
+            secretEnvKeys: [],
+            tags: ['registry'],
+            notes: `Installed from Smithery registry: ${qualifiedName}`,
+          },
+    )
 
     logRepo.insert({
       action: 'registry.installed',
-      details: { qualifiedName, serverName: server.name },
+      details: {
+        qualifiedName,
+        serverName: server.name,
+        installMode: remoteRecipe ? remoteRecipe.type : 'stdio',
+      },
       serverId: server.id,
     })
 
-    return Promise.resolve(server)
+    return server
   })
 
   log.info('[ipc] registry handlers registered')

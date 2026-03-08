@@ -29,6 +29,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import {
   Table,
   TableBody,
@@ -38,8 +39,9 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { CreateConfigConfirmDialog } from '@/components/clients/CreateConfigConfirmDialog'
 import { useClientsStore } from '@/stores/clients.store'
-import type { ClientStatus } from '@shared/types'
+import type { ClientStatus, SyncClientOptions, SyncResult } from '@shared/types'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -65,6 +67,12 @@ const SYNC_STATUS_KEYS = {
   { labelKey: string; icon: typeof CheckCircle2; className: string }
 >
 
+const isConfigCreationRequiredError = (err: unknown): boolean =>
+  typeof err === 'object' &&
+  err !== null &&
+  'code' in err &&
+  (err as { code?: string }).code === 'config_creation_required'
+
 // ─── Row Component ────────────────────────────────────────────────────────────
 
 interface RowProps {
@@ -83,6 +91,7 @@ const ClientRow = ({ client, syncing, validating, onSync, onValidate }: Readonly
   const metaBase = SYNC_STATUS_KEYS[client.syncStatus]
   const StatusIcon = metaBase.icon
   const meta = { ...metaBase, label: t(metaBase.labelKey as Parameters<typeof t>[0]) }
+  const missingConfig = client.installed && client.configPaths.length === 0
 
   return (
     <TableRow
@@ -105,13 +114,31 @@ const ClientRow = ({ client, syncing, validating, onSync, onValidate }: Readonly
           >
             {client.installed ? t('clients.installed') : t('clients.notInstalled')}
           </span>
+          {missingConfig && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Badge
+                  variant="outline"
+                  className="w-fit text-[10px] uppercase tracking-wide"
+                  data-testid={`client-missing-config-badge-${client.id}`}
+                >
+                  {t('clients.missingConfigBadge')}
+                </Badge>
+              </TooltipTrigger>
+              <TooltipContent>
+                {t('clients.missingConfigTooltip', { name: client.displayName })}
+              </TooltipContent>
+            </Tooltip>
+          )}
         </div>
       </TableCell>
 
       {/* Config paths */}
       <TableCell className="px-4 py-3 max-w-xs">
         {client.configPaths.length === 0 ? (
-          <span className="text-xs text-muted-foreground">—</span>
+          <span className="text-xs text-muted-foreground">
+            {missingConfig ? t('clients.noConfigPath') : '—'}
+          </span>
         ) : (
           <ul className="space-y-0.5">
             {client.configPaths.map((p) => (
@@ -173,7 +200,9 @@ const ClientRow = ({ client, syncing, validating, onSync, onValidate }: Readonly
             </TooltipTrigger>
             <TooltipContent>
               {!client.installed
-                ? t('clients.notInstalledTooltip', { name: client.displayName })
+                ? client.id === 'codex-gui'
+                  ? t('clients.notInstalledCodexGuiTooltip', { name: client.displayName })
+                  : t('clients.notInstalledTooltip', { name: client.displayName })
                 : t('clients.syncTooltip', { name: client.displayName })}
             </TooltipContent>
           </Tooltip>
@@ -213,49 +242,124 @@ const ClientsPage = () => {
   const { clients, loading, detectAll, syncClient } = useClientsStore()
   const [syncingId, setSyncingId] = useState<ClientStatus['id'] | null>(null)
   const [validatingId, setValidatingId] = useState<ClientStatus['id'] | null>(null)
+  const [createConfigClientId, setCreateConfigClientId] = useState<ClientStatus['id'] | null>(null)
 
   useEffect(() => {
     void detectAll()
   }, [detectAll])
 
   const handleSync = useCallback(
-    async (clientId: ClientStatus['id']) => {
+    async (
+      clientId: ClientStatus['id'],
+      options?: SyncClientOptions,
+      interactive = true,
+    ): Promise<SyncResult> => {
       setSyncingId(clientId)
-      await syncClient(clientId)
-      setSyncingId(null)
+      try {
+        return await syncClient(clientId, options)
+      } catch (err) {
+        if (interactive && isConfigCreationRequiredError(err)) {
+          const errorMessage = err instanceof Error ? err.message : t('common.error')
+          setCreateConfigClientId(clientId)
+          return {
+            clientId,
+            success: false,
+            serversWritten: 0,
+            errorCode: 'config_creation_required',
+            error: errorMessage,
+            syncedAt: new Date().toISOString(),
+          }
+        }
+        const message = err instanceof Error ? err.message : t('common.error')
+        toast.error(message)
+        throw err
+      } finally {
+        setSyncingId(null)
+      }
     },
-    [syncClient],
+    [syncClient, t],
   )
 
-  const handleValidate = useCallback(async (clientId: ClientStatus['id']) => {
-    setValidatingId(clientId)
-    try {
-      const result = await window.api.clientsValidateConfig(clientId)
-      if (result.valid) {
-        toast.success(t('clients.configValid', { clientId }))
-      } else {
-        toast.warning(t('clients.configHasIssues', { clientId, errors: result.errors.join(', ') }))
+  const handleValidate = useCallback(
+    async (clientId: ClientStatus['id']) => {
+      setValidatingId(clientId)
+      try {
+        const result = await window.api.clientsValidateConfig(clientId)
+        if (result.valid) {
+          toast.success(t('clients.configValid', { clientId }))
+        } else {
+          toast.warning(
+            t('clients.configHasIssues', { clientId, errors: result.errors.join(', ') }),
+          )
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : t('common.error')
+        toast.error(message)
+      } finally {
+        setValidatingId(null)
       }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : t('common.error')
-      toast.error(message)
-    } finally {
-      setValidatingId(null)
-    }
-  }, [])
+    },
+    [t],
+  )
 
   const handleSyncAll = useCallback(async () => {
     const installed = clients.filter((c) => c.installed)
+    const results: SyncResult[] = []
     for (const client of installed) {
-      await handleSync(client.id)
+      try {
+        const result = await handleSync(client.id, undefined, false)
+        results.push(result)
+      } catch {
+        results.push({
+          clientId: client.id,
+          success: false,
+          serversWritten: 0,
+          syncedAt: new Date().toISOString(),
+        })
+      }
     }
-    toast.success(t('clients.allClientsSynced'))
-  }, [clients, handleSync])
+    const succeeded = results.filter((r) => r.success).length
+    const failed = results.length - succeeded
+
+    if (failed === 0) {
+      toast.success(t('clients.allClientsSynced'))
+      return
+    }
+
+    toast.warning(
+      t('clients.syncSummary', {
+        succeeded,
+        total: results.length,
+        failed,
+        count: results.length,
+      }),
+    )
+  }, [clients, handleSync, t])
 
   const installedCount = clients.filter((c) => c.installed).length
+  const createConfigClient = clients.find((client) => client.id === createConfigClientId) ?? null
+
+  const handleConfirmCreateConfig = useCallback(async () => {
+    if (!createConfigClient) return
+    try {
+      await handleSync(createConfigClient.id, { allowCreateConfigIfMissing: true }, false)
+    } catch {
+      // Error toast is already handled in handleSync for non-interactive retries.
+    } finally {
+      setCreateConfigClientId(null)
+    }
+  }, [createConfigClient, handleSync])
 
   return (
     <main className="flex flex-col gap-6" data-testid="clients-page">
+      <CreateConfigConfirmDialog
+        open={createConfigClient !== null}
+        clientName={createConfigClient?.displayName ?? ''}
+        submitting={createConfigClient !== null && syncingId === createConfigClient.id}
+        onCancel={() => setCreateConfigClientId(null)}
+        onConfirm={() => void handleConfirmCreateConfig()}
+      />
+
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">{t('clients.title')}</h1>

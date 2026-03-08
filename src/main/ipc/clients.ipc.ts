@@ -14,10 +14,12 @@
 
 import { ipcMain } from 'electron'
 import log from 'electron-log'
+import { join } from 'path'
 import type {
   ClientId,
   ClientStatus,
   McpServerMap,
+  SyncClientOptions,
   SyncResult,
   ValidationResult,
 } from '@shared/types'
@@ -44,6 +46,42 @@ const createSyncService = (): SyncService => {
   return new SyncService(serversRepo, activityLogRepo, backupService)
 }
 
+const resolveFallbackConfigPath = (clientId: ClientId): string | null => {
+  switch (clientId) {
+    case 'vscode': {
+      const appData = process.env['APPDATA'] ?? ''
+      return appData ? join(appData, 'Code', 'User', 'mcp.json') : null
+    }
+    case 'codex-cli': {
+      const userProfile = process.env['USERPROFILE'] ?? ''
+      return userProfile ? join(userProfile, '.codex', 'config.json') : null
+    }
+    case 'codex-gui': {
+      const appData = process.env['APPDATA'] ?? ''
+      return appData ? join(appData, 'Codex', 'config.json') : null
+    }
+    default:
+      return null
+  }
+}
+
+const resolveConfigPathForSync = (
+  clientId: ClientId,
+  detection: { installed: boolean; configPaths: readonly string[] },
+  options?: SyncClientOptions,
+): { configPath: string | null; requiresConfigCreationConfirm: boolean } => {
+  if (!detection.installed) return { configPath: null, requiresConfigCreationConfirm: false }
+  if (detection.configPaths.length > 0) {
+    return { configPath: detection.configPaths[0]!, requiresConfigCreationConfirm: false }
+  }
+  const fallbackPath = resolveFallbackConfigPath(clientId)
+  if (!fallbackPath) return { configPath: null, requiresConfigCreationConfirm: false }
+  if (options?.allowCreateConfigIfMissing === true) {
+    return { configPath: fallbackPath, requiresConfigCreationConfirm: false }
+  }
+  return { configPath: null, requiresConfigCreationConfirm: true }
+}
+
 // ─── Handler Registration ─────────────────────────────────────────────────────
 
 /**
@@ -56,16 +94,22 @@ export const registerClientsIpc = (): void => {
     log.debug('[ipc] clients:detect-all')
 
     const db = getDatabase()
-    const backupsRepo = new BackupsRepo(db)
+    const activityLogRepo = new ActivityLogRepo(db)
 
     const results = await Promise.all(
       ADAPTER_IDS.map(async (id): Promise<ClientStatus> => {
         const adapter = ADAPTERS.get(id)!
         try {
           const detection = await adapter.detect()
-          const latestBackup = backupsRepo.findLatestByClient(id)
-          const syncStatus = latestBackup ? 'synced' : 'never-synced'
-          const lastSyncedAt = latestBackup?.createdAt
+          const latestSync = activityLogRepo.findLatestSyncByClient(id)
+          const syncStatus =
+            latestSync?.action === 'sync.failed'
+              ? 'error'
+              : latestSync?.action === 'sync.performed'
+                ? 'synced'
+                : 'never-synced'
+          const lastSyncedAt =
+            latestSync?.action === 'sync.performed' ? latestSync.timestamp : undefined
           return {
             id,
             displayName: adapter.displayName,
@@ -109,34 +153,52 @@ export const registerClientsIpc = (): void => {
   )
 
   // ── clients:sync ──────────────────────────────────────────────────────────
-  ipcMain.handle('clients:sync', async (_event, clientId: ClientId): Promise<SyncResult> => {
-    log.debug(`[ipc] clients:sync ${clientId}`)
+  ipcMain.handle(
+    'clients:sync',
+    async (_event, clientId: ClientId, options?: SyncClientOptions): Promise<SyncResult> => {
+      log.debug(`[ipc] clients:sync ${clientId}`)
 
-    const adapter = ADAPTERS.get(clientId)
-    if (!adapter) {
-      return {
-        clientId,
-        success: false,
-        serversWritten: 0,
-        error: `No adapter registered for client: ${clientId}`,
-        syncedAt: new Date().toISOString(),
+      const adapter = ADAPTERS.get(clientId)
+      if (!adapter) {
+        return {
+          clientId,
+          success: false,
+          serversWritten: 0,
+          error: `No adapter registered for client: ${clientId}`,
+          syncedAt: new Date().toISOString(),
+        }
       }
-    }
 
-    const detection = await adapter.detect()
-    if (!detection.installed || detection.configPaths.length === 0) {
-      return {
+      const detection = await adapter.detect()
+      const { configPath, requiresConfigCreationConfirm } = resolveConfigPathForSync(
         clientId,
-        success: false,
-        serversWritten: 0,
-        error: `${adapter.displayName} is not installed or has no config file`,
-        syncedAt: new Date().toISOString(),
+        detection,
+        options,
+      )
+      if (requiresConfigCreationConfirm) {
+        return {
+          clientId,
+          success: false,
+          serversWritten: 0,
+          errorCode: 'config_creation_required',
+          error: `${adapter.displayName} has no config file yet. Confirm to create one.`,
+          syncedAt: new Date().toISOString(),
+        }
       }
-    }
+      if (!configPath) {
+        return {
+          clientId,
+          success: false,
+          serversWritten: 0,
+          error: `${adapter.displayName} is not installed or has no config file`,
+          syncedAt: new Date().toISOString(),
+        }
+      }
 
-    const syncService = createSyncService()
-    return syncService.sync(adapter, detection.configPaths[0]!)
-  })
+      const syncService = createSyncService()
+      return syncService.sync(adapter, configPath)
+    },
+  )
 
   // ── clients:sync-all ──────────────────────────────────────────────────────
   ipcMain.handle('clients:sync-all', async (): Promise<SyncResult[]> => {
@@ -148,12 +210,14 @@ export const registerClientsIpc = (): void => {
     for (const id of ADAPTER_IDS) {
       const adapter = ADAPTERS.get(id)!
       const detection = await adapter.detect()
-
-      if (!detection.installed || detection.configPaths.length === 0) {
+      const { configPath } = resolveConfigPathForSync(id, detection, {
+        allowCreateConfigIfMissing: true,
+      })
+      if (!configPath) {
         continue
       }
 
-      const result = await syncService.sync(adapter, detection.configPaths[0]!)
+      const result = await syncService.sync(adapter, configPath)
       results.push(result)
     }
 

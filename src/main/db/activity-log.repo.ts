@@ -143,4 +143,21 @@ export class ActivityLogRepo {
 
     return rows.map(rowToEntry)
   }
+
+  /**
+   * Returns the newest sync event (`sync.performed` or `sync.failed`) for a
+   * client, or `null` if no sync event has been logged yet.
+   */
+  findLatestSyncByClient(clientId: ClientId): ActivityLogEntry | null {
+    const row = this.db
+      .prepare(
+        `SELECT * FROM activity_log
+         WHERE client_id = ? AND action IN ('sync.performed', 'sync.failed')
+         ORDER BY timestamp DESC
+         LIMIT 1`,
+      )
+      .get(clientId) as ActivityLogRow | undefined
+
+    return row ? rowToEntry(row) : null
+  }
 }

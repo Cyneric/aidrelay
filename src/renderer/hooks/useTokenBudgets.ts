@@ -10,8 +10,8 @@
  * @description Pure computation hook that derives per-client token usage
  * from the rules store. For each installed client it sums `tokenEstimate`
  * across all enabled rules that are not overridden to disabled for that
- * client. Token limits are placeholders that will be replaced with
- * server-configured values in a later phase.
+ * client. The app currently uses one shared placeholder limit for all
+ * clients until server-configured values are introduced in a later phase.
  */
 
 import { useMemo } from 'react'
@@ -21,11 +21,10 @@ import type { AiRule, ClientStatus } from '@shared/types'
 
 /**
  * Maximum context budget (tokens) available for rules per client.
- * Cursor has a tighter limit than others.
+ * All clients currently share the same default placeholder limit.
  */
 export const TOKEN_LIMITS: Readonly<Record<string, number>> = {
-  cursor: 20_000,
-  default: 100_000,
+  default: 200_000,
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -73,7 +72,7 @@ const useTokenBudgets = (
           return sum + rule.tokenEstimate
         }, 0)
 
-        const limit = TOKEN_LIMITS[client.id] ?? TOKEN_LIMITS['default'] ?? 100_000
+        const limit = TOKEN_LIMITS[client.id] ?? TOKEN_LIMITS['default'] ?? 200_000
 
         return {
           clientId: client.id,

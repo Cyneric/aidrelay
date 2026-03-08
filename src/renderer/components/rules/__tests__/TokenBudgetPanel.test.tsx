@@ -96,8 +96,9 @@ describe('TokenBudgetPanel', () => {
     mockRulesState.rules = [makeRule('r1', 100), makeRule('r2', 200)]
     render(<TokenBudgetPanel />)
     const label = screen.getByTestId('token-budget-label-cursor')
-    // 100 + 200 = 300 used, 20,000 limit
+    // 100 + 200 = 300 used, 200,000 limit
     expect(label.textContent).toContain('300')
+    expect(label.textContent).toMatch(/300\s*\/\s*200[.,]000/)
   })
 
   it('excludes disabled rules from the token sum', () => {
@@ -124,8 +125,8 @@ describe('TokenBudgetPanel', () => {
 
   it('shows warning icon when usage exceeds 80% of limit', () => {
     mockClientsState.clients = [makeClient('cursor', 'Cursor')]
-    // cursor limit = 20,000; 80% = 16,000
-    mockRulesState.rules = [makeRule('r1', 17_000)]
+    // default limit = 200,000; 80% = 160,000
+    mockRulesState.rules = [makeRule('r1', 170_000)]
     render(<TokenBudgetPanel />)
     expect(screen.getByTestId('token-budget-warning-cursor')).toBeTruthy()
   })

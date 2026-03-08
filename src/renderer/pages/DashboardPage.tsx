@@ -20,8 +20,9 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { CardGrid } from '@/components/ui/card-grid'
 import { ClientCard } from '@/components/clients/ClientCard'
+import { CreateConfigConfirmDialog } from '@/components/clients/CreateConfigConfirmDialog'
 import { useClientsStore } from '@/stores/clients.store'
-import type { ClientStatus, ConfigChangedPayload } from '@shared/types'
+import type { ClientStatus, ConfigChangedPayload, SyncClientOptions } from '@shared/types'
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -33,6 +34,7 @@ const DashboardPage = () => {
   const { clients, loading, error, detectAll, syncClient } = useClientsStore()
   const { t } = useTranslation()
   const [syncingId, setSyncingId] = useState<ClientStatus['id'] | null>(null)
+  const [createConfigClientId, setCreateConfigClientId] = useState<ClientStatus['id'] | null>(null)
 
   // Detect all clients when the page first mounts
   useEffect(() => {
@@ -54,14 +56,42 @@ const DashboardPage = () => {
     return unsubscribe
   }, [syncClient, t])
 
-  const handleSync = async (clientId: ClientStatus['id']) => {
+  const handleSync = async (
+    clientId: ClientStatus['id'],
+    options?: SyncClientOptions,
+    interactive = true,
+  ) => {
     setSyncingId(clientId)
-    await syncClient(clientId)
-    setSyncingId(null)
+    try {
+      await syncClient(clientId, options)
+    } catch (err) {
+      if (interactive && isConfigCreationRequiredError(err)) {
+        setCreateConfigClientId(clientId)
+        return
+      }
+      const message = err instanceof Error ? err.message : t('common.error')
+      toast.error(message)
+    } finally {
+      setSyncingId(null)
+    }
   }
+
+  const createConfigClient = clients.find((client) => client.id === createConfigClientId) ?? null
 
   return (
     <section aria-labelledby="dashboard-heading" data-testid="dashboard-page">
+      <CreateConfigConfirmDialog
+        open={createConfigClient !== null}
+        clientName={createConfigClient?.displayName ?? ''}
+        submitting={createConfigClient !== null && syncingId === createConfigClient.id}
+        onCancel={() => setCreateConfigClientId(null)}
+        onConfirm={() => {
+          if (!createConfigClient) return
+          setCreateConfigClientId(null)
+          void handleSync(createConfigClient.id, { allowCreateConfigIfMissing: true }, false)
+        }}
+      />
+
       <header className="mb-6 flex items-center justify-between">
         <div>
           <h1 id="dashboard-heading" className="text-2xl font-bold tracking-tight">
@@ -122,3 +152,8 @@ const DashboardPage = () => {
 }
 
 export { DashboardPage }
+const isConfigCreationRequiredError = (err: unknown): boolean =>
+  typeof err === 'object' &&
+  err !== null &&
+  'code' in err &&
+  (err as { code?: string }).code === 'config_creation_required'

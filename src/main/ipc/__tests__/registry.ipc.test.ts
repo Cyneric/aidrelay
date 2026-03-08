@@ -2,7 +2,7 @@
  * @file src/main/ipc/__tests__/registry.ipc.test.ts
  *
  * @created 07.03.2026
- * @modified 07.03.2026
+ * @modified 08.03.2026
  *
  * @author Christian Blank <aidrelay@proton.me>
  * @copyright 2026
@@ -38,13 +38,19 @@ vi.mock('@main/licensing/feature-gates', () => ({
 vi.mock('@main/registry/smithery.client', () => ({
   smitheryClient: {
     searchServers: vi.fn().mockResolvedValue([]),
+    getRemoteInstallRecipe: vi.fn().mockResolvedValue(null),
   },
+}))
+
+vi.mock('@main/registry/providers', () => ({
+  searchRegistry: vi.fn().mockResolvedValue([]),
 }))
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 import { ipcMain } from 'electron'
 import { checkGate } from '@main/licensing/feature-gates'
+import { searchRegistry } from '@main/registry/providers'
 import { smitheryClient } from '@main/registry/smithery.client'
 import { registerRegistryIpc } from '../registry.ipc'
 
@@ -74,7 +80,7 @@ describe('registry IPC handlers', () => {
   })
 
   describe('registry:search', () => {
-    it('returns results from the Smithery client', async () => {
+    it('dispatches to the selected provider and returns mapped results', async () => {
       const mockResults = [
         {
           id: '@a/b',
@@ -85,21 +91,22 @@ describe('registry IPC handlers', () => {
           remote: false,
         },
       ]
-      vi.mocked(smitheryClient.searchServers).mockResolvedValueOnce(mockResults)
+      vi.mocked(searchRegistry).mockResolvedValueOnce(mockResults)
 
       const handler = getHandler('registry:search')
-      const result = await handler(null, 'github')
+      const result = await handler(null, 'smithery', 'github')
 
-      expect(smitheryClient.searchServers).toHaveBeenCalledWith('github')
+      expect(searchRegistry).toHaveBeenCalledWith('smithery', 'github')
       expect(result).toEqual(mockResults)
     })
 
-    it('returns empty array when Smithery returns nothing', async () => {
-      vi.mocked(smitheryClient.searchServers).mockResolvedValueOnce([])
+    it('supports official provider lookups', async () => {
+      vi.mocked(searchRegistry).mockResolvedValueOnce([])
 
       const handler = getHandler('registry:search')
-      const result = await handler(null, 'nothing')
+      const result = await handler(null, 'official', 'github')
 
+      expect(searchRegistry).toHaveBeenCalledWith('official', 'github')
       expect(result).toEqual([])
     })
   })
@@ -114,6 +121,38 @@ describe('registry IPC handlers', () => {
         command: 'npx',
         args: ['-y', '@anthropic/github-mcp'],
         type: 'stdio',
+      })
+    })
+
+    it('installs a remote server natively when a recipe is resolved', async () => {
+      vi.mocked(smitheryClient.getRemoteInstallRecipe).mockResolvedValueOnce({
+        type: 'sse',
+        url: 'https://example.com/sse',
+      })
+
+      const handler = getHandler('registry:install')
+      const server = await handler(null, '@acme/remote-mcp')
+
+      expect(server).toMatchObject({
+        name: 'remote-mcp',
+        type: 'sse',
+        url: 'https://example.com/sse',
+        command: 'fetch',
+        args: [],
+      })
+    })
+
+    it('falls back to stdio install when no remote recipe is available', async () => {
+      vi.mocked(smitheryClient.getRemoteInstallRecipe).mockResolvedValueOnce(null)
+
+      const handler = getHandler('registry:install')
+      const server = await handler(null, '@acme/fallback')
+
+      expect(server).toMatchObject({
+        name: 'fallback',
+        type: 'stdio',
+        command: 'npx',
+        args: ['-y', '@acme/fallback'],
       })
     })
 
