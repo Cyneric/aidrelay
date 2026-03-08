@@ -32,8 +32,10 @@ describe('useStartupSplash', () => {
     let progressHandler: ((payload: AppStartupProgressPayload) => void) | null = null
     let completeHandler: ((payload: AppStartupCompletePayload) => void) | null = null
 
-    ;(window as { api: any }).api = {
-      ...(window.api as Record<string, unknown>),
+    const currentApi = window.api as unknown as Record<string, unknown>
+
+    ;(window as unknown as { api: Record<string, unknown> }).api = {
+      ...currentApi,
       appStartupStatus: () => Promise.resolve(status),
       onStartupProgress: (handler: (payload: AppStartupProgressPayload) => void) => {
         progressHandler = handler

@@ -46,6 +46,9 @@ vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string) => {
       if (key === 'nav.servers') return 'MCP Servers'
+      if (key === 'nav.sectionCore') return 'Core'
+      if (key === 'nav.sectionOperations') return 'Operations'
+      if (key === 'nav.sectionSettings') return 'Settings'
       return key
     },
   }),
@@ -203,6 +206,13 @@ describe('Sidebar', () => {
     it('renders MCP Servers label in navigation', () => {
       render(<Sidebar />)
       expect(screen.getByText('MCP Servers')).toBeInTheDocument()
+    })
+
+    it('renders grouped navigation section labels', () => {
+      render(<Sidebar />)
+      expect(screen.getByText('Core')).toBeInTheDocument()
+      expect(screen.getByText('Operations')).toBeInTheDocument()
+      expect(screen.getByText('Settings')).toBeInTheDocument()
     })
   })
 })

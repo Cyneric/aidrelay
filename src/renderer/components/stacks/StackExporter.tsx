@@ -97,7 +97,7 @@ const StackExporter = () => {
     } finally {
       setExporting(false)
     }
-  }, [name, selectedServers, selectedRules])
+  }, [name, selectedServers, selectedRules, t])
 
   const exportDisabled = !canExport || exporting || name.trim().length === 0
 

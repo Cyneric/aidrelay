@@ -65,7 +65,7 @@ const StackImporter = () => {
         setImporting(false)
       }
     },
-    [loadServers, loadRules],
+    [loadServers, loadRules, t],
   )
 
   const handleFileChange = useCallback(
@@ -88,7 +88,7 @@ const StackImporter = () => {
       return
     }
     await runImport(pastedJson)
-  }, [pastedJson, runImport])
+  }, [pastedJson, runImport, t])
 
   return (
     <div className="flex flex-col gap-5" data-testid="stack-importer">

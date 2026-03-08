@@ -150,6 +150,8 @@ describe('spawnCommandWithWindowsFallback', () => {
         DROP_UNDEF: undefined,
         'BAD=KEY': 'x',
         NULL_VALUE: `a${String.fromCharCode(0)}b`,
+        npm_config_verify_deps_before_run: 'true',
+        npm_config__jsr_registry: 'https://npm.jsr.io',
       },
     })
     await flushMicrotasks()

@@ -115,7 +115,7 @@ const BackupTimeline = ({ clientId }: Readonly<Props>) => {
     } finally {
       setLoading(false)
     }
-  }, [clientId])
+  }, [clientId, t])
 
   useEffect(() => {
     void load()

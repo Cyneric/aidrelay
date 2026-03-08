@@ -9,7 +9,10 @@
     "stacks": "Stacks",
     "activityLog": "Aktivitätsprotokoll",
     "history": "Verlauf",
-    "settings": "Einstellungen"
+    "settings": "Einstellungen",
+    "sectionCore": "Kern",
+    "sectionOperations": "Betrieb",
+    "sectionSettings": "Einstellungen"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -26,7 +29,46 @@
     "importChanges": "Änderungen importieren",
     "dismiss": "Schließen",
     "refresh": "Aktualisieren",
-    "detectionFailed": "Erkennung fehlgeschlagen: {{error}}"
+    "detectionFailed": "Erkennung fehlgeschlagen: {{error}}",
+    "kpiInstalled": "Installierte Tools",
+    "kpiOutOfSync": "Benötigt Aufmerksamkeit",
+    "kpiMissingConfig": "Fehlende Konfiguration",
+    "kpiTotalServers": "MCP-Server gesamt",
+    "searchPlaceholder": "Tools durchsuchen...",
+    "filterLabel": "Tools filtern",
+    "filters": {
+      "all": "Alle",
+      "needs-attention": "Benötigt Aufmerksamkeit",
+      "synced": "Synchronisiert",
+      "not-installed": "Nicht installiert"
+    },
+    "sortLabel": "Sortieren nach",
+    "sort": {
+      "priority": "Priorität",
+      "name": "Name",
+      "servers": "Serveranzahl"
+    },
+    "syncAllActionable": "Alle relevanten synchronisieren",
+    "syncAllSuccess": "{{count}} relevante Clients synchronisiert.",
+    "syncAllSummary": "Mit {{succeeded}} von {{total}} Clients synchronisiert ({{failed}} fehlgeschlagen).",
+    "sectionNeedsAttention": "Benötigt Aufmerksamkeit",
+    "sectionHealthy": "Stabil",
+    "sectionNotInstalled": "Nicht installiert",
+    "noNeedsAttention": "Derzeit benötigt kein Tool Aufmerksamkeit.",
+    "noHealthy": "Keine stabilen Tools entsprechen den aktuellen Filtern.",
+    "statusMissingConfig": "Konfiguration fehlt",
+    "createConfigAction": "Konfiguration erstellen",
+    "lastSyncedNever": "Nie",
+    "lastSyncedUnknown": "Unbekannt",
+    "detailServers": "Server",
+    "detailLastSync": "Letzte Synchronisierung",
+    "detailSyncStatus": "Synchronisierungsstatus",
+    "detailClientId": "Client-ID",
+    "detailConfigPaths": "Konfigurationspfade",
+    "viewDetails": "Details anzeigen",
+    "hideDetails": "Details ausblenden",
+    "copyConfigPath": "Konfigurationspfad kopieren",
+    "moreActions": "Weitere Aktionen für {{name}}"
   },
   "servers": {
     "title": "MCP-Server",
@@ -39,6 +81,7 @@
     "countInRegistry_other": "{{count}} MCP-Server in der Registry",
     "name": "Name",
     "type": "Typ",
+    "status": "Status",
     "command": "Befehl",
     "tags": "Etiketten",
     "enabled": "Aktiv",
@@ -76,6 +119,16 @@
     "testTooltip": "{{name}} testen",
     "testUpgradeTooltip": "Auf Pro upgraden, um Server zu testen",
     "testFailed": "Test für \"{{name}}\" fehlgeschlagen",
+    "testPhases": {
+      "starting_process": "Prozess wird gestartet…",
+      "sending_initialize": "Initialize wird gesendet…",
+      "waiting_response": "Warte auf Serverantwort…"
+    },
+    "testStatus": {
+      "not_tested": "Nicht getestet",
+      "passed": "Erfolgreich",
+      "failed": "Fehlgeschlagen"
+    },
     "copyCommand": "Befehl für {{name}} kopieren",
     "copyCommandTooltip": "Vollständigen Befehl kopieren",
     "copyCommandSuccess": "Befehl in die Zwischenablage kopiert",

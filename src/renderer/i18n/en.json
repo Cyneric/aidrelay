@@ -9,7 +9,10 @@
     "stacks": "Stacks",
     "activityLog": "Activity Log",
     "history": "History",
-    "settings": "Settings"
+    "settings": "Settings",
+    "sectionCore": "Core",
+    "sectionOperations": "Operations",
+    "sectionSettings": "Settings"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -26,7 +29,46 @@
     "importChanges": "Import changes",
     "dismiss": "Dismiss",
     "refresh": "Refresh",
-    "detectionFailed": "Detection failed: {{error}}"
+    "detectionFailed": "Detection failed: {{error}}",
+    "kpiInstalled": "Installed tools",
+    "kpiOutOfSync": "Needs attention",
+    "kpiMissingConfig": "Missing config",
+    "kpiTotalServers": "Total MCP servers",
+    "searchPlaceholder": "Search tools...",
+    "filterLabel": "Filter tools",
+    "filters": {
+      "all": "All",
+      "needs-attention": "Needs attention",
+      "synced": "Synced",
+      "not-installed": "Not installed"
+    },
+    "sortLabel": "Sort by",
+    "sort": {
+      "priority": "Priority",
+      "name": "Name",
+      "servers": "Server count"
+    },
+    "syncAllActionable": "Sync all actionable",
+    "syncAllSuccess": "Synced {{count}} actionable clients.",
+    "syncAllSummary": "Synced {{succeeded}} of {{total}} clients ({{failed}} failed).",
+    "sectionNeedsAttention": "Needs attention",
+    "sectionHealthy": "Healthy",
+    "sectionNotInstalled": "Not installed",
+    "noNeedsAttention": "No tools currently need attention.",
+    "noHealthy": "No healthy tools match the current filters.",
+    "statusMissingConfig": "Missing config",
+    "createConfigAction": "Create config",
+    "lastSyncedNever": "Never",
+    "lastSyncedUnknown": "Unknown",
+    "detailServers": "Servers",
+    "detailLastSync": "Last sync",
+    "detailSyncStatus": "Sync status",
+    "detailClientId": "Client ID",
+    "detailConfigPaths": "Config paths",
+    "viewDetails": "View details",
+    "hideDetails": "Hide details",
+    "copyConfigPath": "Copy config path",
+    "moreActions": "More actions for {{name}}"
   },
   "servers": {
     "title": "MCP Servers",
@@ -39,6 +81,7 @@
     "countInRegistry_other": "{{count}} MCP Servers in the registry",
     "name": "Name",
     "type": "Type",
+    "status": "Status",
     "command": "Command",
     "tags": "Tags",
     "enabled": "Enabled",
@@ -76,6 +119,16 @@
     "testTooltip": "Test {{name}}",
     "testUpgradeTooltip": "Upgrade to Pro to test servers",
     "testFailed": "Failed to test \"{{name}}\"",
+    "testPhases": {
+      "starting_process": "Starting process…",
+      "sending_initialize": "Sending initialize…",
+      "waiting_response": "Waiting for server response…"
+    },
+    "testStatus": {
+      "not_tested": "Not tested",
+      "passed": "Passed",
+      "failed": "Failed"
+    },
     "copyCommand": "Copy command for {{name}}",
     "copyCommandTooltip": "Copy full command",
     "copyCommandSuccess": "Command copied to clipboard",

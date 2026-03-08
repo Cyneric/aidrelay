@@ -39,6 +39,7 @@ import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import {
@@ -84,7 +85,9 @@ const ServersPage = () => {
   const {
     syncingAll,
     importingFromClients,
-    testingServerId,
+    getTestingPhase,
+    isTestingServer,
+    getTestStatus,
     handleTest,
     handleSyncAll,
     handleImportFromClients,
@@ -192,11 +195,44 @@ const ServersPage = () => {
         <span className="rounded bg-muted px-1.5 py-0.5 text-xs font-mono">{getValue()}</span>
       ),
     }),
+    columnHelper.display({
+      id: 'status',
+      header: () => t('servers.status'),
+      size: 108,
+      cell: ({ row }) => {
+        const status = getTestStatus(row.original.id)
+        if (status === 'success') {
+          return (
+            <Badge
+              variant="secondary"
+              className="border border-emerald-500/30 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+              data-testid={`server-test-status-${row.original.id}`}
+            >
+              {t('servers.testStatus.passed')}
+            </Badge>
+          )
+        }
+        if (status === 'failure') {
+          return (
+            <Badge variant="destructive" data-testid={`server-test-status-${row.original.id}`}>
+              {t('servers.testStatus.failed')}
+            </Badge>
+          )
+        }
+        return (
+          <Badge variant="outline" data-testid={`server-test-status-${row.original.id}`}>
+            {t('servers.testStatus.not_tested')}
+          </Badge>
+        )
+      },
+    }),
     columnHelper.accessor('command', {
       header: () => t('servers.command'),
       size: 396,
       cell: ({ getValue, row }) => {
         const fullCommand = `${getValue()} ${row.original.args.join(' ')}`.trim()
+        const testingPhase = getTestingPhase(row.original.id)
+        const isTestingRow = testingPhase !== null
         return (
           <div className="group relative w-full max-w-[32rem] min-w-0 pr-8">
             <Tooltip>
@@ -212,6 +248,15 @@ const ServersPage = () => {
                 {fullCommand}
               </TooltipContent>
             </Tooltip>
+            {isTestingRow && testingPhase && (
+              <span
+                className="mt-1 inline-flex items-center gap-1 text-[11px] text-muted-foreground"
+                data-testid={`server-test-phase-${row.original.id}`}
+              >
+                <RefreshCw size={11} className="animate-spin" />
+                {t(`servers.testPhases.${testingPhase}`)}
+              </span>
+            )}
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
@@ -264,14 +309,15 @@ const ServersPage = () => {
                 variant="ghost"
                 size="icon-sm"
                 onClick={() => void handleTest(row.original)}
-                disabled={!serverTestingEnabled || testingServerId === row.original.id}
+                disabled={!serverTestingEnabled || isTestingServer(row.original.id)}
                 aria-label={t('servers.testAria', { name: row.original.name })}
                 data-testid={`server-test-${row.original.id}`}
               >
-                <FlaskConical
-                  size={14}
-                  className={testingServerId === row.original.id ? 'animate-pulse' : ''}
-                />
+                {isTestingServer(row.original.id) ? (
+                  <RefreshCw size={14} className="animate-spin" />
+                ) : (
+                  <FlaskConical size={14} />
+                )}
               </Button>
             </TooltipTrigger>
             <TooltipContent>
