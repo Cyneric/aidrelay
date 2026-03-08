@@ -27,6 +27,7 @@ export type ClientId =
   | 'zed'
   | 'jetbrains'
   | 'codex-cli'
+  | 'codex-gui'
 
 /**
  * Result returned from a client adapter's `detect()` call.

@@ -8,7 +8,7 @@
  * @copyright 2026
  *
  * @description Unit tests for the TitleBar component. Verifies that the drag
- * region, app label, and window control buttons render and behave correctly,
+ * region, brand logo, and window control buttons render and behave correctly,
  * and that the maximize icon swaps when the maximize state changes.
  */
 
@@ -46,9 +46,11 @@ describe('TitleBar', () => {
     expect(screen.getByTestId('title-bar')).toBeInTheDocument()
   })
 
-  it('renders the app label', () => {
+  it('renders the app logo', () => {
     render(<TitleBar />)
-    expect(screen.getByTestId('title-bar-label')).toHaveTextContent('aidrelay')
+    const logo = screen.getByTestId('title-bar-logo')
+    expect(logo).toBeInTheDocument()
+    expect(logo).toHaveAttribute('alt', 'aidrelay logo')
   })
 
   it('renders all three window control buttons', () => {

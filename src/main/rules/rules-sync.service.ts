@@ -2,7 +2,7 @@
  * @file src/main/rules/rules-sync.service.ts
  *
  * @created 07.03.2026
- * @modified 07.03.2026
+ * @modified 08.03.2026
  *
  * @author Christian Blank <christianblank91@protonmail.com>
  * @copyright 2026
@@ -15,10 +15,11 @@
  *   - vscode       → single concatenated file: `{project}\.github\copilot-instructions.md`
  *   - windsurf     → single concatenated file: `{project}\.windsurfrules`
  *   - codex-cli    → single concatenated file: `{project}\.codex\AGENTS.md`
+ *   - codex-gui    → single concatenated file: `{project}\.codex\AGENTS.md`
  *
  * Global-scope rules are written to the tool's global rules directory.
  * Project-scope rules are written to the matching project directory.
- * VS Code, Windsurf, and Codex CLI do not have global paths — project-scoped
+ * VS Code, Windsurf, Codex CLI, and Codex GUI do not have global paths — project-scoped
  * rules without a valid `projectPath` are silently skipped with a warning.
  *
  * All writes are atomic: content is first written to a `.aidrelay.tmp` file,
@@ -175,6 +176,7 @@ export class RulesSyncService {
       case 'windsurf':
         return this.writeConcat(rules, (projectPath) => join(projectPath, '.windsurfrules'))
       case 'codex-cli':
+      case 'codex-gui':
         return this.writeConcat(rules, (projectPath) => join(projectPath, '.codex', 'AGENTS.md'))
       default:
         // Other clients (claude-desktop, zed, jetbrains) do not support rules files.
@@ -222,7 +224,7 @@ export class RulesSyncService {
 
   /**
    * Writes all rules for a given project path into a single concatenated file
-   * (vscode / windsurf / codex-cli strategy). Rules without a `projectPath`
+   * (vscode / windsurf / codex-cli / codex-gui strategy). Rules without a `projectPath`
    * are silently skipped (no global path for these clients).
    */
   private writeConcat(rules: readonly AiRule[], pathFor: (projectPath: string) => string): number {

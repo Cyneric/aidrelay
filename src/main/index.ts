@@ -47,6 +47,7 @@ const createWindow = (): BrowserWindow => {
     show: false,
     autoHideMenuBar: true,
     titleBarStyle: 'hidden',
+    icon: join(import.meta.dirname, '../../resources/icon.ico'),
     webPreferences: {
       preload: join(import.meta.dirname, '../preload/index.mjs'),
       nodeIntegration: false,

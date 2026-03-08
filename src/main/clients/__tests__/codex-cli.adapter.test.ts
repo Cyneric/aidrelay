@@ -2,7 +2,7 @@
  * @file src/main/clients/__tests__/codex-cli.adapter.test.ts
  *
  * @created 07.03.2026
- * @modified 07.03.2026
+ * @modified 08.03.2026
  *
  * @author Christian Blank <christianblank91@protonmail.com>
  * @copyright 2026
@@ -26,26 +26,56 @@ const makeTmpDir = (): string => {
 describe('codexCliAdapter', () => {
   let tmpDir: string
   let originalUserProfile: string | undefined
+  let originalPath: string | undefined
+  let originalPathExt: string | undefined
+  let originalAppData: string | undefined
+  let originalLocalAppData: string | undefined
 
   beforeEach(() => {
     tmpDir = makeTmpDir()
+
     originalUserProfile = process.env['USERPROFILE']
-    process.env['USERPROFILE'] = tmpDir
+    originalPath = process.env['PATH']
+    originalPathExt = process.env['PATHEXT']
+    originalAppData = process.env['APPDATA']
+    originalLocalAppData = process.env['LOCALAPPDATA']
+
+    process.env['USERPROFILE'] = join(tmpDir, 'user')
+    process.env['PATH'] = join(tmpDir, 'bin')
+    process.env['PATHEXT'] = '.EXE;.CMD;.BAT'
+    process.env['APPDATA'] = join(tmpDir, 'appdata')
+    process.env['LOCALAPPDATA'] = join(tmpDir, 'localappdata')
   })
 
   afterEach(() => {
     process.env['USERPROFILE'] = originalUserProfile
+    process.env['PATH'] = originalPath
+    process.env['PATHEXT'] = originalPathExt
+    process.env['APPDATA'] = originalAppData
+    process.env['LOCALAPPDATA'] = originalLocalAppData
     rmSync(tmpDir, { recursive: true, force: true })
   })
 
-  it('reports not installed when config is absent', async () => {
+  it('reports not installed when config and executable are absent', async () => {
     const result = await codexCliAdapter.detect()
     expect(result.installed).toBe(false)
     expect(result.configPaths).toHaveLength(0)
+    expect(result.serverCount).toBe(0)
+  })
+
+  it('detects installed when codex executable exists on PATH', async () => {
+    const binDir = process.env['PATH'] ?? ''
+    mkdirSync(binDir, { recursive: true })
+    writeFileSync(join(binDir, 'codex.cmd'), '')
+
+    const result = await codexCliAdapter.detect()
+    expect(result.installed).toBe(true)
+    expect(result.configPaths).toHaveLength(0)
+    expect(result.serverCount).toBe(0)
   })
 
   it('detects installed state from .codex/config.json', async () => {
-    const codexDir = join(tmpDir, '.codex')
+    const codexDir = join(process.env['USERPROFILE'] ?? '', '.codex')
     mkdirSync(codexDir, { recursive: true })
     writeFileSync(
       join(codexDir, 'config.json'),
@@ -54,6 +84,7 @@ describe('codexCliAdapter', () => {
 
     const result = await codexCliAdapter.detect()
     expect(result.installed).toBe(true)
+    expect(result.configPaths).toHaveLength(1)
     expect(result.serverCount).toBe(1)
   })
 
