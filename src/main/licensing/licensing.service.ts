@@ -2,7 +2,7 @@
  * @file src/main/licensing/licensing.service.ts
  *
  * @created 07.03.2026
- * @modified 07.03.2026
+ * @modified 08.03.2026
  *
  * @author Christian Blank <aidrelay@proton.me>
  * @copyright 2026
@@ -209,6 +209,13 @@ const isValidProResponse = (data: Record<string, unknown>): boolean => {
  * @returns Cached or freshly computed `LicenseStatus`.
  */
 export const getStatus = (): LicenseStatus => {
+  // Allow bypassing the license-provider check in local development so Pro features
+  // can be tested without a real license key. Never set this in production.
+  if (process.env['AIDRELAY_DEV_PRO'] === 'true') {
+    log.info('[license] AIDRELAY_DEV_PRO override active — reporting pro tier')
+    return { tier: 'pro', valid: true, lastValidatedAt: new Date().toISOString() }
+  }
+
   const cache = readCache()
   if (!cache) return freeTierStatus()
 

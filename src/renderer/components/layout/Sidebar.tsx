@@ -2,7 +2,7 @@
  * @file src/renderer/components/layout/Sidebar.tsx
  *
  * @created 07.03.2026
- * @modified 07.03.2026
+ * @modified 08.03.2026
  *
  * @author Christian Blank <aidrelay@proton.me>
  * @copyright 2026
@@ -26,6 +26,7 @@ import {
 import { Link, useRouterState } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
+import { useLicense } from '@/lib/useLicense'
 
 // ─── Nav Config ───────────────────────────────────────────────────────────────
 
@@ -54,7 +55,10 @@ const NAV_ITEMS = [
 const Sidebar = () => {
   const { location } = useRouterState()
   const { t } = useTranslation()
+  const { status, loading } = useLicense()
   const currentPath = location.pathname
+
+  const isPro = status.tier === 'pro' && status.valid
 
   return (
     <aside
@@ -68,6 +72,24 @@ const Sidebar = () => {
         <span className="text-base font-bold tracking-tight select-none">aidrelay</span>
         <p className="text-[11px] text-muted-foreground mt-0.5">AI Developer Relay</p>
       </div>
+
+      {/* Plan tier badge */}
+      {!loading && (
+        <div className="px-5 pt-3 pb-1">
+          <span
+            className={cn(
+              'inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold',
+              isPro
+                ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300'
+                : 'bg-muted text-muted-foreground',
+            )}
+            aria-label={`Current plan: ${isPro ? 'Pro' : 'Free'}`}
+            data-testid="plan-badge"
+          >
+            {isPro ? 'Pro' : 'Free'}
+          </span>
+        </div>
+      )}
 
       {/* Primary links */}
       <nav className="flex-1 overflow-y-auto py-3 px-2">
