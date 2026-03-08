@@ -72,6 +72,25 @@ CREATE TABLE profiles (
   FOREIGN KEY (parent_profile_id) REFERENCES profiles(id)
 );
 
+INSERT INTO profiles (
+  id, name, description, icon, color, is_active,
+  parent_profile_id, server_overrides, rule_overrides, created_at, updated_at
+) VALUES (
+  lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-' ||
+  lower(hex(randomblob(2))) || '-' || lower(hex(randomblob(2))) || '-' ||
+  lower(hex(randomblob(6))),
+  'default',
+  '',
+  '',
+  '#6366f1',
+  1,
+  NULL,
+  '{}',
+  '{}',
+  strftime('%Y-%m-%dT%H:%M:%fZ', 'now'),
+  strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+);
+
 -- Settings
 CREATE TABLE settings (
   key TEXT PRIMARY KEY,

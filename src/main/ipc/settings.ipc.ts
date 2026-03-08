@@ -15,10 +15,13 @@
  * All values are JSON-serializable and stored in the `settings` SQLite table.
  */
 
-import { ipcMain } from 'electron'
+import { app, ipcMain } from 'electron'
 import log from 'electron-log'
 import { getDatabase } from '@main/db/connection'
 import { SettingsRepo } from '@main/db/settings.repo'
+import { gitSyncService } from '@main/git-sync/git-sync.service'
+import { runFactoryReset } from '@main/reset/factory-reset.service'
+import type { SettingsResetInput, SettingsResetResult } from '@shared/channels'
 
 // ─── Handler Registration ─────────────────────────────────────────────────────
 
@@ -47,6 +50,64 @@ export const registerSettingsIpc = (): void => {
     const repo = new SettingsRepo(getDatabase())
     repo.delete(key)
   })
+
+  // ── settings:reset ────────────────────────────────────────────────────────
+  ipcMain.handle(
+    'settings:reset',
+    async (_event, input: SettingsResetInput): Promise<SettingsResetResult> => {
+      log.debug('[ipc] settings:reset')
+      if (input.scope === 'factory') {
+        const factory = await runFactoryReset()
+        const result: SettingsResetResult = {
+          resetKeys: ['*'],
+          disconnectedGitSync: factory.disconnectedGitSync,
+          clearedAllSecrets: factory.clearedAllSecrets,
+          clearedLicenseCache: factory.clearedLicenseCache,
+          databaseReset: factory.databaseReset,
+          deletedPaths: factory.deletedPaths,
+          restartTriggered: true,
+        }
+
+        // Relaunch after the IPC response is sent to the renderer.
+        setTimeout(() => {
+          app.relaunch()
+          app.exit(0)
+        }, 150)
+        return result
+      }
+
+      const repo = new SettingsRepo(getDatabase())
+      const resetKeys = new Set<string>()
+
+      if (input.uiPreferences) {
+        repo.delete('theme')
+        repo.delete('language')
+        resetKeys.add('theme')
+        resetKeys.add('language')
+      }
+
+      if (input.gitRemoteForm) {
+        repo.delete('git-remote')
+        resetKeys.add('git-remote')
+      }
+
+      let disconnectedGitSync = false
+      if (input.gitSyncConnection) {
+        await gitSyncService.disconnect()
+        disconnectedGitSync = true
+      }
+
+      return {
+        resetKeys: [...resetKeys],
+        disconnectedGitSync,
+        clearedAllSecrets: false,
+        clearedLicenseCache: false,
+        databaseReset: false,
+        deletedPaths: [],
+        restartTriggered: false,
+      }
+    },
+  )
 
   log.info('[ipc] settings handlers registered')
 }

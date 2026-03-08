@@ -112,13 +112,16 @@ const ProfileCard = ({ profile, onActivate, onEdit, onDelete }: ProfileCardProps
                 variant="ghost"
                 size="icon-sm"
                 onClick={() => onEdit(profile)}
+                disabled={isDefault}
                 aria-label={`Edit profile ${profile.name}`}
                 data-testid={`profile-edit-${profile.id}`}
               >
                 <Pencil size={14} />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>{t('profiles.editTooltip')}</TooltipContent>
+            <TooltipContent>
+              {isDefault ? t('profiles.editDefaultTooltip') : t('profiles.editTooltip')}
+            </TooltipContent>
           </Tooltip>
 
           <Tooltip>

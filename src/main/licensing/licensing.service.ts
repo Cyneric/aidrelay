@@ -324,3 +324,11 @@ export const deactivateLicense = async (): Promise<void> => {
   }
   clearCache()
 }
+
+/**
+ * Clears only the local encrypted license cache without network calls.
+ * Used by factory reset to emulate a clean install.
+ */
+export const clearLocalLicenseCache = (): void => {
+  clearCache()
+}

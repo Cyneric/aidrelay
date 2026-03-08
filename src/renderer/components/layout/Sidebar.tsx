@@ -27,7 +27,9 @@ import { Link, useRouterState } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import { useLicense } from '@/lib/useLicense'
-import logo from '../../assets/branding/logo.png'
+import { useTheme } from '@/lib/useTheme'
+import sidebarLogoDark from '../../assets/branding/aidrelay_logo_with_slogan_for_darkmode.png'
+import sidebarLogoLight from '../../assets/branding/aidrelay_logo_with_slogan_for_lightmode.png'
 
 // ─── Nav Config ───────────────────────────────────────────────────────────────
 
@@ -57,7 +59,9 @@ const Sidebar = () => {
   const { location } = useRouterState()
   const { t } = useTranslation()
   const { status, loading } = useLicense()
+  const { effectiveTheme } = useTheme()
   const currentPath = location.pathname
+  const sidebarLogo = effectiveTheme === 'dark' ? sidebarLogoDark : sidebarLogoLight
 
   const isPro = status.tier === 'pro' && status.valid
 
@@ -69,14 +73,13 @@ const Sidebar = () => {
       data-testid="sidebar"
     >
       {/* Brand */}
-      <div className="px-5 py-4 border-b">
+      <div className="px-5 py-5 border-b">
         <img
-          src={logo}
+          src={sidebarLogo}
           alt="aidrelay logo"
-          className="h-9 w-auto object-contain select-none"
+          className="h-14 w-auto object-contain select-none"
           data-testid="sidebar-logo"
         />
-        <p className="text-[11px] text-muted-foreground mt-0.5">AI Developer Relay</p>
       </div>
 
       {/* Plan tier badge */}

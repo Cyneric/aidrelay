@@ -93,3 +93,12 @@ export const deleteAllSecrets = async (serverName: string): Promise<void> => {
   const keys = await listSecretKeys(serverName)
   await Promise.all(keys.map((key) => deleteSecret(serverName, key)))
 }
+
+/**
+ * Removes every credential stored by aidrelay in the OS credential store.
+ * Used by factory reset to return to a first-install state.
+ */
+export const deleteAllServiceSecrets = async (): Promise<void> => {
+  const credentials = await keytar.findCredentials(SERVICE)
+  await Promise.all(credentials.map((cred) => keytar.deletePassword(SERVICE, cred.account)))
+}

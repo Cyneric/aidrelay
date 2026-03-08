@@ -17,6 +17,18 @@ import { render, screen, fireEvent, act } from '@testing-library/react'
 import type { WindowMaximizeChangedPayload } from '@shared/channels'
 import { TitleBar } from '../TitleBar'
 
+// ─── Theme Hook Mock ──────────────────────────────────────────────────────────
+
+let mockEffectiveTheme: 'light' | 'dark' = 'light'
+
+vi.mock('@/lib/useTheme', () => ({
+  useTheme: () => ({
+    theme: mockEffectiveTheme,
+    setTheme: vi.fn(),
+    effectiveTheme: mockEffectiveTheme,
+  }),
+}))
+
 // ─── window.api mock ──────────────────────────────────────────────────────────
 
 const mockWindowMinimize = vi.fn<() => Promise<void>>().mockResolvedValue(undefined)
@@ -37,6 +49,7 @@ vi.stubGlobal('api', {
 
 describe('TitleBar', () => {
   beforeEach(() => {
+    mockEffectiveTheme = 'light'
     vi.clearAllMocks()
     mockOnMaximizeChanged.mockReturnValue(() => undefined)
   })
@@ -51,6 +64,20 @@ describe('TitleBar', () => {
     const logo = screen.getByTestId('title-bar-logo')
     expect(logo).toBeInTheDocument()
     expect(logo).toHaveAttribute('alt', 'aidrelay logo')
+  })
+
+  it('uses the light title logo in light theme', () => {
+    mockEffectiveTheme = 'light'
+    render(<TitleBar />)
+    const logo = screen.getByTestId('title-bar-logo')
+    expect(logo.getAttribute('src')).toContain('logo-light')
+  })
+
+  it('uses the dark title logo in dark theme', () => {
+    mockEffectiveTheme = 'dark'
+    render(<TitleBar />)
+    const logo = screen.getByTestId('title-bar-logo')
+    expect(logo.getAttribute('src')).toContain('logo-dark')
   })
 
   it('renders all three window control buttons', () => {

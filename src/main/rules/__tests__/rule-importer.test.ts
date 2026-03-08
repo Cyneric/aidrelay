@@ -27,11 +27,20 @@ const mockCreate = vi.fn((input: unknown) => {
   storedRules.push(rule)
   return rule
 })
+const mockUpdate = vi.fn((id: string, updates: unknown) => {
+  const existing = storedRules.find((r) => r.id === id)
+  if (!existing) throw new Error(`Rule not found: ${id}`)
+  const updated = { ...existing, ...(updates as object) } as AiRule
+  const idx = storedRules.findIndex((r) => r.id === id)
+  storedRules[idx] = updated
+  return updated
+})
 
 vi.mock('@main/db/rules.repo', () => ({
   RulesRepo: vi.fn().mockImplementation(() => ({
     findAll: () => storedRules,
     create: mockCreate,
+    update: mockUpdate,
   })),
 }))
 
@@ -43,6 +52,7 @@ let importer: RuleImporter
 beforeEach(() => {
   storedRules.length = 0
   mockCreate.mockClear()
+  mockUpdate.mockClear()
   tmpDir = mkdtempSync(join(tmpdir(), 'aidrelay-importer-'))
   importer = new RuleImporter({} as unknown as Database)
 })
@@ -92,6 +102,7 @@ describe('RuleImporter.importFromDirectory', () => {
     const result = importer.importFromDirectory(tmpDir)
     expect(result.imported).toBe(1)
     expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({ name: 'CLAUDE' }))
+    expect(mockUpdate).toHaveBeenCalledWith('r1', expect.objectContaining({ tokenEstimate: 4 }))
   })
 
   it('imports VS Code copilot-instructions.md', () => {
@@ -172,5 +183,18 @@ describe('RuleImporter.importFromDirectory', () => {
 
     const result = importer.importFromDirectory(tmpDir)
     expect(result.imported).toBe(2)
+  })
+
+  it('persists non-zero token estimates for imported non-empty content', () => {
+    writeFileSync(join(tmpDir, 'AGENTS.md'), 'Always write tests and document edge cases.')
+
+    const result = importer.importFromDirectory(tmpDir)
+
+    expect(result.imported).toBe(1)
+    expect(mockUpdate).toHaveBeenCalledTimes(1)
+    const firstCall = mockUpdate.mock.calls[0]
+    expect(firstCall).toBeDefined()
+    const [, updates] = firstCall as [string, { tokenEstimate: number }]
+    expect(updates.tokenEstimate).toBeGreaterThan(0)
   })
 })

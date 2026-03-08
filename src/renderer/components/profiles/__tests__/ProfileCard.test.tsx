@@ -160,6 +160,18 @@ describe('ProfileCard', () => {
     expect(screen.getByTestId('profile-delete-p1')).toBeDisabled()
   })
 
+  it('disables Edit button for the default profile', () => {
+    renderWithProviders(
+      <ProfileCard
+        profile={{ ...baseProfile, name: 'default', isActive: false }}
+        onActivate={vi.fn()}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    )
+    expect(screen.getByTestId('profile-edit-p1')).toBeDisabled()
+  })
+
   it('shows correct override counts', () => {
     const profile: Profile = {
       ...baseProfile,
@@ -170,7 +182,7 @@ describe('ProfileCard', () => {
       <ProfileCard profile={profile} onActivate={vi.fn()} onEdit={vi.fn()} onDelete={vi.fn()} />,
     )
     expect(screen.getByTestId('profile-server-overrides-p1')).toHaveTextContent(
-      '2 server overrides',
+      '2 MCP server overrides',
     )
     expect(screen.getByTestId('profile-rule-overrides-p1')).toHaveTextContent('1 rule override')
   })
@@ -184,6 +196,8 @@ describe('ProfileCard', () => {
     renderWithProviders(
       <ProfileCard profile={profile} onActivate={vi.fn()} onEdit={vi.fn()} onDelete={vi.fn()} />,
     )
-    expect(screen.getByTestId('profile-server-overrides-p1')).toHaveTextContent('1 server override')
+    expect(screen.getByTestId('profile-server-overrides-p1')).toHaveTextContent(
+      '1 MCP server override',
+    )
   })
 })

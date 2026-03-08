@@ -14,6 +14,9 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import type Database from 'better-sqlite3'
+import { mkdtempSync, rmSync, writeFileSync } from 'fs'
+import { join } from 'path'
+import { tmpdir } from 'os'
 import { RulesRepo } from '@main/db/rules.repo'
 import { ActivityLogRepo } from '@main/db/activity-log.repo'
 import { createTestDb } from '@main/db/__tests__/helpers'
@@ -65,11 +68,13 @@ const call = <T>(channel: string, ...args: unknown[]): T => {
 describe('rules IPC handlers', () => {
   let rulesRepo: RulesRepo
   let logRepo: ActivityLogRepo
+  let tempProjectDir: string
 
   beforeEach(async () => {
     testDb = createTestDb()
     rulesRepo = new RulesRepo(testDb)
     logRepo = new ActivityLogRepo(testDb)
+    tempProjectDir = mkdtempSync(join(tmpdir(), 'aidrelay-rules-ipc-'))
 
     vi.resetModules()
     const { registerRulesIpc } = await import('../rules.ipc')
@@ -77,7 +82,10 @@ describe('rules IPC handlers', () => {
   })
 
   afterEach(() => {
-    testDb.close()
+    if (tempProjectDir) {
+      rmSync(tempProjectDir, { recursive: true, force: true })
+    }
+    testDb?.close()
   })
 
   // ─── rules:list ───────────────────────────────────────────────────────────
@@ -234,6 +242,27 @@ describe('rules IPC handlers', () => {
       '/non/existent/path',
     )
     expect(result.imported).toBe(0)
+  })
+
+  it('rules:import-from-project imports CLAUDE.md with a non-zero token estimate', () => {
+    writeFileSync(join(tempProjectDir, 'CLAUDE.md'), 'Always use strict TypeScript settings.')
+
+    const imported = call<{ imported: number; skipped: number; errors: readonly string[] }>(
+      'rules:import-from-project',
+      tempProjectDir,
+    )
+    expect(imported.imported).toBe(1)
+    expect(imported.errors).toHaveLength(0)
+
+    const rules = call<
+      Array<{
+        name: string
+        tokenEstimate: number
+      }>
+    >('rules:list')
+    const claudeRule = rules.find((r) => r.name === 'CLAUDE')
+    expect(claudeRule).toBeDefined()
+    expect(claudeRule?.tokenEstimate).toBeGreaterThan(0)
   })
 
   it('rules:detect-workspaces returns an empty array (stub)', () => {

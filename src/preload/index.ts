@@ -45,6 +45,8 @@ import type {
   TestResult,
   BackupEntry,
   WindowMaximizeChangedPayload,
+  SettingsResetInput,
+  SettingsResetResult,
 } from '../shared/channels'
 
 /**
@@ -548,6 +550,15 @@ const api = {
    * @param key - The setting key to remove.
    */
   settingsDelete: (key: string): Promise<void> => ipcRenderer.invoke('settings:delete', key),
+
+  /**
+   * Resets selected settings categories to a fresh state.
+   *
+   * @param input - Selection flags for each resettable category.
+   * @returns Result describing what was reset.
+   */
+  settingsReset: (input: SettingsResetInput): Promise<SettingsResetResult> =>
+    ipcRenderer.invoke('settings:reset', input),
 
   // ── Auto-updater ──────────────────────────────────────────────────────────
 

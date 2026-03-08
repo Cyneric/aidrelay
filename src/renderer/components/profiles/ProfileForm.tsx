@@ -31,15 +31,35 @@ import type { CreateProfileInput } from '@shared/channels'
 
 // ─── Schema ───────────────────────────────────────────────────────────────────
 
-const profileSchema = z.object({
-  name: z.string().min(1, 'Name is required').max(64, 'Name is too long'),
-  description: z.string().max(256, 'Description is too long'),
-  icon: z.string().max(4, 'Use a single emoji or leave blank'),
-  color: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Must be a valid hex colour'),
-  parentProfileId: z.string().optional(),
-})
+const ICON_EMOJIS = [
+  '🚀',
+  '💻',
+  '🧠',
+  '⚡',
+  '🔧',
+  '🐞',
+  '🎯',
+  '📚',
+  '🛡️',
+  '🧪',
+  '📝',
+  '🤖',
+] as const
 
-type ProfileFormValues = z.infer<typeof profileSchema>
+const createProfileSchema = (additionalAllowedIcon?: string) => {
+  const allowedIcons = additionalAllowedIcon ? [...ICON_EMOJIS, additionalAllowedIcon] : ICON_EMOJIS
+  const iconEnum = z.enum(allowedIcons as [string, ...string[]])
+
+  return z.object({
+    name: z.string().min(1, 'Name is required').max(64, 'Name is too long'),
+    description: z.string().max(256, 'Description is too long'),
+    icon: z.union([z.literal(''), iconEnum]),
+    color: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Must be a valid hex colour'),
+    parentProfileId: z.string().optional(),
+  })
+}
+
+type ProfileFormValues = z.infer<ReturnType<typeof createProfileSchema>>
 
 const NONE_PROFILE_VALUE = '__none__' as const
 
@@ -82,6 +102,13 @@ const ProfileForm = ({
   onCancel,
   saving = false,
 }: ProfileFormProps) => {
+  const legacyIcon =
+    defaultValues?.icon && !ICON_EMOJIS.includes(defaultValues.icon as (typeof ICON_EMOJIS)[number])
+      ? defaultValues.icon
+      : undefined
+
+  const profileSchema = createProfileSchema(legacyIcon)
+
   const {
     register,
     handleSubmit,
@@ -101,6 +128,7 @@ const ProfileForm = ({
   })
 
   const color = watch('color')
+  const icon = watch('icon')
 
   const handleValidSubmit = (values: ProfileFormValues) => {
     onSubmit({
@@ -158,18 +186,46 @@ const ProfileForm = ({
 
       {/* Icon */}
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="profile-icon">
+        <Label>
           Icon <span className="text-muted-foreground text-xs">(emoji)</span>
         </Label>
-        <Input
-          id="profile-icon"
-          type="text"
-          {...register('icon')}
-          placeholder="🚀"
-          className="w-20"
-          data-testid="profile-icon-input"
-          aria-invalid={!!errors.icon}
-        />
+        <input type="hidden" {...register('icon')} />
+        <div className="flex items-center gap-2 flex-wrap" role="group" aria-label="Profile icon">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setValue('icon', '', { shouldDirty: true, shouldValidate: true })}
+            className="h-9 px-3"
+            aria-label="Clear icon"
+            aria-pressed={icon === ''}
+            data-testid="icon-clear"
+          >
+            None
+          </Button>
+          {ICON_EMOJIS.map((emoji, index) => {
+            const selected = icon === emoji
+            return (
+              <Button
+                key={emoji}
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => setValue('icon', emoji, { shouldDirty: true, shouldValidate: true })}
+                className="w-9 h-9 rounded-md text-lg"
+                style={{
+                  boxShadow: selected
+                    ? '0 0 0 2px var(--background), 0 0 0 4px var(--primary)'
+                    : undefined,
+                }}
+                aria-label={`Select icon ${emoji}`}
+                aria-pressed={selected}
+                data-testid={`icon-option-${index}`}
+              >
+                <span aria-hidden="true">{emoji}</span>
+              </Button>
+            )
+          })}
+        </div>
         {errors.icon && (
           <p className="text-xs text-destructive" role="alert">
             {errors.icon.message}

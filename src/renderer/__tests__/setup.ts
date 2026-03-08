@@ -22,6 +22,17 @@ Object.defineProperty(window, 'api', {
   value: {
     settingsGet: () => Promise.resolve(undefined),
     settingsSet: () => Promise.resolve(),
+    settingsDelete: () => Promise.resolve(),
+    settingsReset: () =>
+      Promise.resolve({
+        resetKeys: [],
+        disconnectedGitSync: false,
+        clearedAllSecrets: false,
+        clearedLicenseCache: false,
+        databaseReset: false,
+        deletedPaths: [],
+        restartTriggered: false,
+      }),
   },
   writable: true,
   configurable: true,

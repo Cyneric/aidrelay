@@ -39,6 +39,7 @@ if (is.dev) {
  * @returns The created BrowserWindow instance.
  */
 const createWindow = (): BrowserWindow => {
+  const appIcon = process.platform === 'win32' ? 'icon.ico' : 'icon-512.png'
   const win = new BrowserWindow({
     width: 1280,
     height: 800,
@@ -47,7 +48,7 @@ const createWindow = (): BrowserWindow => {
     show: false,
     autoHideMenuBar: true,
     titleBarStyle: 'hidden',
-    icon: join(import.meta.dirname, '../../resources/icon.ico'),
+    icon: join(import.meta.dirname, `../../resources/${appIcon}`),
     webPreferences: {
       preload: join(import.meta.dirname, '../preload/index.mjs'),
       nodeIntegration: false,

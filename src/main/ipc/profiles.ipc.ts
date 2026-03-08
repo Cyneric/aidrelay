@@ -20,7 +20,8 @@
  *   5. Log `profile.activated` to activity log
  *   6. Return SyncResult[]
  *
- * Guard: `profiles:delete` throws when the profile is currently active.
+ * Guard: `profiles:delete` throws for active profiles and the built-in
+ * `default` profile.
  */
 
 import { ipcMain } from 'electron'
@@ -109,6 +110,11 @@ export const registerProfilesIpc = (): void => {
   ipcMain.handle('profiles:update', (_event, id: string, updates: UpdateProfileInput): Profile => {
     log.debug(`[ipc] profiles:update ${id}`)
     const { profiles, log: logRepo } = createRepos()
+    const existing = profiles.findById(id)
+    if (!existing) throw new Error(`Profile not found: ${id}`)
+    if (existing.name === 'default' && updates.name !== undefined && updates.name !== 'default') {
+      throw new Error('The default profile name cannot be changed')
+    }
     const profile = profiles.update(id, updates)
     logRepo.insert({
       action: 'profile.updated',
@@ -122,6 +128,10 @@ export const registerProfilesIpc = (): void => {
     log.debug(`[ipc] profiles:delete ${id}`)
     const { profiles, log: logRepo } = createRepos()
     const profile = profiles.findById(id)
+
+    if (profile?.name === 'default') {
+      throw new Error('The default profile cannot be deleted')
+    }
 
     if (profile?.isActive) {
       throw new Error('Cannot delete the active profile — activate another profile first')

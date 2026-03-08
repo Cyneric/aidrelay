@@ -58,15 +58,15 @@ describe('ProfileDiffView', () => {
     renderWithProviders(
       <ProfileDiffView profile={baseProfile} onConfirm={vi.fn()} onCancel={vi.fn()} />,
     )
-    expect(screen.getByText(/no server or rule overrides/i)).toBeInTheDocument()
+    expect(screen.getByText(/no MCP server or rule overrides/i)).toBeInTheDocument()
   })
 
-  it('shows Server changes section for serverOverrides', () => {
+  it('shows MCP Server changes section for serverOverrides', () => {
     const profile = { ...baseProfile, serverOverrides: { s1: { enabled: false } } }
     renderWithProviders(
       <ProfileDiffView profile={profile} onConfirm={vi.fn()} onCancel={vi.fn()} />,
     )
-    expect(screen.getByText('Server changes')).toBeInTheDocument()
+    expect(screen.getByText('MCP Server changes')).toBeInTheDocument()
     expect(screen.getByText('My Server')).toBeInTheDocument()
   })
 
