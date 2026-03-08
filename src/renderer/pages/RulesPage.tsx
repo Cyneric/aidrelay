@@ -503,7 +503,7 @@ const RulesPage = () => {
                   <>
                     <span aria-hidden="true">·</span>
                     <span className={tokenColor(totalVisibleTokens)}>
-                      {t('rules.tokensEnabled', { count: totalVisibleTokens.toLocaleString() })}
+                      {t('rules.tokensEnabled', { count: totalVisibleTokens })}
                     </span>
                   </>
                 )}
