@@ -100,16 +100,14 @@ describe('GitSyncService', () => {
     it('returns disconnected when config exists but token is missing', async () => {
       const service = await loadService()
       // Write a config to settings but leave token as null (default mock).
-      testDb
-        .prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)')
-        .run(
-          'git-sync:config',
-          JSON.stringify({
-            provider: 'generic',
-            remoteUrl: 'https://example.com/repo.git',
-            branch: 'main',
-          }),
-        )
+      testDb.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(
+        'git-sync:config',
+        JSON.stringify({
+          provider: 'generic',
+          remoteUrl: 'https://example.com/repo.git',
+          branch: 'main',
+        }),
+      )
 
       vi.mocked(getSecret).mockResolvedValue(null)
       vi.mocked(fsMod.existsSync).mockReturnValue(false)

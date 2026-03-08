@@ -19,6 +19,7 @@ import { X } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { RuleForm } from './RuleForm'
 import { RuleMarkdownEditor } from './RuleMarkdownEditor'
@@ -143,31 +144,32 @@ const RuleEditor = ({ rule, onClose }: RuleEditorProps) => {
           </Tooltip>
         </header>
 
-        {/* Tab bar */}
-        <nav className="flex border-b border-border px-6" aria-label="Editor section">
-          {(['details', 'content'] as const).map((tab) => (
-            <button
-              key={tab}
-              type="button"
-              role="tab"
-              aria-selected={activeTab === tab}
-              onClick={() => setActiveTab(tab)}
-              className={cn(
-                'px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors capitalize',
-                activeTab === tab
-                  ? 'border-primary text-foreground'
-                  : 'border-transparent text-muted-foreground hover:text-foreground',
-              )}
-              data-testid={`rule-editor-tab-${tab}`}
+        {/* Tab bar + body */}
+        <Tabs
+          value={activeTab}
+          onValueChange={(v) => setActiveTab(v as Tab)}
+          className="flex flex-1 flex-col"
+        >
+          <TabsList
+            variant="line"
+            className="w-full justify-start rounded-none border-b border-border px-6 h-auto bg-transparent"
+          >
+            <TabsTrigger
+              value="details"
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+              data-testid="rule-editor-tab-details"
             >
-              {tab === 'details' ? 'Details' : 'Content'}
-            </button>
-          ))}
-        </nav>
-
-        {/* Body */}
-        <div className="flex-1 overflow-y-auto px-6 py-5">
-          {activeTab === 'details' ? (
+              Details
+            </TabsTrigger>
+            <TabsTrigger
+              value="content"
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+              data-testid="rule-editor-tab-content"
+            >
+              Content
+            </TabsTrigger>
+          </TabsList>
+          <TabsContent value="details" className="flex-1 overflow-y-auto px-6 py-5 mt-0">
             <RuleForm
               {...(rule !== undefined && { defaultValues: rule })}
               onSubmit={(data) => {
@@ -176,10 +178,11 @@ const RuleEditor = ({ rule, onClose }: RuleEditorProps) => {
               onCancel={onClose}
               saving={saving}
             />
-          ) : (
+          </TabsContent>
+          <TabsContent value="content" className="flex-1 overflow-y-auto px-6 py-5 mt-0">
             <RuleMarkdownEditor value={content} onChange={handleContentChange} />
-          )}
-        </div>
+          </TabsContent>
+        </Tabs>
 
         {/* Content tab footer actions */}
         {activeTab === 'content' && (

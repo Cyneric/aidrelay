@@ -16,6 +16,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { Download } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import { CardGrid } from '@/components/ui/card-grid'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -127,7 +129,7 @@ const StackExporter = () => {
         />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <CardGrid cols="md:2" gap="6">
         {/* Servers */}
         <fieldset>
           <legend className="text-sm font-medium mb-2">
@@ -138,20 +140,20 @@ const StackExporter = () => {
               <p className="px-3 py-2 text-sm text-muted-foreground">No servers</p>
             ) : (
               servers.map((server) => (
-                <label
+                <Label
                   key={server.id}
+                  htmlFor={`export-server-${server.id}`}
                   className="flex items-center gap-2.5 px-3 py-2 hover:bg-muted/30 cursor-pointer text-sm"
                 >
-                  <input
-                    type="checkbox"
+                  <Checkbox
+                    id={`export-server-${server.id}`}
                     checked={selectedServers.has(server.id)}
-                    onChange={() => toggleServer(server.id)}
+                    onCheckedChange={() => toggleServer(server.id)}
                     disabled={!canExport}
-                    className="accent-primary"
                     data-testid={`export-server-${server.id}`}
                   />
                   <span className="font-mono truncate">{server.name}</span>
-                </label>
+                </Label>
               ))
             )}
           </div>
@@ -167,25 +169,25 @@ const StackExporter = () => {
               <p className="px-3 py-2 text-sm text-muted-foreground">No rules</p>
             ) : (
               rules.map((rule) => (
-                <label
+                <Label
                   key={rule.id}
+                  htmlFor={`export-rule-${rule.id}`}
                   className="flex items-center gap-2.5 px-3 py-2 hover:bg-muted/30 cursor-pointer text-sm"
                 >
-                  <input
-                    type="checkbox"
+                  <Checkbox
+                    id={`export-rule-${rule.id}`}
                     checked={selectedRules.has(rule.id)}
-                    onChange={() => toggleRule(rule.id)}
+                    onCheckedChange={() => toggleRule(rule.id)}
                     disabled={!canExport}
-                    className="accent-primary"
                     data-testid={`export-rule-${rule.id}`}
                   />
                   <span className="truncate">{rule.name}</span>
-                </label>
+                </Label>
               ))
             )}
           </div>
         </fieldset>
-      </div>
+      </CardGrid>
 
       <Tooltip>
         <TooltipTrigger asChild>

@@ -20,6 +20,15 @@ import {
   createColumnHelper,
 } from '@tanstack/react-table'
 import { ChevronDown, ChevronRight } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import type { ActivityLogEntry } from '@shared/channels'
 
 // ─── Column helper ────────────────────────────────────────────────────────────
@@ -124,16 +133,18 @@ const ActivityLogTable = ({ entries, loading = false }: ActivityLogTableProps) =
 
         return (
           <div>
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="xs"
               onClick={() => toggleRow(id)}
-              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              className="gap-1 text-muted-foreground hover:text-foreground"
               aria-expanded={expanded}
               aria-label={expanded ? 'Collapse details' : 'Expand details'}
             >
               {expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
               {expanded ? 'Hide' : 'Show'}
-            </button>
+            </Button>
             {expanded && (
               <pre className="mt-2 rounded bg-muted p-2 text-xs overflow-x-auto max-w-[300px]">
                 {JSON.stringify(details, null, 2)}
@@ -178,39 +189,39 @@ const ActivityLogTable = ({ entries, loading = false }: ActivityLogTableProps) =
       className="rounded-md border border-border overflow-hidden"
       data-testid="activity-log-table"
     >
-      <table className="w-full text-sm">
-        <thead className="bg-muted/50">
+      <Table className="w-full text-sm">
+        <TableHeader className="bg-muted/50">
           {table.getHeaderGroups().map((headerGroup) => (
-            <tr key={headerGroup.id}>
+            <TableRow key={headerGroup.id}>
               {headerGroup.headers.map((header) => (
-                <th
+                <TableHead
                   key={header.id}
                   scope="col"
                   style={{ width: header.getSize() !== 150 ? header.getSize() : undefined }}
                   className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider"
                 >
                   {flexRender(header.column.columnDef.header, header.getContext())}
-                </th>
+                </TableHead>
               ))}
-            </tr>
+            </TableRow>
           ))}
-        </thead>
-        <tbody className="divide-y divide-border">
+        </TableHeader>
+        <TableBody className="divide-y divide-border">
           {table.getRowModel().rows.map((row) => (
-            <tr
+            <TableRow
               key={row.id}
               className="hover:bg-muted/20 transition-colors"
               data-testid={`log-row-${row.original.id}`}
             >
               {row.getVisibleCells().map((cell) => (
-                <td key={cell.id} className="px-4 py-3 align-top">
+                <TableCell key={cell.id} className="px-4 py-3 align-top">
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                </td>
+                </TableCell>
               ))}
-            </tr>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     </div>
   )
 }

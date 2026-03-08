@@ -15,6 +15,15 @@
 
 import { useEffect } from 'react'
 import { cn } from '@/lib/utils'
+import { Checkbox } from '@/components/ui/checkbox'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { useServersStore } from '@/stores/servers.store'
 import { useClientsStore } from '@/stores/clients.store'
 import type { ClientId } from '@shared/types'
@@ -68,34 +77,34 @@ const ToggleMatrix = () => {
 
   return (
     <div className="overflow-x-auto" data-testid="toggle-matrix">
-      <table className="w-full text-sm border-collapse">
-        <thead>
-          <tr>
-            <th
+      <Table className="w-full text-sm border-collapse">
+        <TableHeader>
+          <TableRow>
+            <TableHead
               scope="col"
               className="text-left font-medium text-muted-foreground py-2 pr-4 min-w-[160px]"
             >
               Server
-            </th>
+            </TableHead>
             {installedClients.map((client) => (
-              <th
+              <TableHead
                 key={client.id}
                 scope="col"
                 className="text-center font-medium text-muted-foreground py-2 px-3 min-w-[100px]"
               >
                 {client.displayName}
-              </th>
+              </TableHead>
             ))}
-          </tr>
-        </thead>
-        <tbody>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {servers.map((server, rowIndex) => (
-            <tr
+            <TableRow
               key={server.id}
               className={cn('border-t border-border', rowIndex % 2 === 0 ? '' : 'bg-muted/30')}
               data-testid={`matrix-row-${server.id}`}
             >
-              <td className="py-2 pr-4">
+              <TableCell className="py-2 pr-4">
                 <span
                   className={cn(
                     'font-mono text-xs',
@@ -104,28 +113,26 @@ const ToggleMatrix = () => {
                 >
                   {server.name}
                 </span>
-              </td>
+              </TableCell>
               {installedClients.map((client) => {
                 const enabled = isEffectivelyEnabled(server.id, client.id)
                 return (
-                  <td key={client.id} className="text-center py-2 px-3">
-                    <input
-                      type="checkbox"
+                  <TableCell key={client.id} className="text-center py-2 px-3">
+                    <Checkbox
                       checked={enabled}
-                      onChange={() => {
+                      onCheckedChange={() => {
                         void setClientOverride(server.id, client.id, !enabled)
                       }}
                       aria-label={`Enable ${server.name} for ${client.displayName}`}
-                      className="h-4 w-4 cursor-pointer accent-primary"
                       data-testid={`matrix-toggle-${server.id}-${client.id}`}
                     />
-                  </td>
+                  </TableCell>
                 )
               })}
-            </tr>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     </div>
   )
 }

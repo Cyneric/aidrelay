@@ -14,11 +14,11 @@
  * hook added in Step 24.
  */
 
-import { useEffect, useState } from 'react'
 import MDEditor from '@uiw/react-md-editor'
 import '@uiw/react-md-editor/markdown-editor.css'
 import '@uiw/react-markdown-preview/markdown.css'
 import { useTokenEstimate } from '@/hooks/useTokenEstimate'
+import { useTheme } from '@/lib/useTheme'
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -48,18 +48,8 @@ const tokenBadgeClass = (count: number): string => {
  */
 const RuleMarkdownEditor = ({ value, onChange }: RuleMarkdownEditorProps) => {
   const tokenEstimate = useTokenEstimate(value)
-  const [colorMode, setColorMode] = useState<'light' | 'dark'>('light')
-
-  useEffect(() => {
-    const mq = window.matchMedia('(prefers-color-scheme: dark)')
-    setColorMode(mq.matches ? 'dark' : 'light')
-
-    const handleChange = (e: MediaQueryListEvent) => {
-      setColorMode(e.matches ? 'dark' : 'light')
-    }
-    mq.addEventListener('change', handleChange)
-    return () => mq.removeEventListener('change', handleChange)
-  }, [])
+  const { effectiveTheme } = useTheme()
+  const colorMode = effectiveTheme
 
   return (
     <div className="flex flex-col gap-2" data-testid="rule-markdown-editor">

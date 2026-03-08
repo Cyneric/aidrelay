@@ -14,15 +14,18 @@
  */
 
 import { useState, useEffect, useCallback, type ElementType, type ReactNode } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
 import { Save, RotateCcw, Key, Globe, Info, Download } from 'lucide-react'
+import { Card, CardContent, CardHeader } from '@/components/ui/card'
+import { ThemeToggle } from '@/components/theme/ThemeToggle'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import {
   Select,
   SelectContent,
@@ -64,22 +67,21 @@ const Section = ({
   icon: ElementType
   children: ReactNode
 }>) => (
-  <section
-    className="rounded-lg border bg-card p-6"
-    aria-labelledby={`section-${title.toLowerCase().replace(/\s+/g, '-')}`}
-  >
-    <div className="flex items-center gap-2 mb-1">
-      <Icon size={18} className="text-muted-foreground" aria-hidden="true" />
-      <h2
-        id={`section-${title.toLowerCase().replace(/\s+/g, '-')}`}
-        className="text-base font-semibold"
-      >
-        {title}
-      </h2>
-    </div>
-    <p className="text-sm text-muted-foreground mb-4">{description}</p>
-    {children}
-  </section>
+  <Card aria-labelledby={`section-${title.toLowerCase().replace(/\s+/g, '-')}`}>
+    <CardHeader className="pb-2">
+      <div className="flex items-center gap-2">
+        <Icon size={18} className="text-muted-foreground" aria-hidden="true" />
+        <h2
+          id={`section-${title.toLowerCase().replace(/\s+/g, '-')}`}
+          className="text-base font-semibold"
+        >
+          {title}
+        </h2>
+      </div>
+      <p className="text-sm text-muted-foreground">{description}</p>
+    </CardHeader>
+    <CardContent>{children}</CardContent>
+  </Card>
 )
 
 // ─── Licensing Section ────────────────────────────────────────────────────────
@@ -167,6 +169,7 @@ const LicensingSection = () => {
 
 const GitRemoteSection = () => {
   const {
+    control,
     register,
     handleSubmit,
     reset,
@@ -220,16 +223,26 @@ const GitRemoteSection = () => {
 
         <div>
           <span className="block text-sm font-medium mb-1">Auth Method</span>
-          <div className="flex gap-4">
-            <label className="flex items-center gap-2 text-sm cursor-pointer">
-              <input {...register('authMethod')} type="radio" value="ssh" />
-              SSH Key (recommended)
-            </label>
-            <label className="flex items-center gap-2 text-sm cursor-pointer">
-              <input {...register('authMethod')} type="radio" value="https-token" />
-              HTTPS Token
-            </label>
-          </div>
+          <Controller
+            control={control}
+            name="authMethod"
+            render={({ field }) => (
+              <RadioGroup value={field.value} onValueChange={field.onChange} className="flex gap-4">
+                <div className="flex items-center gap-2">
+                  <RadioGroupItem value="ssh" id="auth-ssh" />
+                  <Label htmlFor="auth-ssh" className="cursor-pointer text-sm font-normal">
+                    SSH Key (recommended)
+                  </Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <RadioGroupItem value="https-token" id="auth-https-token" />
+                  <Label htmlFor="auth-https-token" className="cursor-pointer text-sm font-normal">
+                    HTTPS Token
+                  </Label>
+                </div>
+              </RadioGroup>
+            )}
+          />
         </div>
 
         {authMethod === 'https-token' && (
@@ -281,22 +294,28 @@ const GeneralSection = () => {
   return (
     <Section
       title="General"
-      description="Interface language and other general preferences."
+      description="Interface language, theme, and other general preferences."
       icon={Globe}
     >
-      <div>
-        <Label htmlFor="language-select" className="block mb-1">
-          Interface language
-        </Label>
-        <Select value={language} onValueChange={(v) => void saveLanguage(v)}>
-          <SelectTrigger id="language-select" className="w-40" data-testid="select-language">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="en">English</SelectItem>
-            <SelectItem value="de">Deutsch</SelectItem>
-          </SelectContent>
-        </Select>
+      <div className="space-y-4">
+        <div>
+          <Label className="block mb-1">Theme</Label>
+          <ThemeToggle data-testid="settings-theme-toggle" />
+        </div>
+        <div>
+          <Label htmlFor="language-select" className="block mb-1">
+            Interface language
+          </Label>
+          <Select value={language} onValueChange={(v) => void saveLanguage(v)}>
+            <SelectTrigger id="language-select" className="w-40" data-testid="select-language">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="en">English</SelectItem>
+              <SelectItem value="de">Deutsch</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
     </Section>
   )
