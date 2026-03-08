@@ -21,6 +21,7 @@ import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import type { ClientStatus } from '@shared/types'
 import { BackupTimeline } from '@/components/history/BackupTimeline'
+import { clientsService } from '@/services/clients.service'
 
 // ─── Client Section ───────────────────────────────────────────────────────────
 
@@ -72,7 +73,7 @@ const HistoryPage = () => {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    void window.api.clientsDetectAll().then((all) => {
+    void clientsService.detectAll().then((all) => {
       setClients(all.filter((c) => c.installed))
       setLoading(false)
     })

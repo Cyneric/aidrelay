@@ -72,7 +72,7 @@ export const useTheme = () => {
   }, [theme])
 
   useEffect(() => {
-    void window.api.settingsGet(STORAGE_KEY).then((stored) => {
+    void window.api.settingsGet(STORAGE_KEY).then((stored: unknown) => {
       if (stored === 'light' || stored === 'dark' || stored === 'system') {
         setThemeState(stored)
         localStorage.setItem(STORAGE_KEY, stored)

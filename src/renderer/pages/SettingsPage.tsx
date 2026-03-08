@@ -43,6 +43,9 @@ import {
 } from '@/components/ui/dialog'
 import { useLicense } from '@/lib/useLicense'
 import { useTheme, type Theme } from '@/lib/useTheme'
+import { useSettingsSections } from '@/hooks/useSettingsSections'
+import { appService } from '@/services/app.service'
+import { settingsService } from '@/services/settings.service'
 
 // ─── Validation Schemas ───────────────────────────────────────────────────────
 
@@ -198,7 +201,7 @@ const GitRemoteSection = () => {
   const authMethod = watch('authMethod')
 
   useEffect(() => {
-    void window.api.settingsGet('git-remote').then((stored) => {
+    void settingsService.get('git-remote').then((stored) => {
       if (stored && typeof stored === 'object') {
         reset(stored as GitRemoteForm)
       }
@@ -206,7 +209,7 @@ const GitRemoteSection = () => {
   }, [reset])
 
   const onSave = handleSubmit(async (data) => {
-    await window.api.settingsSet('git-remote', data)
+    await settingsService.set('git-remote', data)
     reset(data)
     toast.success(t('settings.gitRemoteSaved'))
   })
@@ -297,7 +300,7 @@ const GeneralSection = () => {
   const { theme, setTheme } = useTheme()
 
   useEffect(() => {
-    void window.api.settingsGet('language').then((lang) => {
+    void settingsService.get('language').then((lang) => {
       if (typeof lang === 'string') setLanguage(lang)
     })
   }, [])
@@ -305,7 +308,7 @@ const GeneralSection = () => {
   const saveLanguage = useCallback(
     async (lang: string) => {
       setLanguage(lang)
-      await window.api.settingsSet('language', lang)
+      await settingsService.set('language', lang)
       toast.success(t('settings.languageSaved'))
     },
     [t],
@@ -363,15 +366,15 @@ const AboutSection = () => {
   const [downloaded, setDownloaded] = useState(false)
 
   useEffect(() => {
-    void window.api.appVersion().then(setVersion)
+    void appService.version().then(setVersion)
   }, [])
 
   useEffect(() => {
-    const unsubAvailable = window.api.onUpdateAvailable(({ version }) => {
+    const unsubAvailable = appService.onUpdateAvailable(({ version }) => {
       setUpdateAvailable(true)
       setUpdateVersion(version)
     })
-    const unsubDownloaded = window.api.onUpdateDownloaded(({ version }) => {
+    const unsubDownloaded = appService.onUpdateDownloaded(({ version }) => {
       setDownloaded(true)
       setUpdateVersion(version)
     })
@@ -383,13 +386,13 @@ const AboutSection = () => {
 
   const handleCheckUpdates = async () => {
     setChecking(true)
-    await window.api.updaterCheck()
+    await appService.checkForUpdates()
     setTimeout(() => setChecking(false), 3000)
     toast.info(t('settings.checkingForUpdates'))
   }
 
   const handleInstall = async () => {
-    await window.api.updaterInstall()
+    await appService.installUpdate()
   }
 
   return (
@@ -490,7 +493,7 @@ const DangerZoneSection = () => {
     if (selectedCount === 0) return
     setResetting(true)
     try {
-      await window.api.settingsReset({
+      await appService.resetSettings({
         scope: 'partial',
         ...selection,
       })
@@ -509,7 +512,7 @@ const DangerZoneSection = () => {
   const handleFactoryConfirm = async () => {
     setFactoryResetting(true)
     try {
-      await window.api.settingsReset({
+      await appService.resetSettings({
         scope: 'factory',
         uiPreferences: false,
         gitRemoteForm: false,
@@ -686,6 +689,14 @@ const DangerZoneSection = () => {
  */
 const SettingsPage = () => {
   const { t } = useTranslation()
+  const sections = useSettingsSections([
+    GeneralSection,
+    LicensingSection,
+    GitRemoteSection,
+    AboutSection,
+    DangerZoneSection,
+  ])
+
   return (
     <main className="flex flex-col gap-6 max-w-2xl" data-testid="settings-page">
       <div>
@@ -693,11 +704,9 @@ const SettingsPage = () => {
         <p className="text-sm text-muted-foreground mt-1">{t('settings.subtitle')}</p>
       </div>
 
-      <GeneralSection />
-      <LicensingSection />
-      <GitRemoteSection />
-      <AboutSection />
-      <DangerZoneSection />
+      {sections.map((SectionComponent, index) => (
+        <SectionComponent key={index} />
+      ))}
     </main>
   )
 }

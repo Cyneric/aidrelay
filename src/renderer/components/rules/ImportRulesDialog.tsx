@@ -16,14 +16,18 @@
 import { useState, useEffect, useCallback } from 'react'
 import { FolderOpen, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
+import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import { useRulesStore } from '@/stores/rules.store'
+import { rulesService } from '@/services/rules.service'
+import { dialogService } from '@/services/dialog.service'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -51,6 +55,7 @@ interface ImportRulesDialogProps {
  * Detects recent workspaces from VS Code / Cursor automatically.
  */
 const ImportRulesDialog = ({ onClose }: ImportRulesDialogProps) => {
+  const { t } = useTranslation()
   const { load } = useRulesStore()
 
   const [workspaces, setWorkspaces] = useState<string[]>([])
@@ -70,7 +75,7 @@ const ImportRulesDialog = ({ onClose }: ImportRulesDialogProps) => {
     const detect = async () => {
       setDetecting(true)
       try {
-        const paths = await window.api.rulesDetectWorkspaces()
+        const paths = await rulesService.detectWorkspaces()
         setWorkspaces(paths)
         if (paths.length > 0) setSelectedPath(paths[0]!)
       } catch {
@@ -86,37 +91,34 @@ const ImportRulesDialog = ({ onClose }: ImportRulesDialogProps) => {
 
   const handleScan = useCallback(async () => {
     if (!activePath) {
-      toast.error('Enter or select a project path first')
+      toast.error(t('rulesImport.enterPathFirst'))
       return
     }
     setScanning(true)
     setPreview(null)
     try {
-      const result = await window.api.rulesImportFromProject(activePath)
+      const result = await rulesService.importFromProject(activePath)
       setPreview(result)
     } catch {
-      toast.error('Failed to scan directory')
+      toast.error(t('rulesImport.scanFailed'))
     } finally {
       setScanning(false)
     }
-  }, [activePath])
+  }, [activePath, t])
 
   const handleImport = useCallback(async () => {
     if (!preview) return
     setImporting(true)
     try {
       toast.success(
-        `Imported ${preview.imported} rule${preview.imported !== 1 ? 's' : ''}` +
-          (preview.skipped > 0
-            ? `, skipped ${preview.skipped} duplicate${preview.skipped !== 1 ? 's' : ''}`
-            : ''),
+        t('rulesImport.importToast', { imported: preview.imported, skipped: preview.skipped }),
       )
       await load()
       onClose()
     } finally {
       setImporting(false)
     }
-  }, [preview, load, onClose])
+  }, [preview, load, onClose, t])
 
   return (
     <Dialog
@@ -127,17 +129,18 @@ const ImportRulesDialog = ({ onClose }: ImportRulesDialogProps) => {
     >
       <DialogContent className="max-w-lg" data-testid="import-rules-dialog">
         <DialogHeader>
-          <DialogTitle>Import rules from project</DialogTitle>
+          <DialogTitle>{t('rulesImport.title')}</DialogTitle>
+          <DialogDescription>{t('rulesImport.description')}</DialogDescription>
         </DialogHeader>
 
         {/* Body */}
         <div className="flex flex-col gap-4 py-2">
           {/* Workspace dropdown */}
           {detecting ? (
-            <p className="text-sm text-muted-foreground">Detecting recent workspaces…</p>
+            <p className="text-sm text-muted-foreground">{t('rulesImport.detecting')}</p>
           ) : workspaces.length > 0 ? (
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="workspace-select">Recent workspace</Label>
+              <Label htmlFor="workspace-select">{t('rulesImport.recentWorkspace')}</Label>
               <Select
                 value={selectedPath}
                 onValueChange={(v) => {
@@ -163,7 +166,9 @@ const ImportRulesDialog = ({ onClose }: ImportRulesDialogProps) => {
           {/* Custom path */}
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="custom-path">
-              {workspaces.length > 0 ? 'Or enter a custom path' : 'Project directory path'}
+              {workspaces.length > 0
+                ? t('rulesImport.customPathAlt')
+                : t('rulesImport.projectPath')}
             </Label>
             <div className="flex gap-2">
               <Input
@@ -174,7 +179,7 @@ const ImportRulesDialog = ({ onClose }: ImportRulesDialogProps) => {
                   setCustomPath(e.target.value)
                   setPreview(null)
                 }}
-                placeholder="C:\Users\me\my-project"
+                placeholder={t('rulesImport.pathPlaceholder')}
                 className="flex-1 font-mono"
                 data-testid="custom-path-input"
               />
@@ -186,9 +191,9 @@ const ImportRulesDialog = ({ onClose }: ImportRulesDialogProps) => {
                     size="icon"
                     onClick={() => {
                       void (async () => {
-                        const result = await window.api.showOpenDialog({
+                        const result = await dialogService.showOpen({
                           properties: ['openDirectory'],
-                          title: 'Select project directory',
+                          title: t('rulesImport.selectDirectoryTitle'),
                         })
                         if (!result.canceled && result.filePaths[0]) {
                           setCustomPath(result.filePaths[0])
@@ -197,13 +202,13 @@ const ImportRulesDialog = ({ onClose }: ImportRulesDialogProps) => {
                         }
                       })()
                     }}
-                    aria-label="Browse for directory"
+                    aria-label={t('rulesImport.browse')}
                     data-testid="browse-button"
                   >
                     <FolderOpen size={14} aria-hidden="true" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Browse for directory</TooltipContent>
+                <TooltipContent>{t('rulesImport.browse')}</TooltipContent>
               </Tooltip>
             </div>
           </div>
@@ -218,7 +223,7 @@ const ImportRulesDialog = ({ onClose }: ImportRulesDialogProps) => {
             data-testid="scan-button"
           >
             <RefreshCw size={14} className={scanning ? 'animate-spin' : ''} aria-hidden="true" />
-            {scanning ? 'Scanning…' : 'Scan for rules'}
+            {scanning ? t('rulesImport.scanning') : t('rulesImport.scan')}
           </Button>
 
           {/* Preview result */}
@@ -233,10 +238,11 @@ const ImportRulesDialog = ({ onClose }: ImportRulesDialogProps) => {
               data-testid="import-preview"
             >
               {preview.imported === 0 && preview.skipped === 0
-                ? 'No rule files found in this directory.'
-                : `Found ${preview.imported} new rule${preview.imported !== 1 ? 's' : ''}` +
-                  (preview.skipped > 0 ? `, ${preview.skipped} already exist` : '') +
-                  '.'}
+                ? t('rulesImport.noRulesFound')
+                : t('rulesImport.previewSummary', {
+                    imported: preview.imported,
+                    skipped: preview.skipped,
+                  })}
               {preview.errors.length > 0 && (
                 <ul className="mt-1 list-disc list-inside text-destructive">
                   {preview.errors.map((e, i) => (
@@ -255,7 +261,7 @@ const ImportRulesDialog = ({ onClose }: ImportRulesDialogProps) => {
             onClick={onClose}
             data-testid="import-dialog-cancel"
           >
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button
             type="button"
@@ -264,8 +270,8 @@ const ImportRulesDialog = ({ onClose }: ImportRulesDialogProps) => {
             data-testid="import-confirm-button"
           >
             {importing
-              ? 'Importing…'
-              : `Import${preview ? ` ${preview.imported} rule${preview.imported !== 1 ? 's' : ''}` : ''}`}
+              ? t('rulesImport.importing')
+              : t('rulesImport.import', { imported: preview?.imported ?? 0 })}
           </Button>
         </DialogFooter>
       </DialogContent>

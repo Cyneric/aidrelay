@@ -9,11 +9,12 @@
  *
  * @description Confirmation modal shown before activating a profile. Compares
  * the profile's server and rule overrides against the current store state and
- * renders a diff: items that will change highlight with before → after badges.
+ * renders a diff: items that will change highlight with before -> after badges.
  * Items with no change are shown in muted text for reference.
  */
 
 import { ArrowRight } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import { useServersStore } from '@/stores/servers.store'
 import { useRulesStore } from '@/stores/rules.store'
@@ -21,6 +22,7 @@ import { Button } from '@/components/ui/button'
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -28,15 +30,17 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area'
 import type { Profile } from '@shared/types'
 
-// ─── DiffRow ──────────────────────────────────────────────────────────────────
-
 interface DiffRowProps {
   readonly name: string
   readonly currentEnabled: boolean
   readonly nextEnabled: boolean
 }
 
-const EnabledBadge = ({ enabled }: { enabled: boolean }) => (
+const EnabledBadge = ({
+  enabled,
+  enabledLabel,
+  disabledLabel,
+}: Readonly<{ enabled: boolean; enabledLabel: string; disabledLabel: string }>) => (
   <span
     className={cn(
       'text-xs px-1.5 py-0.5 rounded shrink-0',
@@ -45,12 +49,14 @@ const EnabledBadge = ({ enabled }: { enabled: boolean }) => (
         : 'bg-muted text-muted-foreground',
     )}
   >
-    {enabled ? 'enabled' : 'disabled'}
+    {enabled ? enabledLabel : disabledLabel}
   </span>
 )
 
 const DiffRow = ({ name, currentEnabled, nextEnabled }: DiffRowProps) => {
+  const { t } = useTranslation()
   const changed = currentEnabled !== nextEnabled
+
   return (
     <li
       className={cn(
@@ -59,43 +65,39 @@ const DiffRow = ({ name, currentEnabled, nextEnabled }: DiffRowProps) => {
       )}
     >
       <span className="flex-1 truncate font-medium">{name}</span>
-      <EnabledBadge enabled={currentEnabled} />
+      <EnabledBadge
+        enabled={currentEnabled}
+        enabledLabel={t('common.enabled')}
+        disabledLabel={t('common.disabled')}
+      />
       {changed && (
         <>
           <ArrowRight size={12} className="text-muted-foreground shrink-0" aria-hidden="true" />
-          <EnabledBadge enabled={nextEnabled} />
+          <EnabledBadge
+            enabled={nextEnabled}
+            enabledLabel={t('common.enabled')}
+            disabledLabel={t('common.disabled')}
+          />
         </>
       )}
     </li>
   )
 }
 
-// ─── Props ────────────────────────────────────────────────────────────────────
-
 interface ProfileDiffViewProps {
-  /** The profile about to be activated. */
   readonly profile: Profile
-  /** True while the activation IPC call is in flight. */
   readonly activating?: boolean
-  /** Called when the user confirms activation. */
   readonly onConfirm: () => void
-  /** Called when the user cancels. */
   readonly onCancel: () => void
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
-
-/**
- * Modal dialog showing a before/after diff of all overrides that will be
- * applied when the given profile is activated. The user must explicitly
- * confirm before any changes are committed.
- */
 const ProfileDiffView = ({
   profile,
   activating = false,
   onConfirm,
   onCancel,
 }: ProfileDiffViewProps) => {
+  const { t } = useTranslation()
   const { servers } = useServersStore()
   const { rules } = useRulesStore()
 
@@ -133,17 +135,14 @@ const ProfileDiffView = ({
         data-testid="profile-diff-view"
       >
         <DialogHeader>
-          <DialogTitle>Activate &ldquo;{profile.name}&rdquo;</DialogTitle>
+          <DialogTitle>{t('profiles.diffTitle', { name: profile.name })}</DialogTitle>
+          <DialogDescription>{t('profiles.diffDescription')}</DialogDescription>
         </DialogHeader>
 
-        {/* Body */}
         <ScrollArea className="flex-1 -mx-6 px-6">
           <div className="flex flex-col gap-5 py-2">
             {noChanges ? (
-              <p className="text-sm text-muted-foreground">
-                This profile has no MCP server or rule overrides. Activating it will trigger a full
-                sync with your current settings.
-              </p>
+              <p className="text-sm text-muted-foreground">{t('profiles.diffNoChanges')}</p>
             ) : (
               <>
                 {serverEntries.length > 0 && (
@@ -152,7 +151,7 @@ const ProfileDiffView = ({
                       id="server-changes-heading"
                       className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2"
                     >
-                      MCP Server changes
+                      {t('profiles.diffServerChanges')}
                     </h3>
                     <ul className="flex flex-col gap-0.5">
                       {serverEntries.map((entry) => (
@@ -173,7 +172,7 @@ const ProfileDiffView = ({
                       id="rule-changes-heading"
                       className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2"
                     >
-                      Rule changes
+                      {t('profiles.diffRuleChanges')}
                     </h3>
                     <ul className="flex flex-col gap-0.5">
                       {ruleEntries.map((entry) => (
@@ -199,7 +198,7 @@ const ProfileDiffView = ({
             onClick={onCancel}
             data-testid="profile-diff-cancel"
           >
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button
             type="button"
@@ -207,7 +206,7 @@ const ProfileDiffView = ({
             disabled={activating}
             data-testid="profile-diff-confirm"
           >
-            {activating ? 'Activating…' : 'Activate profile'}
+            {activating ? t('profiles.activating') : t('profiles.activateProfile')}
           </Button>
         </DialogFooter>
       </DialogContent>

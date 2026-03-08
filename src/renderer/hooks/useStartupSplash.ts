@@ -7,7 +7,11 @@
  */
 
 import { useEffect, useRef, useState } from 'react'
-import type { AppStartupCompletePayload, AppStartupProgressPayload } from '@shared/channels'
+import type {
+  AppStartupCompletePayload,
+  AppStartupProgressPayload,
+  AppStartupStatus,
+} from '@shared/channels'
 
 const MIN_SPLASH_VISIBLE_MS = 3000
 
@@ -56,7 +60,7 @@ export const useStartupSplash = (): StartupSplashState => {
 
     void window.api
       .appStartupStatus()
-      .then((status) => {
+      .then((status: AppStartupStatus) => {
         setProgress(clampProgress(status.progress))
         setMessage(status.message)
         if (status.ready || status.progress >= 100) {

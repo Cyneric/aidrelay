@@ -16,6 +16,7 @@ import { create } from 'zustand'
 import { toast } from 'sonner'
 import type { McpServer, ClientId } from '@shared/types'
 import type { CreateServerInput, UpdateServerInput } from '@shared/channels'
+import { serversService } from '@/services/servers.service'
 import '../lib/ipc'
 
 // ─── State Shape ──────────────────────────────────────────────────────────────
@@ -94,7 +95,7 @@ export const useServersStore = create<ServersState>((set, get) => ({
   load: async () => {
     set({ loading: true, error: null })
     try {
-      const servers = await window.api.serversList()
+      const servers = await serversService.list()
       set({ servers, loading: false })
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to load servers'
@@ -104,7 +105,7 @@ export const useServersStore = create<ServersState>((set, get) => ({
 
   create: async (input) => {
     try {
-      const server = await window.api.serversCreate(input)
+      const server = await serversService.create(input)
       set((state) => ({
         servers: [...state.servers, server].sort((a, b) => a.name.localeCompare(b.name)),
       }))
@@ -123,7 +124,7 @@ export const useServersStore = create<ServersState>((set, get) => ({
       servers: state.servers.map((s) => (s.id === id ? { ...s, ...updates } : s)),
     }))
     try {
-      const server = await window.api.serversUpdate(id, updates)
+      const server = await serversService.update(id, updates)
       set((state) => ({
         servers: state.servers.map((s) => (s.id === id ? server : s)),
       }))
@@ -142,7 +143,7 @@ export const useServersStore = create<ServersState>((set, get) => ({
     // Optimistic remove
     set((state) => ({ servers: state.servers.filter((s) => s.id !== id) }))
     try {
-      await window.api.serversDelete(id)
+      await serversService.remove(id)
     } catch (err) {
       set({ servers: previous })
       const message = err instanceof Error ? err.message : 'Failed to delete server'

@@ -16,6 +16,7 @@ import { create } from 'zustand'
 import { toast } from 'sonner'
 import type { AiRule, ClientId } from '@shared/types'
 import type { CreateRuleInput, UpdateRuleInput } from '@shared/channels'
+import { rulesService } from '@/services/rules.service'
 import '../lib/ipc'
 
 // ─── State Shape ──────────────────────────────────────────────────────────────
@@ -94,7 +95,7 @@ export const useRulesStore = create<RulesState>((set, get) => ({
   load: async () => {
     set({ loading: true, error: null })
     try {
-      const rules = await window.api.rulesList()
+      const rules = await rulesService.list()
       set({ rules, loading: false })
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to load rules'
@@ -104,7 +105,7 @@ export const useRulesStore = create<RulesState>((set, get) => ({
 
   create: async (input) => {
     try {
-      const rule = await window.api.rulesCreate(input)
+      const rule = await rulesService.create(input)
       set((state) => ({
         rules: [...state.rules, rule].sort((a, b) =>
           a.category !== b.category
@@ -127,7 +128,7 @@ export const useRulesStore = create<RulesState>((set, get) => ({
       rules: state.rules.map((r) => (r.id === id ? { ...r, ...updates } : r)),
     }))
     try {
-      const rule = await window.api.rulesUpdate(id, updates)
+      const rule = await rulesService.update(id, updates)
       set((state) => ({
         rules: state.rules.map((r) => (r.id === id ? rule : r)),
       }))
@@ -146,7 +147,7 @@ export const useRulesStore = create<RulesState>((set, get) => ({
     // Optimistic remove
     set((state) => ({ rules: state.rules.filter((r) => r.id !== id) }))
     try {
-      await window.api.rulesDelete(id)
+      await rulesService.remove(id)
     } catch (err) {
       set({ rules: previous })
       const message = err instanceof Error ? err.message : 'Failed to delete rule'

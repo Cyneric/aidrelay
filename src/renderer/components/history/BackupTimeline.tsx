@@ -19,6 +19,8 @@ import { toast } from 'sonner'
 import { RotateCcw, Shield, RefreshCw, Clock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { ConfirmActionDialog } from '@/components/common/ConfirmActionDialog'
+import { backupsService } from '@/services/backups.service'
 import type { BackupEntry } from '@shared/channels'
 import type { ClientId } from '@shared/types'
 
@@ -101,11 +103,12 @@ const BackupTimeline = ({ clientId }: Readonly<Props>) => {
   const [backups, setBackups] = useState<BackupEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [restoringId, setRestoringId] = useState<number | null>(null)
+  const [pendingRestore, setPendingRestore] = useState<BackupEntry | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const entries = await window.api.backupsList(clientId)
+      const entries = await backupsService.list(clientId)
       setBackups(entries)
     } catch {
       toast.error(t('history.loadFailed', { clientId }))
@@ -118,22 +121,19 @@ const BackupTimeline = ({ clientId }: Readonly<Props>) => {
     void load()
   }, [load])
 
-  const handleRestore = async (backup: BackupEntry) => {
-    const confirmed = window.confirm(
-      `Restore "${clientId}" config from ${new Date(backup.createdAt).toLocaleString()}?\n\n` +
-        `A safety backup of the current config will be created first.`,
-    )
-    if (!confirmed) return
-
+  const handleRestoreConfirm = async () => {
+    if (!pendingRestore) return
+    const backup = pendingRestore
     setRestoringId(backup.id)
     try {
-      await window.api.backupsRestore(backup.backupPath, clientId)
+      await backupsService.restore(backup.backupPath, clientId)
       toast.success(t('history.restoreSuccess', { clientId, time: relativeTime(backup.createdAt) }))
       await load()
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Restore failed.'
+      const message = err instanceof Error ? err.message : t('history.restoreFailed')
       toast.error(message)
     } finally {
+      setPendingRestore(null)
       setRestoringId(null)
     }
   }
@@ -155,66 +155,89 @@ const BackupTimeline = ({ clientId }: Readonly<Props>) => {
   }
 
   return (
-    <ol className="space-y-2" data-testid={`backup-timeline-${clientId}`}>
-      {backups.map((backup) => {
-        const meta = BACKUP_TYPE_META[backup.backupType]
-        const TypeIcon = meta.icon
-        const label = t(meta.labelKey as Parameters<typeof t>[0])
-        const description = t(meta.descriptionKey as Parameters<typeof t>[0])
-        const isRestoring = restoringId === backup.id
+    <>
+      <ol className="space-y-2" data-testid={`backup-timeline-${clientId}`}>
+        {backups.map((backup) => {
+          const meta = BACKUP_TYPE_META[backup.backupType]
+          const TypeIcon = meta.icon
+          const label = t(meta.labelKey as Parameters<typeof t>[0])
+          const description = t(meta.descriptionKey as Parameters<typeof t>[0])
+          const isRestoring = restoringId === backup.id
 
-        return (
-          <li
-            key={backup.id}
-            className="flex items-center justify-between gap-3 rounded-md border bg-card px-4 py-3 text-sm"
-            data-testid={`backup-entry-${backup.id}`}
-          >
-            <div className="flex items-center gap-3 min-w-0">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <TypeIcon size={15} className={meta.className} aria-label={label} />
-                </TooltipTrigger>
-                <TooltipContent>{description}</TooltipContent>
-              </Tooltip>
-              <div className="min-w-0">
-                <span className="font-medium">{label}</span>
-                <span className="mx-2 text-muted-foreground">·</span>
-                <time
-                  dateTime={backup.createdAt}
-                  title={new Date(backup.createdAt).toLocaleString()}
-                  className="text-muted-foreground"
-                >
-                  {relativeTime(backup.createdAt)}
-                </time>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3 shrink-0">
-              <span className="text-xs text-muted-foreground font-mono">
-                {formatFileSize(backup.fileSize)}
-              </span>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="xs"
-                    onClick={() => void handleRestore(backup)}
-                    disabled={isRestoring}
-                    aria-label={`Restore backup from ${new Date(backup.createdAt).toLocaleString()}`}
-                    data-testid={`btn-restore-${backup.id}`}
+          return (
+            <li
+              key={backup.id}
+              className="flex items-center justify-between gap-3 rounded-md border bg-card px-4 py-3 text-sm"
+              data-testid={`backup-entry-${backup.id}`}
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <TypeIcon size={15} className={meta.className} aria-label={label} />
+                  </TooltipTrigger>
+                  <TooltipContent>{description}</TooltipContent>
+                </Tooltip>
+                <div className="min-w-0">
+                  <span className="font-medium">{label}</span>
+                  <span className="mx-2 text-muted-foreground">·</span>
+                  <time
+                    dateTime={backup.createdAt}
+                    title={new Date(backup.createdAt).toLocaleString()}
+                    className="text-muted-foreground"
                   >
-                    <RotateCcw size={11} aria-hidden="true" />
-                    {isRestoring ? t('history.restoringButton') : t('history.restoreButton')}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>{t('history.restoreTooltip')}</TooltipContent>
-              </Tooltip>
-            </div>
-          </li>
-        )
-      })}
-    </ol>
+                    {relativeTime(backup.createdAt)}
+                  </time>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 shrink-0">
+                <span className="text-xs text-muted-foreground font-mono">
+                  {formatFileSize(backup.fileSize)}
+                </span>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="xs"
+                      onClick={() => setPendingRestore(backup)}
+                      disabled={isRestoring}
+                      aria-label={t('history.restoreAriaLabel', {
+                        time: new Date(backup.createdAt).toLocaleString(),
+                      })}
+                      data-testid={`btn-restore-${backup.id}`}
+                    >
+                      <RotateCcw size={11} aria-hidden="true" />
+                      {isRestoring ? t('history.restoringButton') : t('history.restoreButton')}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{t('history.restoreTooltip')}</TooltipContent>
+                </Tooltip>
+              </div>
+            </li>
+          )
+        })}
+      </ol>
+
+      <ConfirmActionDialog
+        open={pendingRestore !== null}
+        title={t('history.restoreDialogTitle')}
+        description={
+          pendingRestore
+            ? t('history.restoreDialogDescription', {
+                clientId,
+                time: new Date(pendingRestore.createdAt).toLocaleString(),
+              })
+            : ''
+        }
+        confirmLabel={t('history.restoreButton')}
+        pending={pendingRestore !== null && restoringId === pendingRestore.id}
+        onCancel={() => {
+          if (restoringId === null) setPendingRestore(null)
+        }}
+        onConfirm={() => void handleRestoreConfirm()}
+      />
+    </>
   )
 }
 
