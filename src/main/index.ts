@@ -2,7 +2,7 @@
  * @file src/main/index.ts
  *
  * @created 07.03.2026
- * @modified 07.03.2026
+ * @modified 08.03.2026
  *
  * @author Christian Blank <christianblank91@protonmail.com>
  * @copyright 2026
@@ -46,7 +46,7 @@ const createWindow = (): BrowserWindow => {
     minHeight: 600,
     show: false,
     autoHideMenuBar: true,
-    titleBarStyle: 'default',
+    titleBarStyle: 'hidden',
     webPreferences: {
       preload: join(import.meta.dirname, '../preload/index.mjs'),
       nodeIntegration: false,
@@ -60,6 +60,15 @@ const createWindow = (): BrowserWindow => {
   win.on('ready-to-show', () => {
     win.show()
     log.info('Main window displayed')
+  })
+
+  // Notify the renderer whenever the window is maximized or restored so the
+  // custom title bar can swap the maximize/restore button icon accordingly.
+  win.on('maximize', () => {
+    win.webContents.send('window:maximize-changed', { isMaximized: true })
+  })
+  win.on('unmaximize', () => {
+    win.webContents.send('window:maximize-changed', { isMaximized: false })
   })
 
   // Open external links in the system browser rather than a new Electron window

@@ -44,6 +44,7 @@ import type {
   RegistryServer,
   TestResult,
   BackupEntry,
+  WindowMaximizeChangedPayload,
 } from '../shared/channels'
 
 /**
@@ -562,6 +563,23 @@ const api = {
    */
   updaterInstall: (): Promise<void> => ipcRenderer.invoke('updater:install'),
 
+  // ── Window controls ───────────────────────────────────────────────────────
+
+  /**
+   * Minimizes the application window.
+   */
+  windowMinimize: (): Promise<void> => ipcRenderer.invoke('window:minimize'),
+
+  /**
+   * Toggles the window between maximized and restored states.
+   */
+  windowMaximize: (): Promise<void> => ipcRenderer.invoke('window:maximize'),
+
+  /**
+   * Closes the application window.
+   */
+  windowClose: (): Promise<void> => ipcRenderer.invoke('window:close'),
+
   // ── Push events (main → renderer) ─────────────────────────────────────────
 
   /**
@@ -625,6 +643,23 @@ const api = {
     ) => handler(info)
     ipcRenderer.on('updater:update-downloaded', wrapped)
     return () => ipcRenderer.removeListener('updater:update-downloaded', wrapped)
+  },
+
+  /**
+   * Registers a handler called whenever the window is maximized or restored.
+   * The title bar uses this to toggle the maximize/restore button icon.
+   * Returns a cleanup function that removes the listener.
+   *
+   * @param handler - Callback receiving the new maximize state.
+   * @returns A cleanup function that removes the listener.
+   */
+  onMaximizeChanged: (handler: (payload: WindowMaximizeChangedPayload) => void): (() => void) => {
+    const wrapped = (
+      _event: Parameters<Parameters<typeof ipcRenderer.on>[1]>[0],
+      payload: WindowMaximizeChangedPayload,
+    ) => handler(payload)
+    ipcRenderer.on('window:maximize-changed', wrapped)
+    return () => ipcRenderer.removeListener('window:maximize-changed', wrapped)
   },
 } as const
 
