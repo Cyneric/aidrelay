@@ -98,7 +98,7 @@ const ClientRow = ({ client, syncing, validating, onSync, onValidate }: Readonly
       data-testid={`client-row-${client.id}`}
     >
       {/* Name + install badge */}
-      <TableCell className="px-4 py-3">
+      <TableCell className="px-3 py-2.5">
         <div className="flex flex-col gap-0.5">
           <span className="text-sm font-medium">{client.displayName}</span>
           <div className="flex items-center gap-2">
@@ -133,7 +133,7 @@ const ClientRow = ({ client, syncing, validating, onSync, onValidate }: Readonly
       </TableCell>
 
       {/* Config paths */}
-      <TableCell className="px-4 py-3 max-w-xs">
+      <TableCell className="px-3 py-2.5 max-w-[18rem]">
         {client.configPaths.length === 0 ? (
           <span className="text-xs text-muted-foreground">
             {missingConfig ? t('clients.noConfigPath') : '—'}
@@ -155,14 +155,14 @@ const ClientRow = ({ client, syncing, validating, onSync, onValidate }: Readonly
       </TableCell>
 
       {/* Servers */}
-      <TableCell className="px-4 py-3 text-center">
+      <TableCell className="px-3 py-2.5 text-center">
         <span className="text-sm" data-testid={`client-server-count-${client.id}`}>
           {client.serverCount}
         </span>
       </TableCell>
 
       {/* Sync status */}
-      <TableCell className="px-4 py-3">
+      <TableCell className="px-3 py-2.5">
         <span
           className={cn('inline-flex items-center gap-1 text-xs font-medium', meta.className)}
           data-testid={`client-sync-status-${client.id}`}
@@ -173,14 +173,14 @@ const ClientRow = ({ client, syncing, validating, onSync, onValidate }: Readonly
       </TableCell>
 
       {/* Last synced */}
-      <TableCell className="px-4 py-3">
+      <TableCell className="px-3 py-2.5">
         <span className="text-xs text-muted-foreground">
           {client.lastSyncedAt ? new Date(client.lastSyncedAt).toLocaleString() : '—'}
         </span>
       </TableCell>
 
       {/* Actions */}
-      <TableCell className="px-4 py-3">
+      <TableCell className="px-3 py-2.5">
         <div className="flex items-center gap-2">
           <Tooltip>
             <TooltipTrigger asChild>
@@ -399,22 +399,22 @@ const ClientsPage = () => {
         <Table className="w-full text-sm" data-testid="clients-table">
           <TableHeader className="border-b bg-muted/50">
             <TableRow>
-              <TableHead className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">
+              <TableHead className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">
                 {t('clients.colClient')}
               </TableHead>
-              <TableHead className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">
+              <TableHead className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">
                 {t('clients.colConfigPath')}
               </TableHead>
-              <TableHead className="px-4 py-2.5 text-center text-xs font-medium text-muted-foreground">
+              <TableHead className="px-3 py-2 text-center text-xs font-medium text-muted-foreground">
                 {t('clients.colServers')}
               </TableHead>
-              <TableHead className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">
+              <TableHead className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">
                 {t('clients.colStatus')}
               </TableHead>
-              <TableHead className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">
+              <TableHead className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">
                 {t('clients.colLastSynced')}
               </TableHead>
-              <TableHead className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">
+              <TableHead className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">
                 {t('clients.colActions')}
               </TableHead>
             </TableRow>
@@ -423,7 +423,7 @@ const ClientsPage = () => {
             {loading && clients.length === 0
               ? Array.from({ length: 4 }).map((_, i) => (
                   <TableRow key={i} className="border-b last:border-b-0">
-                    <TableCell colSpan={6} className="px-4 py-3">
+                    <TableCell colSpan={6} className="px-3 py-2.5">
                       <div
                         className="h-4 w-full animate-pulse rounded bg-muted"
                         aria-hidden="true"
