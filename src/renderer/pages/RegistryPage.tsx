@@ -12,6 +12,7 @@
  * install is a Pro feature; browsing is available to all tiers.
  */
 
+import { useTranslation } from 'react-i18next'
 import { RegistryBrowser } from '@/components/registry/RegistryBrowser'
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -19,23 +20,24 @@ import { RegistryBrowser } from '@/components/registry/RegistryBrowser'
 /**
  * Top-level registry page that wraps the RegistryBrowser component.
  */
-const RegistryPage = () => (
-  <section
-    aria-labelledby="registry-heading"
-    className="flex flex-col gap-6"
-    data-testid="registry-page"
-  >
-    <header>
-      <h1 id="registry-heading" className="text-2xl font-bold tracking-tight">
-        Registry
-      </h1>
-      <p className="text-sm text-muted-foreground mt-0.5">
-        Browse and install MCP servers from the Smithery registry.
-      </p>
-    </header>
+const RegistryPage = () => {
+  const { t } = useTranslation()
+  return (
+    <section
+      aria-labelledby="registry-heading"
+      className="flex flex-col gap-6"
+      data-testid="registry-page"
+    >
+      <header>
+        <h1 id="registry-heading" className="text-2xl font-bold tracking-tight">
+          {t('registry.title')}
+        </h1>
+        <p className="text-sm text-muted-foreground mt-0.5">{t('registry.subtitle')}</p>
+      </header>
 
-    <RegistryBrowser />
-  </section>
-)
+      <RegistryBrowser />
+    </section>
+  )
+}
 
 export { RegistryPage }

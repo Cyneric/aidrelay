@@ -14,6 +14,7 @@
  */
 
 import { useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
@@ -37,6 +38,7 @@ import type { ClientId } from '@shared/types'
  * state determines the effective value.
  */
 const ToggleMatrix = () => {
+  const { t } = useTranslation()
   const { servers, setClientOverride, load } = useServersStore()
   const { clients, detectAll } = useClientsStore()
 
@@ -50,7 +52,7 @@ const ToggleMatrix = () => {
   if (servers.length === 0) {
     return (
       <p className="text-sm text-muted-foreground py-4" data-testid="toggle-matrix-empty">
-        No servers in the registry yet. Add a server to see the toggle matrix.
+        {t('servers.noServersYet')}
       </p>
     )
   }
@@ -58,7 +60,7 @@ const ToggleMatrix = () => {
   if (installedClients.length === 0) {
     return (
       <p className="text-sm text-muted-foreground py-4" data-testid="toggle-matrix-no-clients">
-        No installed clients detected. Install a supported AI tool to manage per-client toggles.
+        {t('dashboard.noClients')}
       </p>
     )
   }
@@ -84,7 +86,7 @@ const ToggleMatrix = () => {
               scope="col"
               className="text-left font-medium text-muted-foreground py-2 pr-4 min-w-[160px]"
             >
-              Server
+              {t('servers.name')}
             </TableHead>
             {installedClients.map((client) => (
               <TableHead

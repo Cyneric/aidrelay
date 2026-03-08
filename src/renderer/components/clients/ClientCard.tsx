@@ -13,6 +13,7 @@
  */
 
 import { RefreshCw, CheckCircle2, AlertCircle, Clock, XCircle } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card'
@@ -26,28 +27,28 @@ import type { ClientStatus } from '@shared/types'
  */
 const SYNC_STATUS_MAP = {
   synced: {
-    label: 'Synced',
+    labelKey: 'dashboard.synced',
     icon: CheckCircle2,
     className: 'text-green-500',
   },
   'out-of-sync': {
-    label: 'Out of sync',
+    labelKey: 'dashboard.outOfSync',
     icon: AlertCircle,
     className: 'text-yellow-500',
   },
   'never-synced': {
-    label: 'Never synced',
+    labelKey: 'dashboard.neverSynced',
     icon: Clock,
     className: 'text-muted-foreground',
   },
   error: {
-    label: 'Error',
+    labelKey: 'dashboard.error',
     icon: XCircle,
     className: 'text-destructive',
   },
 } as const satisfies Record<
   ClientStatus['syncStatus'],
-  { label: string; icon: typeof CheckCircle2; className: string }
+  { labelKey: string; icon: typeof CheckCircle2; className: string }
 >
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -66,8 +67,13 @@ interface ClientCardProps {
  * full list of supported tools.
  */
 const ClientCard = ({ client, onSync, syncing = false }: ClientCardProps) => {
-  const statusMeta = SYNC_STATUS_MAP[client.syncStatus]
-  const StatusIcon = statusMeta.icon
+  const { t } = useTranslation()
+  const statusMetaBase = SYNC_STATUS_MAP[client.syncStatus]
+  const StatusIcon = statusMetaBase.icon
+  const statusMeta = {
+    ...statusMetaBase,
+    label: t(statusMetaBase.labelKey as Parameters<typeof t>[0]),
+  }
 
   return (
     <Card
@@ -84,7 +90,7 @@ const ClientCard = ({ client, onSync, syncing = false }: ClientCardProps) => {
             )}
             data-testid={`client-install-status-${client.id}`}
           >
-            {client.installed ? 'Installed' : 'Not installed'}
+            {client.installed ? t('clients.installed') : t('clients.notInstalled')}
           </span>
         </div>
 
@@ -98,7 +104,7 @@ const ClientCard = ({ client, onSync, syncing = false }: ClientCardProps) => {
               {statusMeta.label}
             </span>
           </TooltipTrigger>
-          <TooltipContent>{statusMeta.label} — last checked at app startup</TooltipContent>
+          <TooltipContent>{statusMeta.label}</TooltipContent>
         </Tooltip>
       </CardHeader>
 
@@ -107,7 +113,7 @@ const ClientCard = ({ client, onSync, syncing = false }: ClientCardProps) => {
           className="text-sm text-muted-foreground"
           data-testid={`client-server-count-${client.id}`}
         >
-          {client.serverCount === 1 ? '1 server' : `${client.serverCount} servers`}
+          {t('dashboard.servers', { count: client.serverCount })}
         </p>
       </CardContent>
 
@@ -124,13 +130,13 @@ const ClientCard = ({ client, onSync, syncing = false }: ClientCardProps) => {
               aria-label={`Sync ${client.displayName}`}
             >
               <RefreshCw size={12} className={syncing ? 'animate-spin' : ''} aria-hidden="true" />
-              {syncing ? 'Syncing…' : 'Sync'}
+              {syncing ? t('clients.syncingButton') : t('clients.syncButton')}
             </Button>
           </TooltipTrigger>
           <TooltipContent>
             {!client.installed
-              ? `${client.displayName} is not installed`
-              : `Write active profile servers and rules to ${client.displayName} config`}
+              ? t('clients.notInstalledTooltip', { name: client.displayName })
+              : t('clients.syncTooltip', { name: client.displayName })}
           </TooltipContent>
         </Tooltip>
       </CardFooter>

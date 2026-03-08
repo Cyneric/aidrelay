@@ -13,6 +13,7 @@
  */
 
 import { Pencil, Trash2, Zap } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -37,6 +38,7 @@ interface ProfileCardProps {
  * Displays a single profile as a card with action buttons.
  */
 const ProfileCard = ({ profile, onActivate, onEdit, onDelete }: ProfileCardProps) => {
+  const { t } = useTranslation()
   const isDefault = profile.name.toLowerCase() === 'default'
 
   return (
@@ -78,7 +80,7 @@ const ProfileCard = ({ profile, onActivate, onEdit, onDelete }: ProfileCardProps
               className="shrink-0 bg-primary/15 text-primary hover:bg-primary/15"
               data-testid={`profile-active-badge-${profile.id}`}
             >
-              Active
+              {t('profiles.active')}
             </Badge>
           )}
         </div>
@@ -99,7 +101,7 @@ const ProfileCard = ({ profile, onActivate, onEdit, onDelete }: ProfileCardProps
                   <Zap size={14} />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Activate profile</TooltipContent>
+              <TooltipContent>{t('profiles.activateTooltip')}</TooltipContent>
             </Tooltip>
           )}
 
@@ -116,7 +118,7 @@ const ProfileCard = ({ profile, onActivate, onEdit, onDelete }: ProfileCardProps
                 <Pencil size={14} />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Edit profile</TooltipContent>
+            <TooltipContent>{t('profiles.editTooltip')}</TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -135,10 +137,10 @@ const ProfileCard = ({ profile, onActivate, onEdit, onDelete }: ProfileCardProps
             </TooltipTrigger>
             <TooltipContent>
               {isDefault
-                ? 'The default profile cannot be deleted'
+                ? t('profiles.deleteDefaultTooltip')
                 : profile.isActive
-                  ? 'Deactivate profile before deleting'
-                  : 'Delete profile'}
+                  ? t('profiles.deleteActiveTooltip')
+                  : t('profiles.deleteTooltip')}
             </TooltipContent>
           </Tooltip>
         </div>
@@ -157,13 +159,11 @@ const ProfileCard = ({ profile, onActivate, onEdit, onDelete }: ProfileCardProps
       {/* Override counts */}
       <div className="flex items-center gap-3 text-xs text-muted-foreground">
         <span data-testid={`profile-server-overrides-${profile.id}`}>
-          {Object.keys(profile.serverOverrides).length} server override
-          {Object.keys(profile.serverOverrides).length !== 1 ? 's' : ''}
+          {t('profiles.serverOverrides', { count: Object.keys(profile.serverOverrides).length })}
         </span>
         <span aria-hidden="true">·</span>
         <span data-testid={`profile-rule-overrides-${profile.id}`}>
-          {Object.keys(profile.ruleOverrides).length} rule override
-          {Object.keys(profile.ruleOverrides).length !== 1 ? 's' : ''}
+          {t('profiles.ruleOverrides', { count: Object.keys(profile.ruleOverrides).length })}
         </span>
       </div>
     </article>

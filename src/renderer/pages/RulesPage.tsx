@@ -156,9 +156,9 @@ const RulesPage = () => {
     async (rule: AiRule) => {
       if (!window.confirm(`Delete "${rule.name}"? This cannot be undone.`)) return
       await deleteRule(rule.id)
-      toast.success(`"${rule.name}" deleted`)
+      toast.success(t('rules.deleted'))
     },
-    [deleteRule],
+    [deleteRule, t],
   )
 
   const handleSyncAll = useCallback(async () => {
@@ -167,12 +167,14 @@ const RulesPage = () => {
       const results = await window.api.rulesSyncAll()
       const succeeded = results.filter((r) => r.success).length
       if (results.length === 0) {
-        toast.info('No installed clients to sync rules to')
+        toast.info(t('rules.noClientsToSync'))
       } else {
-        toast.success(`Synced rules to ${succeeded} of ${results.length} client(s)`)
+        toast.success(
+          t('rules.syncSummary', { succeeded, total: results.length, count: results.length }),
+        )
       }
     } catch {
-      toast.error('Rules sync failed')
+      toast.error(t('rules.syncFailed'))
     } finally {
       setSyncingAll(false)
     }
@@ -189,7 +191,10 @@ const RulesPage = () => {
           <Checkbox
             checked={row.original.enabled}
             onCheckedChange={() => void toggleEnabled(row.original.id)}
-            aria-label={`${row.original.enabled ? 'Disable' : 'Enable'} ${row.original.name}`}
+            aria-label={t('rules.enableDisable', {
+              action: row.original.enabled ? t('rules.disable') : t('rules.enable'),
+              name: row.original.name,
+            })}
             data-testid={`rule-enabled-${row.original.id}`}
           />
         </div>
@@ -219,14 +224,14 @@ const RulesPage = () => {
       ),
     }),
     columnHelper.accessor('category', {
-      header: 'Category',
+      header: () => t('rules.category'),
       size: 120,
       cell: ({ getValue }) => (
         <span className="rounded bg-muted px-1.5 py-0.5 text-xs font-mono">{getValue()}</span>
       ),
     }),
     columnHelper.accessor('scope', {
-      header: 'Scope',
+      header: () => t('rules.scope'),
       size: 80,
       cell: ({ getValue }) => {
         const s = getValue()
@@ -245,7 +250,7 @@ const RulesPage = () => {
       },
     }),
     columnHelper.accessor('priority', {
-      header: 'Priority',
+      header: () => t('rules.priority'),
       size: 90,
       cell: ({ getValue }) => {
         const p = getValue()
@@ -265,7 +270,7 @@ const RulesPage = () => {
           onClick={() => column.toggleSorting()}
           className="gap-1 ml-auto -mr-1 text-muted-foreground hover:text-foreground"
         >
-          Tokens <ArrowUpDown size={12} />
+          {t('rules.tokens')} <ArrowUpDown size={12} />
         </Button>
       ),
       size: 90,
@@ -297,7 +302,7 @@ const RulesPage = () => {
                 <Pencil size={14} />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Edit rule</TooltipContent>
+            <TooltipContent>{t('rules.editTooltip')}</TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -312,7 +317,7 @@ const RulesPage = () => {
                 <Trash2 size={14} />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Delete rule</TooltipContent>
+            <TooltipContent>{t('rules.deleteTooltip')}</TooltipContent>
           </Tooltip>
         </div>
       ),
@@ -346,7 +351,7 @@ const RulesPage = () => {
               {t('rules.title')}
             </h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              {rules.length} rule{rules.length !== 1 ? 's' : ''} in the registry
+              {t('rules.countInRegistry', { count: rules.length })}
             </p>
           </div>
 
@@ -379,7 +384,7 @@ const RulesPage = () => {
                   {syncingAll ? t('common.loading') : t('rules.syncAll')}
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Write active rules to all installed clients</TooltipContent>
+              <TooltipContent>{t('rules.syncAllTooltip')}</TooltipContent>
             </Tooltip>
             <Button
               type="button"
@@ -436,7 +441,7 @@ const RulesPage = () => {
               className="flex items-center justify-center py-16 text-sm text-muted-foreground"
               data-testid="rules-loading"
             >
-              Loading rules…
+              {t('rules.loading')}
             </div>
           ) : displayedRules.length === 0 ? (
             <div
@@ -445,8 +450,10 @@ const RulesPage = () => {
             >
               <p className="text-sm text-muted-foreground">
                 {rules.length === 0
-                  ? 'No rules yet.'
-                  : `No ${scope} rules${selectedCategory ? ` in "${selectedCategory}"` : ''}.`}
+                  ? t('rules.noRulesYet')
+                  : selectedCategory
+                    ? t('rules.noScopeRulesInCategory', { scope, category: selectedCategory })
+                    : t('rules.noScopeRules', { scope })}
               </p>
             </div>
           ) : (
@@ -491,15 +498,12 @@ const RulesPage = () => {
 
               {/* Token summary footer */}
               <div className="border-t border-border px-4 py-2 flex items-center justify-end gap-2 text-xs text-muted-foreground bg-muted/20">
-                <span>
-                  {table.getRowModel().rows.length} rule
-                  {table.getRowModel().rows.length !== 1 ? 's' : ''} shown
-                </span>
+                <span>{t('rules.shownCount', { count: table.getRowModel().rows.length })}</span>
                 {totalVisibleTokens > 0 && (
                   <>
                     <span aria-hidden="true">·</span>
                     <span className={tokenColor(totalVisibleTokens)}>
-                      ~{totalVisibleTokens.toLocaleString()} tokens (enabled)
+                      {t('rules.tokensEnabled', { count: totalVisibleTokens.toLocaleString() })}
                     </span>
                   </>
                 )}
@@ -518,7 +522,7 @@ const RulesPage = () => {
             aria-expanded={budgetExpanded}
             data-testid="budget-panel-expand"
           >
-            <span>Token budget per client</span>
+            <span>{t('rules.tokenBudgetPerClient')}</span>
             {budgetExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
           </Button>
           {budgetExpanded && (

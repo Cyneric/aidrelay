@@ -13,6 +13,8 @@
  */
 
 import '@testing-library/jest-dom'
+// Initialize i18n so that useTranslation() resolves keys to actual strings in tests.
+import '@/i18n'
 
 // Stub the window.api bridge that the preload script normally exposes.
 // Individual tests can override specific methods as needed.

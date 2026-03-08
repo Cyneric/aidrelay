@@ -16,6 +16,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { Plus } from 'lucide-react'
 import { toast } from 'sonner'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { CardGrid } from '@/components/ui/card-grid'
 import { ProfileCard } from '@/components/profiles/ProfileCard'
@@ -33,6 +34,7 @@ import type { Profile } from '@shared/types'
  * so the ProfileDiffView can resolve names and current enabled states.
  */
 const ProfilesPage = () => {
+  const { t } = useTranslation()
   const { profiles, loading, error, load, delete: deleteProfile, activate } = useProfilesStore()
   const { load: loadServers } = useServersStore()
   const { load: loadRules } = useRulesStore()
@@ -67,9 +69,9 @@ const ProfilesPage = () => {
   const handleDelete = useCallback(
     async (profile: Profile) => {
       await deleteProfile(profile.id)
-      toast.success(`"${profile.name}" deleted`)
+      toast.success(t('profiles.deleted'))
     },
-    [deleteProfile],
+    [deleteProfile, t],
   )
 
   const handleActivateRequest = useCallback((profile: Profile) => {
@@ -83,10 +85,10 @@ const ProfilesPage = () => {
       const results = await activate(activatingProfile.id)
       const failed = results.filter((r) => !r.success)
       if (failed.length === 0) {
-        toast.success(`"${activatingProfile.name}" is now active`)
+        toast.success(t('profiles.activated', { name: activatingProfile.name }))
       } else {
         toast.warning(
-          `"${activatingProfile.name}" activated with ${failed.length} sync error${failed.length !== 1 ? 's' : ''}`,
+          t('profiles.activatedWithErrors', { name: activatingProfile.name, count: failed.length }),
         )
       }
     } finally {
@@ -106,11 +108,9 @@ const ProfilesPage = () => {
       <div className="flex items-center justify-between gap-4">
         <div>
           <h1 id="profiles-heading" className="text-2xl font-bold tracking-tight">
-            Profiles
+            {t('profiles.title')}
           </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Manage named configurations for quick context switching.
-          </p>
+          <p className="text-sm text-muted-foreground mt-0.5">{t('profiles.subtitle')}</p>
         </div>
         <Button
           type="button"
@@ -119,7 +119,7 @@ const ProfilesPage = () => {
           data-testid="add-profile-button"
         >
           <Plus size={14} aria-hidden="true" />
-          Add profile
+          {t('profiles.add')}
         </Button>
       </div>
 
@@ -133,7 +133,7 @@ const ProfilesPage = () => {
       {/* Loading */}
       {loading && profiles.length === 0 && (
         <p className="text-sm text-muted-foreground" data-testid="profiles-loading">
-          Loading profiles…
+          {t('profiles.loading')}
         </p>
       )}
 
@@ -143,10 +143,9 @@ const ProfilesPage = () => {
           className="rounded-lg border border-dashed border-border p-12 flex flex-col items-center gap-3 text-center"
           data-testid="profiles-empty"
         >
-          <p className="text-sm font-medium">No profiles yet</p>
+          <p className="text-sm font-medium">{t('profiles.noProfilesHeading')}</p>
           <p className="text-xs text-muted-foreground max-w-sm">
-            Create a profile to bundle a set of server and rule overrides that you can activate with
-            a single click.
+            {t('profiles.noProfilesDescription')}
           </p>
           <Button
             type="button"
@@ -154,7 +153,7 @@ const ProfilesPage = () => {
             onClick={openCreate}
             data-testid="profiles-empty-add"
           >
-            Create first profile
+            {t('profiles.addFirst')}
           </Button>
         </div>
       )}

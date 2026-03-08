@@ -14,6 +14,7 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Search } from 'lucide-react'
 import { useFeatureGate } from '@/lib/useFeatureGate'
 import { Input } from '@/components/ui/input'
@@ -26,6 +27,7 @@ import type { RegistryServer } from '@shared/channels'
  * Full registry browser with search input, debounced query, and card grid.
  */
 const RegistryBrowser = () => {
+  const { t } = useTranslation()
   const canInstall = useFeatureGate('registryInstall')
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<RegistryServer[]>([])
@@ -75,9 +77,9 @@ const RegistryBrowser = () => {
           type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search MCP servers…"
+          placeholder={t('registry.searchPlaceholder')}
           className="pl-8"
-          aria-label="Search registry"
+          aria-label={t('registry.searchAriaLabel')}
           data-testid="registry-search"
         />
       </div>
@@ -99,7 +101,7 @@ const RegistryBrowser = () => {
           className="text-sm text-muted-foreground py-8 text-center"
           data-testid="registry-loading"
         >
-          Searching registry…
+          {t('registry.searching')}
         </p>
       )}
 
@@ -107,8 +109,8 @@ const RegistryBrowser = () => {
       {!loading && !error && results.length === 0 && (
         <p className="text-sm text-muted-foreground py-8 text-center" data-testid="registry-empty">
           {query.trim().length === 0
-            ? 'Start typing to search the Smithery registry.'
-            : `No results for "${query}".`}
+            ? t('registry.startTyping')
+            : t('registry.noResults', { query })}
         </p>
       )}
 
