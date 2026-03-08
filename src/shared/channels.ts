@@ -40,6 +40,33 @@ export interface WindowMaximizeChangedPayload {
   readonly isMaximized: boolean
 }
 
+/**
+ * Startup progress payload sent from main to renderer during app bootstrap.
+ */
+export interface AppStartupProgressPayload {
+  readonly progress: number
+  readonly message: string
+}
+
+/**
+ * Startup completion payload sent once initialization has finished.
+ */
+export interface AppStartupCompletePayload {
+  readonly completedAt: number
+}
+
+/**
+ * Snapshot of current startup state, queried by renderer to recover from any
+ * missed early startup events.
+ */
+export interface AppStartupStatus {
+  readonly progress: number
+  readonly message: string
+  readonly ready: boolean
+  readonly startedAt: number
+  readonly completedAt?: number
+}
+
 // ─── Input Types (used in create/update calls) ────────────────────────────────
 
 /**
@@ -361,6 +388,7 @@ export interface IpcChannels {
 
   // App
   'app:version': () => Promise<string>
+  'app:startup-status': () => Promise<AppStartupStatus>
 
   // Auto-updater
   'updater:check': () => Promise<void>

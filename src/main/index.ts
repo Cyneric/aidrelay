@@ -21,6 +21,7 @@ import { closeDatabase } from './db/connection'
 import { fileWatcherService } from './sync/file-watcher.service'
 import { trayService } from './tray/tray.service'
 import { initUpdater } from './updater/updater.service'
+import { markStartupComplete, setStartupError, setStartupProgress } from './startup/startup-state'
 
 log.transports.file.level = 'info'
 log.transports.console.level = 'debug'
@@ -88,26 +89,60 @@ const createWindow = (): BrowserWindow => {
   return win
 }
 
-void app.whenReady().then(() => {
+const waitForRendererReady = (win: BrowserWindow): Promise<void> =>
+  new Promise((resolve) => {
+    if (!win || win.isDestroyed() || win.webContents.isDestroyed()) {
+      resolve()
+      return
+    }
+
+    if (!win.webContents.isLoadingMainFrame()) {
+      resolve()
+      return
+    }
+
+    win.webContents.once('did-finish-load', () => {
+      resolve()
+    })
+  })
+
+const runStartup = async (): Promise<void> => {
   log.info('aidrelay starting up')
+  setStartupProgress(10, 'Starting aidrelay...')
+
+  setStartupProgress(25, 'Registering IPC handlers...')
   registerIpcHandlers()
+
+  setStartupProgress(45, 'Creating main window...')
   const win = createWindow()
 
-  // System tray — lets the user quick-switch profiles and hide/show the window
+  setStartupProgress(60, 'Loading interface...')
+  await waitForRendererReady(win)
+  setStartupProgress(60, 'Loading interface...')
+
+  setStartupProgress(75, 'Initializing tray...')
   trayService.create(win)
 
-  // Start watching client config files for external changes after the window
-  // is ready so IPC events can be delivered to the renderer.
-  void fileWatcherService.start()
-
-  // Auto-updater — checks for updates 10 s after startup (production only)
+  setStartupProgress(90, 'Starting background services...')
+  await fileWatcherService.start()
   initUpdater()
+
+  setStartupProgress(100, 'Ready.')
+  markStartupComplete()
 
   app.on('activate', () => {
     // On macOS, re-create a window when the dock icon is clicked and no windows are open
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow()
     }
+  })
+}
+
+void app.whenReady().then(() => {
+  void runStartup().catch((err: unknown) => {
+    const message = err instanceof Error ? err.message : 'Unknown startup error'
+    log.error('[startup] failed:', err)
+    setStartupError(`Startup failed: ${message}`)
   })
 })
 

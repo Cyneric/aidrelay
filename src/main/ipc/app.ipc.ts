@@ -13,6 +13,7 @@
 
 import { ipcMain, app } from 'electron'
 import log from 'electron-log'
+import { getStartupStatus } from '@main/startup/startup-state'
 
 // ─── Handler Registration ─────────────────────────────────────────────────────
 
@@ -24,6 +25,11 @@ export const registerAppIpc = (): void => {
   ipcMain.handle('app:version', (): string => {
     log.debug('[ipc] app:version')
     return app.getVersion()
+  })
+
+  ipcMain.handle('app:startup-status', () => {
+    log.debug('[ipc] app:startup-status')
+    return getStartupStatus()
   })
 
   log.info('[ipc] app handlers registered')

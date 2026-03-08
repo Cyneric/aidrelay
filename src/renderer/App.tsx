@@ -30,6 +30,8 @@ import { StacksPage } from '@/pages/StacksPage'
 import { SettingsPage } from '@/pages/SettingsPage'
 import { HistoryPage } from '@/pages/HistoryPage'
 import { ClientsPage } from '@/pages/ClientsPage'
+import { StartupSplash } from '@/components/layout/StartupSplash'
+import { useStartupSplash } from '@/hooks/useStartupSplash'
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
 
@@ -127,6 +129,8 @@ declare module '@tanstack/react-router' {
  * tray-initiated profile switches and update notifications globally.
  */
 const App = () => {
+  const startupSplash = useStartupSplash()
+
   // Handle profile quick-switch from the system tray
   useEffect(() => {
     const handleTrayActivate = (profileId: string): void => {
@@ -147,6 +151,9 @@ const App = () => {
     <TooltipProvider>
       <RouterProvider router={router} />
       <Toaster position="bottom-right" richColors />
+      {startupSplash.showSplash ? (
+        <StartupSplash progress={startupSplash.progress} message={startupSplash.message} />
+      ) : null}
     </TooltipProvider>
   )
 }

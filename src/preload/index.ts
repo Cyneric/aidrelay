@@ -47,6 +47,9 @@ import type {
   WindowMaximizeChangedPayload,
   SettingsResetInput,
   SettingsResetResult,
+  AppStartupProgressPayload,
+  AppStartupCompletePayload,
+  AppStartupStatus,
 } from '../shared/channels'
 
 /**
@@ -525,6 +528,11 @@ const api = {
    */
   appVersion: (): Promise<string> => ipcRenderer.invoke('app:version'),
 
+  /**
+   * Returns current startup progress state used by the splash screen.
+   */
+  appStartupStatus: (): Promise<AppStartupStatus> => ipcRenderer.invoke('app:startup-status'),
+
   // ── Settings ──────────────────────────────────────────────────────────────
 
   /**
@@ -671,6 +679,36 @@ const api = {
     ) => handler(payload)
     ipcRenderer.on('window:maximize-changed', wrapped)
     return () => ipcRenderer.removeListener('window:maximize-changed', wrapped)
+  },
+
+  /**
+   * Registers a handler called whenever startup progress changes.
+   *
+   * @param handler - Callback receiving progress percent and text.
+   * @returns A cleanup function that removes the listener.
+   */
+  onStartupProgress: (handler: (payload: AppStartupProgressPayload) => void): (() => void) => {
+    const wrapped = (
+      _event: Parameters<Parameters<typeof ipcRenderer.on>[1]>[0],
+      payload: AppStartupProgressPayload,
+    ) => handler(payload)
+    ipcRenderer.on('app:startup-progress', wrapped)
+    return () => ipcRenderer.removeListener('app:startup-progress', wrapped)
+  },
+
+  /**
+   * Registers a handler called once startup has completed.
+   *
+   * @param handler - Callback receiving completion timestamp.
+   * @returns A cleanup function that removes the listener.
+   */
+  onStartupComplete: (handler: (payload: AppStartupCompletePayload) => void): (() => void) => {
+    const wrapped = (
+      _event: Parameters<Parameters<typeof ipcRenderer.on>[1]>[0],
+      payload: AppStartupCompletePayload,
+    ) => handler(payload)
+    ipcRenderer.on('app:startup-complete', wrapped)
+    return () => ipcRenderer.removeListener('app:startup-complete', wrapped)
   },
 } as const
 
