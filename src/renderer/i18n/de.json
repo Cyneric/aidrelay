@@ -153,7 +153,14 @@
     "shownCount_one": "{{count}} Regel angezeigt",
     "shownCount_other": "{{count}} Regeln angezeigt",
     "tokensEnabled": "~{{count}} Token (aktiv)",
-    "tokenBudgetPerClient": "Token-Budget pro Client"
+    "tokenBudgetPerClient": "Token-Budget pro Client",
+    "scopeToggleAriaLabel": "Regel-Geltungsbereich",
+    "scopeGlobal": "Globale Regeln",
+    "scopeProject": "Projektregeln",
+    "scopeProjectPathPlaceholder": "C:\\dev\\mein-projekt",
+    "scopeProjectPathAriaLabel": "Projektverzeichnispfad",
+    "scopeProjectBrowse": "Durchsuchen",
+    "scopeProjectBrowseTitle": "Projektstammverzeichnis auswählen"
   },
   "ruleEditor": {
     "createTitle": "Neue Regel",
@@ -252,6 +259,7 @@
     "detecting_button": "Wird erkannt…",
     "syncAll": "Alle synchronisieren",
     "allClientsSynced": "Alle Clients synchronisiert.",
+    "syncSummary": "Mit {{succeeded}} von {{total}} Clients synchronisiert ({{failed}} fehlgeschlagen).",
     "installed": "Installiert",
     "notInstalled": "Nicht installiert",
     "colClient": "Client",
@@ -266,7 +274,14 @@
     "checkingButton": "Wird geprüft…",
     "validateTooltip": "Konfigurationsdatei auf Schemafehler prüfen",
     "notInstalledTooltip": "{{name}} ist nicht installiert",
+    "notInstalledCodexGuiTooltip": "{{name}} wird nicht erkannt. Wenn es aus dem Microsoft Store installiert wurde, öffnen Sie Codex einmal, klicken Sie auf Aktualisieren und führen Sie bei Bedarf Get-AppxPackage -Name OpenAI.Codex aus, dann aidrelay neu starten.",
     "syncTooltip": "Aktuelle Profilkonfiguration auf {{name}} schreiben",
+    "missingConfigBadge": "Keine Konfiguration",
+    "missingConfigTooltip": "{{name}} ist installiert, aber es wurde noch keine Konfigurationsdatei gefunden.",
+    "noConfigPath": "Noch keine Konfigurationsdatei",
+    "createConfigTitle": "Neue Konfiguration erstellen?",
+    "createConfigDescription": "{{name}} hat noch keine Konfigurationsdatei. Soll aidrelay jetzt eine erstellen?",
+    "createConfigConfirm": "Konfiguration erstellen",
     "configValid": "{{clientId}}-Konfiguration ist gültig.",
     "configHasIssues": "{{clientId}}-Konfiguration hat Probleme: {{errors}}"
   },
@@ -291,12 +306,33 @@
   },
   "registry": {
     "title": "Registry",
-    "subtitle": "MCP-Server aus der Smithery-Registry durchsuchen und installieren.",
+    "subtitle": "MCP-Server aus veröffentlichten Registries durchsuchen und installieren.",
+    "helperText": "Die Registry-Suche zeigt veröffentlichte Katalogeinträge, nicht lokal auf diesem Gerät konfigurierte Server.",
     "searchPlaceholder": "MCP-Server suchen…",
     "searchAriaLabel": "Registry durchsuchen",
     "searching": "Registry wird durchsucht…",
-    "startTyping": "Tippen Sie, um die Smithery-Registry zu durchsuchen.",
-    "noResults": "Keine Ergebnisse für \"{{query}}\"."
+    "startTyping": "Tippen Sie, um die ausgewählte Registry zu durchsuchen.",
+    "noResults": "Keine Ergebnisse für \"{{query}}\".",
+    "providers": {
+      "smithery": "Smithery",
+      "official": "Offizielle MCP"
+    },
+    "availability": {
+      "all": "Alle",
+      "deployable": "Bereitstellbar",
+      "hosted": "Gehostet"
+    },
+    "badges": {
+      "deployable": "Bereitstellbar",
+      "hosted": "Gehostet"
+    },
+    "localPanel": {
+      "title": "Meine lokalen Server",
+      "body": "Dies sind Server, die auf diesem Gerät konfiguriert sind. Die Registry-Suche zeigt veröffentlichte Katalogeinträge.",
+      "count_one": "{{count}} lokaler Server konfiguriert",
+      "count_other": "{{count}} lokale Server konfiguriert",
+      "cta": "Lokale Server verwalten"
+    }
   },
   "stacks": {
     "title": "Stacks",

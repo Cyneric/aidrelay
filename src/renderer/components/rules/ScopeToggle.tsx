@@ -15,10 +15,11 @@
  */
 
 import { FolderOpen } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { cn } from '@/lib/utils'
 import type { RuleScope } from '@shared/types'
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -47,10 +48,18 @@ const ScopeToggle = ({
   projectPath,
   onProjectPathChange,
 }: ScopeToggleProps) => {
+  const { t } = useTranslation()
+
+  const handleScopeChange = (value: string) => {
+    if (value === 'global' || value === 'project') {
+      onScopeChange(value)
+    }
+  }
+
   const handleBrowse = async () => {
     const result = await window.api.showOpenDialog({
       properties: ['openDirectory'],
-      title: 'Select project root directory',
+      title: t('rules.scopeProjectBrowseTitle'),
     })
     if (!result.canceled && result.filePaths[0]) {
       onProjectPathChange(result.filePaths[0])
@@ -58,52 +67,44 @@ const ScopeToggle = ({
   }
 
   return (
-    <div className="flex flex-col gap-2" data-testid="scope-toggle">
-      {/* Scope radio group */}
-      <div
-        role="radiogroup"
-        aria-label="Rule scope"
-        className="inline-flex rounded-md border border-input overflow-hidden text-sm"
+    <div className="flex flex-col gap-3" data-testid="scope-toggle">
+      <Tabs
+        value={scope}
+        onValueChange={handleScopeChange}
+        className="w-full"
+        aria-label={t('rules.scopeToggleAriaLabel')}
       >
-        <Button
-          type="button"
-          role="radio"
-          aria-checked={scope === 'global'}
-          onClick={() => onScopeChange('global')}
-          variant={scope === 'global' ? 'default' : 'ghost'}
-          size="sm"
-          className={cn('rounded-none', scope !== 'global' && 'text-muted-foreground')}
-          data-testid="scope-global"
+        <TabsList
+          className="h-auto w-full max-w-md justify-start gap-1 rounded-xl border border-border/80 bg-muted/50 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
+          aria-label={t('rules.scopeToggleAriaLabel')}
         >
-          Global rules
-        </Button>
-        <Button
-          type="button"
-          role="radio"
-          aria-checked={scope === 'project'}
-          onClick={() => onScopeChange('project')}
-          variant={scope === 'project' ? 'default' : 'ghost'}
-          size="sm"
-          className={cn(
-            'rounded-none border-l border-input',
-            scope !== 'project' && 'text-muted-foreground',
-          )}
-          data-testid="scope-project"
-        >
-          Project rules
-        </Button>
-      </div>
+          <TabsTrigger
+            value="global"
+            className="h-9 min-w-[8.75rem] rounded-lg border border-transparent px-3 text-sm font-semibold text-muted-foreground/90 data-[state=active]:border-border/80 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm hover:text-foreground"
+            data-testid="scope-global"
+          >
+            {t('rules.scopeGlobal')}
+          </TabsTrigger>
+          <TabsTrigger
+            value="project"
+            className="h-9 min-w-[8.75rem] rounded-lg border border-transparent px-3 text-sm font-semibold text-muted-foreground/90 data-[state=active]:border-border/80 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm hover:text-foreground"
+            data-testid="scope-project"
+          >
+            {t('rules.scopeProject')}
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
 
       {/* Project path picker — only visible in project scope */}
       {scope === 'project' && (
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Input
             type="text"
             value={projectPath}
             onChange={(e) => onProjectPathChange(e.target.value)}
-            placeholder="C:\dev\my-project"
+            placeholder={t('rules.scopeProjectPathPlaceholder')}
             className="flex-1 max-w-sm font-mono text-xs"
-            aria-label="Project directory path"
+            aria-label={t('rules.scopeProjectPathAriaLabel')}
             data-testid="scope-project-path"
           />
           <Tooltip>
@@ -114,14 +115,14 @@ const ScopeToggle = ({
                 size="sm"
                 onClick={() => void handleBrowse()}
                 className="gap-1.5"
-                aria-label="Browse for project directory"
+                aria-label={t('rules.scopeProjectBrowse')}
                 data-testid="scope-project-browse"
               >
                 <FolderOpen size={12} aria-hidden="true" />
-                Browse
+                {t('rules.scopeProjectBrowse')}
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Browse for project directory</TooltipContent>
+            <TooltipContent>{t('rules.scopeProjectBrowse')}</TooltipContent>
           </Tooltip>
         </div>
       )}

@@ -13,7 +13,7 @@
  */
 
 import { create } from 'zustand'
-import type { ClientStatus } from '@shared/types'
+import type { ClientStatus, SyncClientOptions, SyncResult } from '@shared/types'
 import '../lib/ipc'
 
 // ─── State Shape ──────────────────────────────────────────────────────────────
@@ -42,7 +42,17 @@ interface ClientsState {
    *
    * @param clientId - The client to sync.
    */
-  syncClient: (clientId: ClientStatus['id']) => Promise<void>
+  syncClient: (clientId: ClientStatus['id'], options?: SyncClientOptions) => Promise<SyncResult>
+}
+
+export class ClientSyncError extends Error {
+  code?: SyncResult['errorCode']
+
+  constructor(message: string, code?: SyncResult['errorCode']) {
+    super(message)
+    this.name = 'ClientSyncError'
+    this.code = code
+  }
 }
 
 // ─── Store ────────────────────────────────────────────────────────────────────
@@ -67,10 +77,14 @@ export const useClientsStore = create<ClientsState>((set) => ({
     }
   },
 
-  syncClient: async (clientId) => {
-    await window.api.clientsSync(clientId)
+  syncClient: async (clientId, options) => {
+    const result = await window.api.clientsSync(clientId, options)
     // Re-detect so the UI reflects the updated state
     const clients = await window.api.clientsDetectAll()
     set({ clients })
+    if (!result.success) {
+      throw new ClientSyncError(result.error ?? `Sync failed for ${clientId}`, result.errorCode)
+    }
+    return result
   },
 }))

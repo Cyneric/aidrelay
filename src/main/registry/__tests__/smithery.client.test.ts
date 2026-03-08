@@ -2,7 +2,7 @@
  * @file src/main/registry/__tests__/smithery.client.test.ts
  *
  * @created 07.03.2026
- * @modified 07.03.2026
+ * @modified 08.03.2026
  *
  * @author Christian Blank <christianblank91@protonmail.com>
  * @copyright 2026
@@ -178,6 +178,60 @@ describe('SmitheryClient', () => {
         remote: false,
       })
       expect(results[0]?.useCount).toBeUndefined()
+    })
+  })
+
+  describe('getRemoteInstallRecipe()', () => {
+    it('derives an sse recipe when details include transport + url', async () => {
+      mockHttpsGet({
+        server: {
+          transport: 'sse',
+          url: 'https://example.com/sse',
+        },
+      })
+
+      const recipe = await client.getRemoteInstallRecipe('@acme/remote')
+
+      expect(recipe).toEqual({
+        type: 'sse',
+        url: 'https://example.com/sse',
+      })
+    })
+
+    it('defaults to http when only a valid endpoint URL is present', async () => {
+      mockHttpsGet({
+        deployment: {
+          endpointUrl: 'https://example.com/mcp',
+        },
+      })
+
+      const recipe = await client.getRemoteInstallRecipe('@acme/remote')
+
+      expect(recipe).toEqual({
+        type: 'http',
+        url: 'https://example.com/mcp',
+      })
+    })
+
+    it('returns null for malformed details payloads', async () => {
+      mockHttpsGet({
+        server: {
+          transport: 'sse',
+          url: 'not-a-url',
+        },
+      })
+
+      const recipe = await client.getRemoteInstallRecipe('@acme/remote')
+
+      expect(recipe).toBeNull()
+    })
+
+    it('returns null when details lookup fails', async () => {
+      mockHttpsGetError('request failed')
+
+      const recipe = await client.getRemoteInstallRecipe('@acme/remote')
+
+      expect(recipe).toBeNull()
     })
   })
 })

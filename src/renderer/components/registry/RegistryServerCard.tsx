@@ -13,7 +13,8 @@
  */
 
 import { useState } from 'react'
-import { BadgeCheck, Download, Wifi } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
+import { BadgeCheck, Download } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -33,10 +34,11 @@ interface RegistryServerCardProps {
 
 /**
  * Displays a single registry server result with install functionality.
- * The Install button is disabled when the feature gate is not active or when
- * the server is a remote (SSE/HTTP) type.
+ * The Install button is disabled when the feature gate is not active or while
+ * an installation request is in-flight.
  */
 const RegistryServerCard = ({ server, canInstall }: RegistryServerCardProps) => {
+  const { t } = useTranslation()
   const { load } = useServersStore()
   const [installing, setInstalling] = useState(false)
 
@@ -54,13 +56,11 @@ const RegistryServerCard = ({ server, canInstall }: RegistryServerCardProps) => 
     }
   }
 
-  const installDisabled = !canInstall || server.remote || installing
+  const installDisabled = !canInstall || installing
 
   let installTooltip: string
   if (!canInstall) {
     installTooltip = 'Upgrade to Pro to install from registry'
-  } else if (server.remote) {
-    installTooltip = 'Remote SSE/HTTP servers cannot be installed automatically'
   } else {
     installTooltip = `Install ${server.displayName}`
   }
@@ -90,16 +90,13 @@ const RegistryServerCard = ({ server, canInstall }: RegistryServerCardProps) => 
         </div>
 
         <div className="flex items-center gap-1.5 shrink-0">
-          {server.remote && (
-            <Badge
-              variant="secondary"
-              className="font-mono text-[11px] gap-0.5"
-              data-testid={`registry-remote-badge-${server.id}`}
-            >
-              <Wifi size={10} className="inline" aria-hidden="true" />
-              remote
-            </Badge>
-          )}
+          <Badge
+            variant="secondary"
+            className="font-mono text-[11px]"
+            data-testid={`registry-availability-badge-${server.id}`}
+          >
+            {server.remote ? t('registry.badges.hosted') : t('registry.badges.deployable')}
+          </Badge>
           <Badge variant="secondary" className="font-mono text-[11px] capitalize">
             {server.source}
           </Badge>

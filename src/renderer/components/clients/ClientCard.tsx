@@ -16,6 +16,7 @@ import { RefreshCw, CheckCircle2, AlertCircle, Clock, XCircle } from 'lucide-rea
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { ClientStatus } from '@shared/types'
@@ -78,6 +79,7 @@ const ClientCard = ({ client, onSync, syncing = false }: ClientCardProps) => {
     ...statusMetaBase,
     label: t(statusMetaBase.labelKey as Parameters<typeof t>[0]),
   }
+  const missingConfig = client.installed && client.configPaths.length === 0
 
   return (
     <Card
@@ -87,15 +89,33 @@ const ClientCard = ({ client, onSync, syncing = false }: ClientCardProps) => {
       <CardHeader className="flex flex-row items-start justify-between gap-2 space-y-0 pb-2">
         <div>
           <h3 className="font-semibold text-sm leading-none">{client.displayName}</h3>
-          <span
-            className={cn(
-              'mt-1 inline-block text-xs',
-              client.installed ? 'text-green-600' : 'text-muted-foreground',
+          <div className="mt-1 flex items-center gap-2">
+            <span
+              className={cn(
+                'inline-block text-xs',
+                client.installed ? 'text-green-600' : 'text-muted-foreground',
+              )}
+              data-testid={`client-install-status-${client.id}`}
+            >
+              {client.installed ? t('clients.installed') : t('clients.notInstalled')}
+            </span>
+            {missingConfig && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Badge
+                    variant="outline"
+                    className="text-[10px] uppercase tracking-wide"
+                    data-testid={`client-missing-config-badge-${client.id}`}
+                  >
+                    {t('clients.missingConfigBadge')}
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {t('clients.missingConfigTooltip', { name: client.displayName })}
+                </TooltipContent>
+              </Tooltip>
             )}
-            data-testid={`client-install-status-${client.id}`}
-          >
-            {client.installed ? t('clients.installed') : t('clients.notInstalled')}
-          </span>
+          </div>
         </div>
 
         <Tooltip>

@@ -28,6 +28,7 @@ import type {
   GitPushResult,
   GitPullResult,
   ManualGitConfig,
+  SyncClientOptions,
 } from './types'
 
 // ─── Push-event Payload Types ─────────────────────────────────────────────────
@@ -218,6 +219,11 @@ export interface RegistryServer {
 }
 
 /**
+ * Supported registry search providers.
+ */
+export type RegistryProvider = 'smithery' | 'official'
+
+/**
  * Result of an MCP server connection test (JSON-RPC initialize handshake).
  */
 export interface TestResult {
@@ -304,7 +310,7 @@ export interface IpcChannels {
   // Clients
   'clients:detect-all': () => Promise<ClientStatus[]>
   'clients:read-config': (clientId: ClientId) => Promise<McpServerMap>
-  'clients:sync': (clientId: ClientId, servers: McpServerMap) => Promise<SyncResult>
+  'clients:sync': (clientId: ClientId, options?: SyncClientOptions) => Promise<SyncResult>
   'clients:sync-all': () => Promise<SyncResult[]>
 
   // Servers
@@ -333,7 +339,7 @@ export interface IpcChannels {
   'servers:test': (id: string) => Promise<TestResult>
 
   // Registry
-  'registry:search': (query: string) => Promise<RegistryServer[]>
+  'registry:search': (provider: RegistryProvider, query: string) => Promise<RegistryServer[]>
   'registry:install': (qualifiedName: string) => Promise<McpServer>
 
   // Stacks

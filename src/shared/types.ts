@@ -271,7 +271,20 @@ export interface SyncResult {
   readonly success: boolean
   readonly serversWritten: number
   readonly error?: string
+  readonly errorCode?: SyncErrorCode
   readonly syncedAt: string
+}
+
+/**
+ * Machine-readable sync error code for renderer-side branching.
+ */
+export type SyncErrorCode = 'config_creation_required'
+
+/**
+ * Optional behavior toggles for single-client sync.
+ */
+export interface SyncClientOptions {
+  readonly allowCreateConfigIfMissing?: boolean
 }
 
 /**
