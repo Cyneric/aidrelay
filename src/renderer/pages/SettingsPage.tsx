@@ -21,7 +21,6 @@ import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
 import { Save, RotateCcw, Key, Globe, Info, Download } from 'lucide-react'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
-import { ThemeToggle } from '@/components/theme/ThemeToggle'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -34,6 +33,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { useLicense } from '@/lib/useLicense'
+import { useTheme, type Theme } from '@/lib/useTheme'
 
 // ─── Validation Schemas ───────────────────────────────────────────────────────
 
@@ -278,6 +278,7 @@ const GitRemoteSection = () => {
 
 const GeneralSection = () => {
   const [language, setLanguage] = useState('en')
+  const { theme, setTheme } = useTheme()
 
   useEffect(() => {
     void window.api.settingsGet('language').then((lang) => {
@@ -299,8 +300,19 @@ const GeneralSection = () => {
     >
       <div className="space-y-4">
         <div>
-          <Label className="block mb-1">Theme</Label>
-          <ThemeToggle data-testid="settings-theme-toggle" />
+          <Label htmlFor="theme-select" className="block mb-1">
+            Theme
+          </Label>
+          <Select value={theme} onValueChange={(v) => setTheme(v as Theme)}>
+            <SelectTrigger id="theme-select" className="w-40" data-testid="select-theme">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="light">Light</SelectItem>
+              <SelectItem value="dark">Dark</SelectItem>
+              <SelectItem value="system">System</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
         <div>
           <Label htmlFor="language-select" className="block mb-1">
