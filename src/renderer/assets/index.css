@@ -117,4 +117,39 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
+
+  /*
+   * Themed native scrollbars: subtle by default, with clear hover/active
+   * states so they feel integrated with the app palette in both themes.
+   */
+  html {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in oklab, var(--color-foreground) 38%, transparent)
+      color-mix(in oklab, var(--color-background) 92%, var(--color-border));
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: color-mix(in oklab, var(--color-background) 92%, var(--color-border));
+    border-radius: 999px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: color-mix(in oklab, var(--color-foreground) 38%, transparent);
+    border: 2px solid transparent;
+    border-radius: 999px;
+    background-clip: padding-box;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in oklab, var(--color-foreground) 52%, transparent);
+  }
+
+  ::-webkit-scrollbar-thumb:active {
+    background: color-mix(in oklab, var(--color-foreground) 66%, transparent);
+  }
 }
