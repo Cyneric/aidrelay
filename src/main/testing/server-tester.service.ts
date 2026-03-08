@@ -64,10 +64,47 @@ interface JsonRpcResponse {
 
 const INITIALIZE_REQUEST_ID = 1
 const MAX_STDERR_CHARS = 4000
+const MAX_DETAILS_CHARS = 2000
+const NOISY_STDERR_PATTERNS = [
+  /^npm warn Unknown env config "verify-deps-before-run"\.?/i,
+  /^npm warn Unknown env config "_jsr-registry"\.?/i,
+]
 
-const encodeMcpStdioMessage = (message: JsonRpcRequest): string => {
-  const json = JSON.stringify(message)
-  return `Content-Length: ${Buffer.byteLength(json, 'utf8')}\r\n\r\n${json}`
+const sanitizeDiagnosticText = (input: string): string | undefined => {
+  const cleaned = input
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+    .filter((line) => !NOISY_STDERR_PATTERNS.some((pattern) => pattern.test(line)))
+
+  if (cleaned.length === 0) return undefined
+  const joined = cleaned.join('\n')
+  return joined.length > MAX_DETAILS_CHARS
+    ? `${joined.slice(0, MAX_DETAILS_CHARS).trimEnd()}…`
+    : joined
+}
+
+const buildFailureResult = (message: string, rawStderr: string, hint?: string): TestResult => {
+  const trimmedRaw = rawStderr.trim()
+  if (trimmedRaw.length > 0) {
+    log.debug(`[tester] stderr tail: ${trimmedRaw}`)
+  }
+
+  const details = sanitizeDiagnosticText(trimmedRaw)
+  return {
+    success: false,
+    message,
+    ...(details ? { details } : {}),
+    ...(hint ? { hint } : {}),
+  }
+}
+
+const timeoutHintForServer = (server: McpServer): string => {
+  const fullCommand = `${server.command} ${server.args.join(' ')}`.toLowerCase()
+  if (fullCommand.includes('chrome-devtools-mcp')) {
+    return 'The server started but did not reply to MCP initialize. Ensure Chrome is running with remote debugging on the configured --browser-url port.'
+  }
+  return 'The server process started but did not reply to MCP initialize. Verify the command starts an MCP stdio server and run it manually to inspect startup output.'
 }
 
 // ─── Service ──────────────────────────────────────────────────────────────────
@@ -230,13 +267,13 @@ export class ServerTesterService {
       }
 
       const timer = setTimeout(() => {
-        const stderr = stderrBuffer.trim()
-        settle({
-          success: false,
-          message: stderr
-            ? `Timeout: no response after ${STDIO_TIMEOUT_MS / 1000}s: ${stderr}`
-            : `Timeout: no response after ${STDIO_TIMEOUT_MS / 1000}s`,
-        })
+        settle(
+          buildFailureResult(
+            `No initialize response after ${STDIO_TIMEOUT_MS / 1000}s.`,
+            stderrBuffer,
+            timeoutHintForServer(server),
+          ),
+        )
       }, STDIO_TIMEOUT_MS)
 
       child.stdout?.on('data', (chunk: Buffer) => {
@@ -250,24 +287,25 @@ export class ServerTesterService {
       })
 
       child.on('error', (err: Error) => {
-        settle({ success: false, message: `Process error: ${err.message}` })
+        settle(
+          buildFailureResult('Process error while waiting for initialize response.', err.message),
+        )
       })
 
       child.on('close', (code: number | null) => {
         if (!settled) {
-          const stderr = stderrBuffer.trim()
-          settle({
-            success: false,
-            message: stderr
-              ? `Process exited unexpectedly (code ${code ?? 'null'}): ${stderr}`
-              : `Process exited unexpectedly (code ${code ?? 'null'})`,
-          })
+          settle(
+            buildFailureResult(
+              `Process exited unexpectedly (code ${code ?? 'null'}).`,
+              stderrBuffer,
+            ),
+          )
         }
       })
 
       // Send the initialize request after the process starts.
       try {
-        child.stdin?.write(encodeMcpStdioMessage(request))
+        child.stdin?.write(JSON.stringify(request) + '\n')
       } catch (err) {
         settle({ success: false, message: `Failed to write to stdin: ${String(err)}` })
       }

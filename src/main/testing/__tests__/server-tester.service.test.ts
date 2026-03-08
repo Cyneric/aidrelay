@@ -143,6 +143,17 @@ const emitStdoutFramed = (child: SpawnInstance, payload: unknown): void => {
   dataHandler?.(Buffer.from(framed))
 }
 
+const expectInitializeRequestWrittenAsNewlineJson = (child: SpawnInstance): void => {
+  const payload: unknown = child.stdin.write.mock.calls[0]?.[0]
+  expect(typeof payload).toBe('string')
+  const written = String(payload)
+  expect(written.startsWith('Content-Length:')).toBe(false)
+  expect(written.endsWith('\n')).toBe(true)
+  const parsed = JSON.parse(written.trim()) as { method: string; id: number }
+  expect(parsed.method).toBe('initialize')
+  expect(parsed.id).toBe(1)
+}
+
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 describe('ServerTesterService', () => {
@@ -169,6 +180,8 @@ describe('ServerTesterService', () => {
       const promise = tester.testServer(makeServer())
       await flushMicrotasks()
       emitSpawn(child)
+      await flushMicrotasks()
+      expectInitializeRequestWrittenAsNewlineJson(child)
 
       // Simulate a valid MCP initialize response after a short delay.
       setTimeout(() => {
@@ -259,7 +272,8 @@ describe('ServerTesterService', () => {
 
       const result = await promise
       expect(result.success).toBe(false)
-      expect(result.message).toContain('ENOENT')
+      expect(result.message).toContain('Process error while waiting for initialize response')
+      expect(result.details).toContain('ENOENT')
     })
 
     it('returns failure when the process exits without responding', async () => {
@@ -327,17 +341,23 @@ describe('ServerTesterService', () => {
 
       const result = await promise
       expect(result.success).toBe(false)
-      expect(result.message).toContain('code 1')
-      expect(result.message).toContain('missing browser on port 9222')
+      expect(result.message).toContain('Process exited unexpectedly (code 1)')
+      expect(result.details).toContain('missing browser on port 9222')
     })
 
-    it('times out after 30s and includes stderr details', async () => {
+    it('times out after 30s with concise message, filtered details, and hint', async () => {
       vi.useFakeTimers()
       try {
         const child = makeSpawnMock()
         vi.mocked(spawn).mockReturnValue(child as unknown as ReturnType<typeof spawn>)
 
-        const promise = tester.testServer(makeServer())
+        const promise = tester.testServer(
+          makeServer({
+            name: 'chrome-devtools',
+            command: 'npx',
+            args: ['-y', 'chrome-devtools-mcp@latest', '--browser-url=http://localhost:9222'],
+          }),
+        )
         await flushMicrotasks()
         emitSpawn(child)
         await flushMicrotasks()
@@ -345,13 +365,24 @@ describe('ServerTesterService', () => {
         const stderrHandler = child.stderr.on.mock.calls.find((call) => call[0] === 'data')?.[1] as
           | ((chunk: Buffer) => void)
           | undefined
-        stderrHandler?.(Buffer.from('server booting...'))
+        stderrHandler?.(
+          Buffer.from(
+            [
+              'npm warn Unknown env config "verify-deps-before-run". This will stop working in the next major version of npm.',
+              'npm warn Unknown env config "_jsr-registry". This will stop working in the next major version of npm.',
+              'chrome-devtools-mcp exposes content of the browser instance to the MCP clients.',
+            ].join('\n'),
+          ),
+        )
 
         await vi.advanceTimersByTimeAsync(30000)
         const result = await promise
         expect(result.success).toBe(false)
-        expect(result.message).toContain('30s')
-        expect(result.message).toContain('server booting...')
+        expect(result.message).toContain('No initialize response after 30s')
+        expect(result.details).toContain('chrome-devtools-mcp exposes content')
+        expect(result.details).not.toContain('verify-deps-before-run')
+        expect(result.details).not.toContain('_jsr-registry')
+        expect(result.hint).toContain('Chrome is running with remote debugging')
       } finally {
         vi.useRealTimers()
       }

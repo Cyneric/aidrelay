@@ -229,6 +229,8 @@ export type RegistryProvider = 'smithery' | 'official'
 export interface TestResult {
   readonly success: boolean
   readonly message: string
+  readonly details?: string
+  readonly hint?: string
   readonly responseTimeMs?: number
 }
 

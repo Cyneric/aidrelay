@@ -103,7 +103,7 @@ const RulesPage = () => {
   const openCreate = useCallback(() => {
     setEditingRule(undefined)
     setShowEditor(true)
-  }, [t])
+  }, [])
 
   const openEdit = useCallback((rule: AiRule) => {
     setEditingRule(rule)
@@ -176,7 +176,7 @@ const RulesPage = () => {
     } finally {
       setSyncingAll(false)
     }
-  }, [])
+  }, [t])
 
   // ─── Table columns ──────────────────────────────────────────────────────────
 

@@ -53,6 +53,10 @@ const WINDOWS_CMD_ALIASES: Readonly<Record<string, string>> = {
   yarn: 'yarn.cmd',
   bun: 'bun.cmd',
 }
+const NOISY_NPM_ENV_KEYS = new Set([
+  'npm_config_verify_deps_before_run',
+  'npm_config__jsr_registry',
+])
 
 const isWindows = (): boolean => process.platform === 'win32'
 
@@ -99,9 +103,11 @@ const sanitizeSpawnEnv = (
 
   const out: ProcessEnvMap = {}
   for (const [key, value] of Object.entries(env)) {
+    const lowerKey = key.toLowerCase()
     if (typeof value !== 'string') continue
     if (key.length === 0) continue
     if (key.includes('\u0000') || value.includes('\u0000')) continue
+    if (NOISY_NPM_ENV_KEYS.has(lowerKey)) continue
     if (windows && key.includes('=')) continue
     out[key] = value
   }
