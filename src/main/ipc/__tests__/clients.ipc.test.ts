@@ -3,18 +3,34 @@
  *
  * @description Unit tests for clients IPC handlers:
  * - fallback config-path resolution for config-less installed clients
- * - sync-all inclusion for fallback-capable clients
- * - detect-all sync status derivation from activity log sync events
+ * - install channel wiring
+ * - manual path set/clear + detect/read/sync/validate precedence
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { join } from 'path'
 import type Database from 'better-sqlite3'
 import type { ClientAdapter } from '@main/clients/types'
-import type { ClientId, ClientStatus, SyncResult } from '@shared/types'
+import { ServersRepo } from '@main/db/servers.repo'
+import type {
+  ClientId,
+  ClientInstallResult,
+  ClientStatus,
+  ConfigChangedPayload,
+  ConfigImportPreviewResult,
+  ConfigImportResult,
+  McpServerMap,
+  SyncResult,
+  ValidationResult,
+} from '@shared/types'
 import { createTestDb } from '@main/db/__tests__/helpers'
 
 const handlers: Record<string, (...args: unknown[]) => unknown> = {}
 const syncCalls: Array<{ clientId: ClientId; configPath: string }> = []
+const readCalls: Array<{ clientId: ClientId; configPath: string }> = []
+const validateCalls: Array<{ clientId: ClientId; configPath: string }> = []
+
+const installMock = vi.hoisted(() => vi.fn<(clientId: ClientId) => Promise<ClientInstallResult>>())
 
 const detectionById: Record<
   ClientId,
@@ -34,14 +50,23 @@ const detectionById: Record<
   'visual-studio': { installed: false, configPaths: [], serverCount: 0 },
 }
 
+const readByPath = new Map<string, McpServerMap>()
+const validationByPath = new Map<string, ValidationResult>()
+
 const makeAdapter = (id: ClientId, displayName: string): ClientAdapter => ({
   id,
   displayName,
   schemaKey: 'mcpServers',
   detect: () => Promise.resolve(detectionById[id]),
-  read: () => Promise.resolve({}),
+  read: (configPath: string) => {
+    readCalls.push({ clientId: id, configPath })
+    return Promise.resolve(readByPath.get(configPath) ?? {})
+  },
   write: () => Promise.resolve(undefined),
-  validate: () => Promise.resolve({ valid: true, errors: [] }),
+  validate: (configPath: string) => {
+    validateCalls.push({ clientId: id, configPath })
+    return Promise.resolve(validationByPath.get(configPath) ?? { valid: true, errors: [] })
+  },
 })
 
 const ADAPTER_IDS: readonly ClientId[] = [
@@ -52,6 +77,7 @@ const ADAPTER_IDS: readonly ClientId[] = [
   'opencode',
   'visual-studio',
   'cursor',
+  'jetbrains',
 ]
 const ADAPTERS = new Map<ClientId, ClientAdapter>([
   ['vscode', makeAdapter('vscode', 'VS Code')],
@@ -61,6 +87,7 @@ const ADAPTERS = new Map<ClientId, ClientAdapter>([
   ['opencode', makeAdapter('opencode', 'OpenCode')],
   ['visual-studio', makeAdapter('visual-studio', 'Visual Studio')],
   ['cursor', makeAdapter('cursor', 'Cursor')],
+  ['jetbrains', makeAdapter('jetbrains', 'JetBrains')],
 ])
 
 let testDb: Database.Database
@@ -80,6 +107,14 @@ vi.mock('electron-log', () => ({
 vi.mock('@main/clients/registry', () => ({
   ADAPTERS,
   ADAPTER_IDS,
+}))
+
+vi.mock('@main/clients/client-install.service', () => ({
+  ClientInstallService: class {
+    install(clientId: ClientId): Promise<ClientInstallResult> {
+      return installMock(clientId)
+    }
+  },
 }))
 
 vi.mock('@main/db/connection', () => ({
@@ -110,6 +145,19 @@ describe('clients IPC handlers', () => {
   beforeEach(async () => {
     testDb = createTestDb()
     syncCalls.length = 0
+    readCalls.length = 0
+    validateCalls.length = 0
+    readByPath.clear()
+    validationByPath.clear()
+    installMock.mockReset()
+    installMock.mockResolvedValue({
+      clientId: 'cursor',
+      success: true,
+      attempts: [],
+      installedWith: 'winget',
+      message: 'ok',
+    })
+
     for (const id of Object.keys(detectionById) as ClientId[]) {
       detectionById[id] = { installed: false, configPaths: [], serverCount: 0 }
     }
@@ -124,6 +172,22 @@ describe('clients IPC handlers', () => {
 
   afterEach(() => {
     testDb.close()
+  })
+
+  it('clients:install delegates to install service and returns typed payload', async () => {
+    const expected: ClientInstallResult = {
+      clientId: 'cursor',
+      success: false,
+      attempts: [],
+      failureReason: 'command_failed',
+      message: 'failed',
+    }
+    installMock.mockResolvedValue(expected)
+
+    const result = await call<ClientInstallResult>('clients:install', 'cursor')
+
+    expect(installMock).toHaveBeenCalledWith('cursor')
+    expect(result).toEqual(expected)
   })
 
   it('clients:sync resolves fallback path for installed vscode with no config file', async () => {
@@ -151,35 +215,7 @@ describe('clients IPC handlers', () => {
     expect(syncCalls).toHaveLength(0)
   })
 
-  it('clients:sync resolves fallback path for installed vscode-insiders with no config file', async () => {
-    detectionById['vscode-insiders'] = { installed: true, configPaths: [], serverCount: 0 }
-
-    const result = await call<SyncResult>('clients:sync', 'vscode-insiders', {
-      allowCreateConfigIfMissing: true,
-    })
-
-    expect(result.success).toBe(true)
-    expect(syncCalls).toContainEqual({
-      clientId: 'vscode-insiders',
-      configPath: 'C:\\Users\\tester\\AppData\\Roaming\\Code - Insiders\\User\\mcp.json',
-    })
-  })
-
-  it('clients:sync writes fallback config when creation is confirmed', async () => {
-    detectionById['codex-cli'] = { installed: true, configPaths: [], serverCount: 0 }
-
-    const result = await call<SyncResult>('clients:sync', 'codex-cli', {
-      allowCreateConfigIfMissing: true,
-    })
-
-    expect(result.success).toBe(true)
-    expect(syncCalls).toContainEqual({
-      clientId: 'codex-cli',
-      configPath: 'C:\\Users\\tester\\.codex\\config.json',
-    })
-  })
-
-  it('clients:sync uses visual studio path from settings when configured', async () => {
+  it('clients:sync uses visual studio legacy path from settings when configured', async () => {
     detectionById['visual-studio'] = { installed: true, configPaths: [], serverCount: 0 }
     testDb
       .prepare('INSERT INTO settings (key, value) VALUES (?, ?)')
@@ -196,13 +232,73 @@ describe('clients IPC handlers', () => {
     })
   })
 
-  it('clients:sync requires confirmation when visual studio path is not configured', async () => {
-    detectionById['visual-studio'] = { installed: true, configPaths: [], serverCount: 0 }
+  it('clients:set-manual-config-path validates and persists discovered path', async () => {
+    const manualPath = join(process.cwd(), 'package.json')
 
-    const result = await call<SyncResult>('clients:sync', 'visual-studio')
+    const validation = await call<ValidationResult>(
+      'clients:set-manual-config-path',
+      'cursor',
+      manualPath,
+    )
 
-    expect(result.success).toBe(false)
-    expect(result.errorCode).toBeUndefined()
+    expect(validation).toEqual({ valid: true, errors: [] })
+    expect(validateCalls).toContainEqual({ clientId: 'cursor', configPath: manualPath })
+
+    const stored = testDb
+      .prepare('SELECT value FROM settings WHERE key = ?')
+      .get('clients.manualConfigPath.cursor') as { value: string }
+    expect(JSON.parse(stored.value)).toBe(manualPath)
+  })
+
+  it('manual config override takes precedence in detect/read/sync/validate', async () => {
+    const autoPath = 'C:\\auto\\cursor.json'
+    const manualPath = join(process.cwd(), 'package.json')
+    detectionById['cursor'] = { installed: true, configPaths: [autoPath], serverCount: 4 }
+
+    readByPath.set(manualPath, {
+      alpha: { command: 'node', args: ['a.js'] },
+      beta: { command: 'node', args: ['b.js'] },
+    })
+
+    await call<ValidationResult>('clients:set-manual-config-path', 'cursor', manualPath)
+    readCalls.length = 0
+    validateCalls.length = 0
+
+    const detected = await call<ClientStatus[]>('clients:detect-all')
+    const cursor = detected.find((entry) => entry.id === 'cursor')
+    expect(cursor?.manualConfigPath).toBe(manualPath)
+    expect(cursor?.configPaths).toEqual([manualPath])
+    expect(cursor?.serverCount).toBe(2)
+
+    await call<McpServerMap>('clients:read-config', 'cursor')
+    expect(readCalls).toContainEqual({ clientId: 'cursor', configPath: manualPath })
+    expect(readCalls).not.toContainEqual({ clientId: 'cursor', configPath: autoPath })
+
+    await call<SyncResult>('clients:sync', 'cursor')
+    expect(syncCalls).toContainEqual({ clientId: 'cursor', configPath: manualPath })
+    expect(syncCalls).not.toContainEqual({ clientId: 'cursor', configPath: autoPath })
+
+    await call<ValidationResult>('clients:validate-config', 'cursor')
+    expect(validateCalls).toContainEqual({ clientId: 'cursor', configPath: manualPath })
+  })
+
+  it('clients:clear-manual-config-path removes override and falls back to adapter detection', async () => {
+    const autoPath = 'C:\\auto\\cursor.json'
+    const manualPath = join(process.cwd(), 'package.json')
+    detectionById['cursor'] = { installed: true, configPaths: [autoPath], serverCount: 4 }
+
+    await call<ValidationResult>('clients:set-manual-config-path', 'cursor', manualPath)
+    await call<void>('clients:clear-manual-config-path', 'cursor')
+
+    const detected = await call<ClientStatus[]>('clients:detect-all')
+    const cursor = detected.find((entry) => entry.id === 'cursor')
+    expect(cursor?.manualConfigPath).toBeUndefined()
+    expect(cursor?.configPaths).toEqual([autoPath])
+
+    const stored = testDb
+      .prepare('SELECT value FROM settings WHERE key = ?')
+      .get('clients.manualConfigPath.cursor')
+    expect(stored).toBeUndefined()
   })
 
   it('clients:sync-all includes fallback-capable installed clients without config paths', async () => {
@@ -284,5 +380,84 @@ describe('clients IPC handlers', () => {
     expect(byId.get('cursor')?.lastSyncedAt).toBe('2026-03-08T10:00:00.000Z')
     expect(byId.get('vscode')?.syncStatus).toBe('error')
     expect(byId.get('codex-cli')?.syncStatus).toBe('never-synced')
+  })
+
+  it('clients:preview-config-import classifies create/overwrite/removed items', async () => {
+    const configPath = 'C:\\tmp\\cursor.json'
+    const repo = new ServersRepo(testDb)
+    repo.create({
+      name: 'alpha',
+      type: 'stdio',
+      command: 'node',
+      args: ['old.js'],
+    })
+    repo.create({
+      name: 'gamma',
+      type: 'stdio',
+      command: 'node',
+      args: ['keep.js'],
+    })
+
+    readByPath.set(configPath, {
+      alpha: { command: 'node', args: ['new.js'] },
+      beta: { command: 'npx', args: ['-y', '@scope/server-beta'] },
+    })
+
+    const payload: ConfigChangedPayload = {
+      clientId: 'cursor',
+      configPath,
+      added: ['beta'],
+      removed: ['gamma'],
+      modified: ['alpha'],
+    }
+
+    const preview = await call<ConfigImportPreviewResult>('clients:preview-config-import', payload)
+    const byName = new Map(preview.items.map((item) => [item.name, item]))
+
+    expect(byName.get('alpha')?.action).toBe('overwrite')
+    expect(byName.get('beta')?.action).toBe('create')
+    expect(byName.get('gamma')?.action).toBe('removed_external')
+  })
+
+  it('clients:import-config-changes overwrites existing, creates new, and keeps removed external', async () => {
+    const configPath = 'C:\\tmp\\cursor.json'
+    const repo = new ServersRepo(testDb)
+    repo.create({
+      name: 'alpha',
+      type: 'stdio',
+      command: 'node',
+      args: ['old.js'],
+    })
+    repo.create({
+      name: 'gamma',
+      type: 'stdio',
+      command: 'node',
+      args: ['keep.js'],
+    })
+
+    readByPath.set(configPath, {
+      alpha: { command: 'node', args: ['new.js'] },
+      beta: { command: 'npx', args: ['-y', '@scope/server-beta'] },
+    })
+
+    const payload: ConfigChangedPayload = {
+      clientId: 'cursor',
+      configPath,
+      added: ['beta'],
+      removed: ['gamma'],
+      modified: ['alpha'],
+    }
+
+    const result = await call<ConfigImportResult>('clients:import-config-changes', payload)
+    expect(result.created).toBe(1)
+    expect(result.updated).toBe(1)
+    expect(result.errors).toEqual([])
+
+    const all = new ServersRepo(testDb).findAll()
+    const byName = new Map(all.map((server) => [server.name, server]))
+
+    expect(byName.get('alpha')?.args).toEqual(['new.js'])
+    expect(byName.has('beta')).toBe(true)
+    expect(byName.has('gamma')).toBe(true)
   })
 })

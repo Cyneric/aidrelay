@@ -2,18 +2,19 @@
  * @file src/main/ipc/__tests__/registry.ipc.test.ts
  *
  * @created 07.03.2026
- * @modified 08.03.2026
+ * @modified 09.03.2026
  *
  * @author Christian Blank <aidrelay@proton.me>
  * @copyright 2026
  *
- * @description Unit tests for registry IPC handlers. The Smithery client,
+ * @description Unit tests for registry IPC handlers. The registry providers,
  * database repos, and feature gates are all mocked so tests run in isolation.
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { createTestDb } from '@main/db/__tests__/helpers'
 import { getDatabase } from '@main/db/connection'
+import type { RegistryInstallPlan, RegistryInstallRequest } from '@shared/channels'
 
 // ─── Module Mocks ─────────────────────────────────────────────────────────────
 
@@ -35,23 +36,20 @@ vi.mock('@main/licensing/feature-gates', () => ({
   }),
 }))
 
-vi.mock('@main/registry/smithery.client', () => ({
-  smitheryClient: {
-    searchServers: vi.fn().mockResolvedValue([]),
-    getRemoteInstallRecipe: vi.fn().mockResolvedValue(null),
-  },
+vi.mock('@main/secrets/keytar.service', () => ({
+  storeSecret: vi.fn().mockResolvedValue(undefined),
 }))
 
 vi.mock('@main/registry/providers', () => ({
   searchRegistry: vi.fn().mockResolvedValue([]),
+  prepareRegistryInstallPlan: vi.fn(),
 }))
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 import { ipcMain } from 'electron'
 import { checkGate } from '@main/licensing/feature-gates'
-import { searchRegistry } from '@main/registry/providers'
-import { smitheryClient } from '@main/registry/smithery.client'
+import { searchRegistry, prepareRegistryInstallPlan } from '@main/registry/providers'
 import { registerRegistryIpc } from '../registry.ipc'
 
 type IpcHandler = (_event: unknown, ...args: unknown[]) => unknown
@@ -63,6 +61,24 @@ const getHandler = (channel: string): IpcHandler => {
   if (!call) throw new Error(`No handler registered for "${channel}"`)
   return call[1] as IpcHandler
 }
+
+const makeStdioPlan = (serverId: string): RegistryInstallPlan => ({
+  provider: 'smithery',
+  serverId,
+  displayName: serverId.split('/').pop() ?? serverId,
+  description: '',
+  options: [
+    {
+      id: 'smithery-stdio',
+      label: 'Local package',
+      type: 'stdio',
+      command: 'npx',
+      args: ['-y', serverId],
+      inputFields: [],
+    },
+  ],
+  defaultOptionId: 'smithery-stdio',
+})
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
@@ -76,6 +92,9 @@ describe('registry IPC handlers', () => {
       if (key === 'maxServers') return Infinity
       return true
     })
+    vi.mocked(prepareRegistryInstallPlan).mockImplementation((_provider, serverId) =>
+      Promise.resolve(makeStdioPlan(serverId)),
+    )
     registerRegistryIpc()
   })
 
@@ -113,8 +132,15 @@ describe('registry IPC handlers', () => {
 
   describe('registry:install', () => {
     it('creates a server from the qualified name and returns it', async () => {
+      const request: RegistryInstallRequest = {
+        provider: 'smithery',
+        serverId: '@anthropic/github-mcp',
+        optionId: 'smithery-stdio',
+        confirmed: true,
+      }
+
       const handler = getHandler('registry:install')
-      const server = await handler(null, '@anthropic/github-mcp')
+      const server = await handler(null, request)
 
       expect(server).toMatchObject({
         name: 'github-mcp',
@@ -125,13 +151,34 @@ describe('registry IPC handlers', () => {
     })
 
     it('installs a remote server natively when a recipe is resolved', async () => {
-      vi.mocked(smitheryClient.getRemoteInstallRecipe).mockResolvedValueOnce({
-        type: 'sse',
-        url: 'https://example.com/sse',
+      vi.mocked(prepareRegistryInstallPlan).mockResolvedValueOnce({
+        provider: 'smithery',
+        serverId: '@acme/remote-mcp',
+        displayName: 'remote-mcp',
+        description: '',
+        options: [
+          {
+            id: 'smithery-remote',
+            label: 'Hosted (SSE)',
+            type: 'sse',
+            command: 'fetch',
+            args: [],
+            url: 'https://example.com/sse',
+            inputFields: [],
+          },
+        ],
+        defaultOptionId: 'smithery-remote',
       })
 
+      const request: RegistryInstallRequest = {
+        provider: 'smithery',
+        serverId: '@acme/remote-mcp',
+        optionId: 'smithery-remote',
+        confirmed: true,
+      }
+
       const handler = getHandler('registry:install')
-      const server = await handler(null, '@acme/remote-mcp')
+      const server = await handler(null, request)
 
       expect(server).toMatchObject({
         name: 'remote-mcp',
@@ -143,10 +190,15 @@ describe('registry IPC handlers', () => {
     })
 
     it('falls back to stdio install when no remote recipe is available', async () => {
-      vi.mocked(smitheryClient.getRemoteInstallRecipe).mockResolvedValueOnce(null)
+      const request: RegistryInstallRequest = {
+        provider: 'smithery',
+        serverId: '@acme/fallback',
+        optionId: 'smithery-stdio',
+        confirmed: true,
+      }
 
       const handler = getHandler('registry:install')
-      const server = await handler(null, '@acme/fallback')
+      const server = await handler(null, request)
 
       expect(server).toMatchObject({
         name: 'fallback',
@@ -163,8 +215,15 @@ describe('registry IPC handlers', () => {
         return true
       })
 
+      const request: RegistryInstallRequest = {
+        provider: 'smithery',
+        serverId: '@some/server',
+        optionId: 'smithery-stdio',
+        confirmed: true,
+      }
+
       const handler = getHandler('registry:install')
-      await expect(handler(null, '@some/server')).rejects.toThrow('Pro')
+      await expect(handler(null, request)).rejects.toThrow('Pro')
     })
 
     it('throws when the server limit is reached', async () => {
@@ -174,8 +233,15 @@ describe('registry IPC handlers', () => {
         return true
       })
 
+      const request: RegistryInstallRequest = {
+        provider: 'smithery',
+        serverId: '@some/server',
+        optionId: 'smithery-stdio',
+        confirmed: true,
+      }
+
       const handler = getHandler('registry:install')
-      await expect(handler(null, '@some/server')).rejects.toThrow('limit')
+      await expect(handler(null, request)).rejects.toThrow('limit')
     })
   })
 })

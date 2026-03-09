@@ -3,9 +3,14 @@ import { createApi } from '../../preload/api/bridge'
 
 const EXPECTED_KEYS = [
   'clientsDetectAll',
+  'clientsInstall',
   'clientsReadConfig',
   'clientsSync',
   'clientsSyncAll',
+  'clientsPreviewConfigImport',
+  'clientsImportConfigChanges',
+  'clientsSetManualConfigPath',
+  'clientsClearManualConfigPath',
   'clientsValidateConfig',
   'serversList',
   'serversGet',
@@ -47,6 +52,7 @@ const EXPECTED_KEYS = [
   'gitSyncPush',
   'gitSyncPull',
   'registrySearch',
+  'registryPrepareInstall',
   'registryInstall',
   'stacksExport',
   'stacksImport',
@@ -93,17 +99,61 @@ describe('preload bridge composition', () => {
     const api = createApi({ invoke, on, removeListener })
 
     await api.clientsDetectAll()
+    await api.clientsInstall('cursor')
+    await api.clientsPreviewConfigImport({
+      clientId: 'cursor',
+      configPath: 'C:\\tmp\\mcp.json',
+      added: ['alpha'],
+      removed: [],
+      modified: [],
+    })
+    await api.clientsImportConfigChanges({
+      clientId: 'cursor',
+      configPath: 'C:\\tmp\\mcp.json',
+      added: [],
+      removed: ['alpha'],
+      modified: [],
+    })
+    await api.clientsSetManualConfigPath('cursor', 'C:\\tmp\\mcp.json')
+    await api.clientsClearManualConfigPath('cursor')
     await api.serversList()
     await api.rulesSyncAll()
     await api.settingsSet('language', 'en')
     await api.backupsList('cursor')
     await api.filesReveal('C:\\tmp\\file.txt')
+    await api.registryPrepareInstall('smithery', '@anthropic/github-mcp')
 
     expect(invoke).toHaveBeenCalledWith('clients:detect-all')
+    expect(invoke).toHaveBeenCalledWith('clients:install', 'cursor')
+    expect(invoke).toHaveBeenCalledWith('clients:preview-config-import', {
+      clientId: 'cursor',
+      configPath: 'C:\\tmp\\mcp.json',
+      added: ['alpha'],
+      removed: [],
+      modified: [],
+    })
+    expect(invoke).toHaveBeenCalledWith('clients:import-config-changes', {
+      clientId: 'cursor',
+      configPath: 'C:\\tmp\\mcp.json',
+      added: [],
+      removed: ['alpha'],
+      modified: [],
+    })
+    expect(invoke).toHaveBeenCalledWith(
+      'clients:set-manual-config-path',
+      'cursor',
+      'C:\\tmp\\mcp.json',
+    )
+    expect(invoke).toHaveBeenCalledWith('clients:clear-manual-config-path', 'cursor')
     expect(invoke).toHaveBeenCalledWith('servers:list')
     expect(invoke).toHaveBeenCalledWith('rules:sync-all')
     expect(invoke).toHaveBeenCalledWith('settings:set', 'language', 'en')
     expect(invoke).toHaveBeenCalledWith('backups:list', 'cursor')
     expect(invoke).toHaveBeenCalledWith('files:reveal', 'C:\\tmp\\file.txt')
+    expect(invoke).toHaveBeenCalledWith(
+      'registry:prepare-install',
+      'smithery',
+      '@anthropic/github-mcp',
+    )
   })
 })

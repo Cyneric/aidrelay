@@ -67,7 +67,7 @@ const COMMAND_PREVIEW_MAX_CHARS = 72
 
 const formatCommandPreview = (
   command: string,
-  args: string[],
+  args: readonly string[],
   maxChars = COMMAND_PREVIEW_MAX_CHARS,
 ) => {
   const parts = [command, ...args].map((part) => part.trim()).filter((part) => part.length > 0)
@@ -115,7 +115,7 @@ const ServersPage = () => {
   const [globalFilter, setGlobalFilter] = useState('')
   const [editingServer, setEditingServer] = useState<McpServer | undefined>(undefined)
   const [showEditor, setShowEditor] = useState(false)
-  const [matrixExpanded, setMatrixExpanded] = useState(false)
+  const [matrixExpanded, setMatrixExpanded] = useState(true)
   const [pendingDeleteServer, setPendingDeleteServer] = useState<McpServer | null>(null)
   const [deletingServer, setDeletingServer] = useState(false)
   const {

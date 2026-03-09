@@ -24,7 +24,7 @@ export const FREE_GATES: Readonly<FeatureGates> = {
   maxProfiles: 2,
   gitSync: false,
   serverTesting: false,
-  registryInstall: false,
+  registryInstall: true,
   stackExport: false,
   tokenBudgetDetailed: false,
   activityLogDays: 7,

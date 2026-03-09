@@ -19,8 +19,8 @@
  *             → on change: parse, diff, send IPC
  *   app quit  → stop() closes the watcher
  *
- * The diff is a simple set comparison of server names. More detailed field-
- * level diffing is intentionally left for a future version.
+ * The diff compares both server names and normalized server config payloads so
+ * `added`, `removed`, and `modified` can be surfaced to the renderer.
  */
 
 import { type FSWatcher, watch } from 'chokidar'
@@ -36,22 +36,40 @@ export type { ConfigChangedPayload }
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 /**
- * Parses a client config file and returns the set of MCP server names present.
- * Returns an empty set if the file cannot be read or parsed.
+ * Parses a client config file and returns its MCP server map section.
+ * Returns an empty map if the file cannot be read or parsed.
  *
  * @param configPath - Absolute path to the client config file.
  * @param schemaKey  - The JSON key that holds the server map (e.g. `mcpServers`).
- * @returns Set of server names found in the file.
+ * @returns Map of server name -> normalized config object.
  */
-const readServerNames = (configPath: string, schemaKey: string): Set<string> => {
+const readServerMap = (configPath: string, schemaKey: string): McpServerMap => {
   try {
     const raw = readFileSync(configPath, 'utf-8')
     const parsed = JSON.parse(raw) as Record<string, unknown>
     const servers = parsed[schemaKey] as McpServerMap | undefined
-    return new Set(Object.keys(servers ?? {}))
+    return servers ?? {}
   } catch {
-    return new Set()
+    return {}
   }
+}
+
+const normalizeServerConfig = (config: unknown): string => {
+  if (!config || typeof config !== 'object') return '{}'
+  const typed = config as Record<string, unknown>
+  const normalized: Record<string, unknown> = {
+    command: typeof typed['command'] === 'string' ? typed['command'] : '',
+  }
+  if (Array.isArray(typed['args']) && typed['args'].length > 0) normalized['args'] = typed['args']
+  if (typed['env'] && typeof typed['env'] === 'object') normalized['env'] = typed['env']
+  if (typed['headers'] && typeof typed['headers'] === 'object')
+    normalized['headers'] = typed['headers']
+  const type = typeof typed['type'] === 'string' ? typed['type'] : 'stdio'
+  if (type !== 'stdio') normalized['type'] = type
+  if (type !== 'stdio' && typeof typed['url'] === 'string' && typed['url'].length > 0) {
+    normalized['url'] = typed['url']
+  }
+  return JSON.stringify(normalized)
 }
 
 /**
@@ -77,10 +95,10 @@ export class FileWatcherService {
   private watcher: FSWatcher | null = null
 
   /**
-   * Snapshot of server names per config path taken at watch start.
+   * Snapshot of server maps per config path taken at watch start.
    * Used as the baseline for computing diffs.
    */
-  private readonly snapshots = new Map<string, Set<string>>()
+  private readonly snapshots = new Map<string, McpServerMap>()
 
   /**
    * Maps config file paths back to the adapter that owns them, so the
@@ -109,7 +127,7 @@ export class FileWatcherService {
         pathsToWatch.push(configPath)
         this.pathToAdapter.set(configPath, adapter)
         // Take baseline snapshot so we can diff on first real change.
-        this.snapshots.set(configPath, readServerNames(configPath, adapter.schemaKey))
+        this.snapshots.set(configPath, readServerMap(configPath, adapter.schemaKey))
       }
     }
 
@@ -149,7 +167,7 @@ export class FileWatcherService {
   }
 
   /**
-   * Handles a file change event by diffing the new server names against the
+   * Handles a file change event by diffing the new server map against the
    * baseline snapshot and emitting an IPC event if anything changed.
    *
    * @param configPath - The path of the file that changed.
@@ -158,29 +176,38 @@ export class FileWatcherService {
     const adapter = this.pathToAdapter.get(configPath)
     if (!adapter) return
 
-    const previous = this.snapshots.get(configPath) ?? new Set<string>()
-    const current = readServerNames(configPath, adapter.schemaKey)
+    const previous = this.snapshots.get(configPath) ?? {}
+    const current = readServerMap(configPath, adapter.schemaKey)
 
-    const added = [...current].filter((name) => !previous.has(name))
-    const removed = [...previous].filter((name) => !current.has(name))
+    const previousNames = Object.keys(previous)
+    const currentNames = Object.keys(current)
+
+    const added = currentNames.filter((name) => !(name in previous))
+    const removed = previousNames.filter((name) => !(name in current))
+    const modified = currentNames.filter((name) => {
+      if (!(name in previous)) return false
+      return normalizeServerConfig(previous[name]) !== normalizeServerConfig(current[name])
+    })
 
     // Update snapshot for the next diff.
     this.snapshots.set(configPath, current)
 
-    if (added.length === 0 && removed.length === 0) {
+    if (added.length === 0 && removed.length === 0 && modified.length === 0) {
       // No server-level changes — likely just formatting or a non-server field.
       log.debug(`[watcher] ${adapter.id} config changed but server set is unchanged`)
       return
     }
 
-    log.info(`[watcher] ${adapter.id} config changed: +${added.length} -${removed.length} servers`)
+    log.info(
+      `[watcher] ${adapter.id} config changed: +${added.length} -${removed.length} ~${modified.length} servers`,
+    )
 
     emitConfigChanged({
       clientId: adapter.id,
       configPath,
       added,
       removed,
-      modified: [],
+      modified,
     })
   }
 }

@@ -4,12 +4,13 @@
  * @description Modal editor for UTF-8 text files with optimistic concurrency.
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Editor from '@monaco-editor/react'
 import { useTranslation } from 'react-i18next'
 import { AlertCircle, Loader2, RotateCcw, Save } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import { ConfirmActionDialog } from '@/components/common/ConfirmActionDialog'
 import {
   Dialog,
   DialogContent,
@@ -70,6 +71,8 @@ const FileEditModal = ({ path, open, onOpenChange }: FileEditModalProps) => {
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [discardDialogOpen, setDiscardDialogOpen] = useState(false)
+  const bypassCloseGuardRef = useRef(false)
 
   const hasUnsavedChanges = content !== initialContent
   const language = useMemo(() => languageFromPath(path), [path])
@@ -100,6 +103,13 @@ const FileEditModal = ({ path, open, onOpenChange }: FileEditModalProps) => {
     void loadFile()
   }, [loadFile, open])
 
+  useEffect(() => {
+    if (!open) {
+      setDiscardDialogOpen(false)
+      bypassCloseGuardRef.current = false
+    }
+  }, [open])
+
   const handleSave = async () => {
     if (mtimeMs === null) return
     setSaving(true)
@@ -122,75 +132,98 @@ const FileEditModal = ({ path, open, onOpenChange }: FileEditModalProps) => {
   }
 
   const handleOpenChange = (nextOpen: boolean) => {
-    if (!nextOpen && hasUnsavedChanges) {
-      const discard = window.confirm(t('files.discardChangesConfirm'))
-      if (!discard) return
+    if (!nextOpen && hasUnsavedChanges && !bypassCloseGuardRef.current) {
+      setDiscardDialogOpen(true)
+      return
     }
+    bypassCloseGuardRef.current = false
     onOpenChange(nextOpen)
   }
 
+  const handleDiscardCancel = () => {
+    setDiscardDialogOpen(false)
+  }
+
+  const handleDiscardConfirm = () => {
+    bypassCloseGuardRef.current = true
+    setDiscardDialogOpen(false)
+    handleOpenChange(false)
+  }
+
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-5xl h-[80vh] flex flex-col">
-        <DialogHeader>
-          <DialogTitle>{t('files.editTitle')}</DialogTitle>
-          <DialogDescription className="font-mono break-all">{path}</DialogDescription>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={handleOpenChange}>
+        <DialogContent className="sm:max-w-5xl h-[80vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>{t('files.editTitle')}</DialogTitle>
+            <DialogDescription className="font-mono break-all">{path}</DialogDescription>
+          </DialogHeader>
 
-        <div className="flex-1 min-h-0 rounded-md border border-input overflow-hidden">
-          {loading ? (
-            <div className="h-full flex items-center justify-center text-sm text-muted-foreground gap-2">
-              <Loader2 size={16} className="animate-spin" />
-              {t('files.loading')}
-            </div>
-          ) : errorMessage ? (
-            <div className="h-full flex items-center justify-center px-6 text-sm text-destructive gap-2 text-center">
-              <AlertCircle size={16} className="shrink-0" />
-              <span>{errorMessage}</span>
-            </div>
-          ) : (
-            <Editor
-              value={content}
-              language={language}
-              onChange={(val) => setContent(val ?? '')}
-              options={{
-                minimap: { enabled: false },
-                scrollBeyondLastLine: false,
-                fontSize: 13,
-                tabSize: 2,
-                wordWrap: 'on',
-                automaticLayout: true,
-              }}
-              theme="vs-dark"
-            />
-          )}
-        </div>
-
-        <DialogFooter>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => void loadFile()}
-            disabled={loading}
-          >
-            <RotateCcw size={14} aria-hidden="true" />
-            {t('files.reload')}
-          </Button>
-          <Button
-            type="button"
-            onClick={() => void handleSave()}
-            disabled={loading || saving || mtimeMs === null || !hasUnsavedChanges}
-          >
-            {saving ? (
-              <Loader2 size={14} className="animate-spin" aria-hidden="true" />
+          <div className="flex-1 min-h-0 rounded-md border border-input overflow-hidden">
+            {loading ? (
+              <div className="h-full flex items-center justify-center text-sm text-muted-foreground gap-2">
+                <Loader2 size={16} className="animate-spin" />
+                {t('files.loading')}
+              </div>
+            ) : errorMessage ? (
+              <div className="h-full flex items-center justify-center px-6 text-sm text-destructive gap-2 text-center">
+                <AlertCircle size={16} className="shrink-0" />
+                <span>{errorMessage}</span>
+              </div>
             ) : (
-              <Save size={14} aria-hidden="true" />
+              <Editor
+                value={content}
+                language={language}
+                onChange={(val) => setContent(val ?? '')}
+                options={{
+                  minimap: { enabled: false },
+                  scrollBeyondLastLine: false,
+                  fontSize: 13,
+                  tabSize: 2,
+                  wordWrap: 'on',
+                  automaticLayout: true,
+                }}
+                theme="vs-dark"
+              />
             )}
-            {t('files.save')}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => void loadFile()}
+              disabled={loading}
+            >
+              <RotateCcw size={14} aria-hidden="true" />
+              {t('files.reload')}
+            </Button>
+            <Button
+              type="button"
+              onClick={() => void handleSave()}
+              disabled={loading || saving || mtimeMs === null || !hasUnsavedChanges}
+            >
+              {saving ? (
+                <Loader2 size={14} className="animate-spin" aria-hidden="true" />
+              ) : (
+                <Save size={14} aria-hidden="true" />
+              )}
+              {t('files.save')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <ConfirmActionDialog
+        open={discardDialogOpen}
+        title={t('files.discardChangesTitle')}
+        description={t('files.discardChangesDescription')}
+        confirmLabel={t('files.discardChangesAction')}
+        variant="destructive"
+        onConfirm={handleDiscardConfirm}
+        onCancel={handleDiscardCancel}
+      />
+    </>
   )
 }
 

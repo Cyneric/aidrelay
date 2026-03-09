@@ -2,7 +2,7 @@
  * @file src/renderer/components/registry/RegistryServerCard.tsx
  *
  * @created 07.03.2026
- * @modified 08.03.2026
+ * @modified 09.03.2026
  *
  * @author Christian Blank <aidrelay@proton.me>
  * @copyright 2026
@@ -20,7 +20,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useServersStore } from '@/stores/servers.store'
-import type { RegistryServer } from '@shared/channels'
+import type { RegistryProvider, RegistryServer } from '@shared/channels'
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -45,7 +45,19 @@ const RegistryServerCard = ({ server, canInstall }: RegistryServerCardProps) => 
   const handleInstall = async () => {
     setInstalling(true)
     try {
-      await window.api.registryInstall(server.id)
+      const provider: RegistryProvider = server.source === 'official' ? 'official' : 'smithery'
+      const plan = await window.api.registryPrepareInstall(provider, server.id)
+      const option =
+        (plan.defaultOptionId !== undefined
+          ? plan.options.find((o) => o.id === plan.defaultOptionId)
+          : undefined) ?? plan.options[0]
+      if (!option) throw new Error('No install option available')
+      await window.api.registryInstall({
+        provider,
+        serverId: server.id,
+        optionId: option.id,
+        confirmed: true,
+      })
       await load()
       toast.success(`"${server.displayName}" installed`)
     } catch (err) {

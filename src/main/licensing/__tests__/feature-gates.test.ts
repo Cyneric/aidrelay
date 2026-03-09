@@ -44,8 +44,8 @@ describe('checkGate()', () => {
     expect(checkGate('serverTesting')).toBe(false)
   })
 
-  it('returns false for registryInstall on Free tier', () => {
-    expect(checkGate('registryInstall')).toBe(false)
+  it('returns true for registryInstall on Free tier', () => {
+    expect(checkGate('registryInstall')).toBe(true)
   })
 
   it('returns false for stackExport on Free tier', () => {

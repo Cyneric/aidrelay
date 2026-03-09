@@ -17,10 +17,10 @@ import { join } from 'path'
 import Database from 'better-sqlite3'
 import { app } from 'electron'
 import log from 'electron-log'
-import { MIGRATION_001, MIGRATION_002 } from './migrations/index'
+import { MIGRATION_001, MIGRATION_002, MIGRATION_003 } from './migrations/index'
 
 /** All migration scripts in order. Index = version - 1. */
-const MIGRATIONS: readonly string[] = [MIGRATION_001, MIGRATION_002]
+const MIGRATIONS: readonly string[] = [MIGRATION_001, MIGRATION_002, MIGRATION_003]
 
 /** Lazily-created singleton instance. */
 let instance: Database.Database | null = null

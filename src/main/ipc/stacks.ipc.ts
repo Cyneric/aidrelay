@@ -2,7 +2,7 @@
  * @file src/main/ipc/stacks.ipc.ts
  *
  * @created 07.03.2026
- * @modified 07.03.2026
+ * @modified 09.03.2026
  *
  * @author Christian Blank <aidrelay@proton.me>
  * @copyright 2026
@@ -49,12 +49,14 @@ const createRepos = (): { servers: ServersRepo; rules: RulesRepo; log: ActivityL
  */
 const stripServer = (
   s: McpServer,
-): Omit<McpServer, 'id' | 'secretEnvKeys' | 'clientOverrides'> => ({
+): Omit<McpServer, 'id' | 'secretEnvKeys' | 'secretHeaderKeys' | 'clientOverrides'> => ({
   name: s.name,
   type: s.type,
+  ...(s.url !== undefined ? { url: s.url } : {}),
   command: s.command,
   args: s.args,
   env: s.env,
+  headers: s.headers,
   enabled: s.enabled,
   tags: s.tags,
   notes: s.notes,

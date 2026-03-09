@@ -6,6 +6,8 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { fireEvent, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import i18n from '@/i18n'
 import { renderWithProviders } from '@/test-utils'
 import { SettingsPage } from '../SettingsPage'
 
@@ -56,8 +58,10 @@ vi.mock('@/lib/useLicense', () => ({
   }),
 }))
 
-beforeEach(() => {
+beforeEach(async () => {
   vi.clearAllMocks()
+  localStorage.removeItem('language')
+  await i18n.changeLanguage('en')
 
   settingsGetMock.mockResolvedValue(undefined)
   settingsSetMock.mockResolvedValue()
@@ -84,6 +88,48 @@ beforeEach(() => {
     },
     writable: true,
     configurable: true,
+  })
+})
+
+describe('SettingsPage language preference', () => {
+  it('reflects active i18n language in the selector when no saved language exists', async () => {
+    await i18n.changeLanguage('de')
+
+    renderWithProviders(<SettingsPage />)
+
+    await screen.findByRole('heading', { level: 1, name: 'Einstellungen' })
+    expect(screen.getByTestId('select-language')).toHaveTextContent('Deutsch')
+  })
+
+  it('switches language immediately and persists the new setting', async () => {
+    const user = userEvent.setup()
+    await i18n.changeLanguage('de')
+
+    renderWithProviders(<SettingsPage />)
+    await screen.findByRole('heading', { level: 1, name: 'Einstellungen' })
+
+    await user.click(screen.getByTestId('select-language'))
+    await user.click(await screen.findByRole('option', { name: 'English' }))
+
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { level: 1, name: 'Settings' })).toBeInTheDocument(),
+    )
+    expect(settingsSetMock).toHaveBeenCalledWith('language', 'en')
+    expect(localStorage.getItem('language')).toBe('en')
+  })
+
+  it('applies saved language from settings on mount', async () => {
+    await i18n.changeLanguage('de')
+    settingsGetMock.mockImplementation((key: string) =>
+      Promise.resolve(key === 'language' ? 'en' : undefined),
+    )
+
+    renderWithProviders(<SettingsPage />)
+
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { level: 1, name: 'Settings' })).toBeInTheDocument(),
+    )
+    expect(screen.getByTestId('select-language')).toHaveTextContent('English')
   })
 })
 

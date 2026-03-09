@@ -33,6 +33,50 @@ export type ClientId =
   | 'visual-studio'
 
 /**
+ * Supported package managers used by the in-app client installer.
+ */
+export type InstallManager = 'winget' | 'choco' | 'npm' | 'manual'
+
+/**
+ * Failure reason returned by the in-app client installer.
+ */
+export type ClientInstallFailureReason =
+  | 'unsupported_platform'
+  | 'unsupported_client'
+  | 'no_available_manager'
+  | 'command_failed'
+  | 'requires_elevation'
+  | 'manual_install_required'
+
+/**
+ * Single install attempt record for one package manager command.
+ */
+export interface ClientInstallAttempt {
+  readonly manager: InstallManager
+  readonly command: string
+  readonly args: readonly string[]
+  readonly success: boolean
+  readonly skipped?: boolean
+  readonly exitCode?: number
+  readonly stdout?: string
+  readonly stderr?: string
+  readonly error?: string
+}
+
+/**
+ * Result returned by `clients:install` with full fallback attempt history.
+ */
+export interface ClientInstallResult {
+  readonly clientId: ClientId
+  readonly success: boolean
+  readonly attempts: readonly ClientInstallAttempt[]
+  readonly installedWith?: InstallManager
+  readonly failureReason?: ClientInstallFailureReason
+  readonly docsUrl?: string
+  readonly message: string
+}
+
+/**
  * Result returned from a client adapter's `detect()` call.
  */
 export interface ClientDetectionResult {
@@ -50,6 +94,7 @@ export interface ClientStatus {
   readonly displayName: string
   readonly installed: boolean
   readonly configPaths: readonly string[]
+  readonly manualConfigPath?: string
   readonly serverCount: number
   readonly lastSyncedAt?: string
   readonly syncStatus: 'synced' | 'out-of-sync' | 'never-synced' | 'error'
@@ -72,6 +117,7 @@ export interface McpServerConfig {
   readonly env?: Readonly<Record<string, string>>
   readonly type?: McpServerType
   readonly url?: string
+  readonly headers?: Readonly<Record<string, string>>
 }
 
 /**
@@ -94,6 +140,8 @@ export interface McpServer {
   readonly args: readonly string[]
   readonly env: Readonly<Record<string, string>>
   readonly secretEnvKeys: readonly string[]
+  readonly headers: Readonly<Record<string, string>>
+  readonly secretHeaderKeys: readonly string[]
   readonly enabled: boolean
   readonly clientOverrides: Readonly<Record<ClientId, { readonly enabled: boolean }>>
   readonly tags: readonly string[]
@@ -203,6 +251,46 @@ export interface ConfigChangedPayload {
   readonly added: readonly string[]
   readonly removed: readonly string[]
   readonly modified: readonly string[]
+}
+
+/**
+ * Action classification for one server entry when previewing an external
+ * config import into the local aidrelay registry.
+ */
+export type ConfigImportPreviewAction = 'create' | 'overwrite' | 'no-op' | 'removed_external'
+
+/**
+ * Diff preview row for one server name.
+ * `before` is the current aidrelay registry projection; `after` is the
+ * currently detected external config projection.
+ */
+export interface ConfigImportPreviewItem {
+  readonly name: string
+  readonly source: 'added' | 'removed' | 'modified'
+  readonly action: ConfigImportPreviewAction
+  readonly before: McpServerConfig | null
+  readonly after: McpServerConfig | null
+}
+
+/**
+ * Preview payload returned before importing an externally changed client config.
+ */
+export interface ConfigImportPreviewResult {
+  readonly clientId: ClientId
+  readonly configPath: string
+  readonly items: readonly ConfigImportPreviewItem[]
+}
+
+/**
+ * Result of importing externally changed client config entries into aidrelay.
+ */
+export interface ConfigImportResult {
+  readonly clientId: ClientId
+  readonly configPath: string
+  readonly created: number
+  readonly updated: number
+  readonly skipped: number
+  readonly errors: readonly string[]
 }
 
 // ─── Git Sync Types ───────────────────────────────────────────────────────────

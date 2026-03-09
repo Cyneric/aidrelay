@@ -29,6 +29,9 @@ import {
   ShieldCheck,
   FileX2,
   FilePlus2,
+  Download,
+  FolderOpen,
+  Trash2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -42,9 +45,11 @@ import {
 } from '@/components/ui/table'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { CreateConfigConfirmDialog } from '@/components/clients/CreateConfigConfirmDialog'
+import { ConfirmActionDialog } from '@/components/common/ConfirmActionDialog'
 import { PathWithActions } from '@/components/common/PathWithActions'
 import { useClientsStore } from '@/stores/clients.store'
 import { clientsService } from '@/services/clients.service'
+import { dialogService } from '@/services/dialog.service'
 import type { ClientStatus, SyncClientOptions, SyncResult } from '@shared/types'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -76,9 +81,15 @@ const SYNC_STATUS_KEYS = {
 interface RowProps {
   readonly client: ClientStatus
   readonly syncing: boolean
+  readonly installing: boolean
+  readonly discovering: boolean
+  readonly clearingManualPath: boolean
   readonly validating: boolean
-  readonly validationStatus?: 'success' | 'failure'
+  readonly validationStatus: 'success' | 'failure' | undefined
   readonly onSync: (id: ClientStatus['id']) => void
+  readonly onInstall: (id: ClientStatus['id']) => void
+  readonly onDiscover: (id: ClientStatus['id']) => void
+  readonly onClearManualPath: (id: ClientStatus['id']) => void
   readonly onCreateConfig: (id: ClientStatus['id']) => void
   readonly onValidate: (id: ClientStatus['id']) => void
 }
@@ -89,9 +100,15 @@ interface RowProps {
 const ClientRow = ({
   client,
   syncing,
+  installing,
+  discovering,
+  clearingManualPath,
   validating,
   validationStatus,
   onSync,
+  onInstall,
+  onDiscover,
+  onClearManualPath,
   onCreateConfig,
   onValidate,
 }: Readonly<RowProps>) => {
@@ -99,7 +116,13 @@ const ClientRow = ({
   const metaBase = SYNC_STATUS_KEYS[client.syncStatus]
   const StatusIcon = metaBase.icon
   const meta = { ...metaBase, label: t(metaBase.labelKey as Parameters<typeof t>[0]) }
+  const isFileBasedClient = client.id !== 'jetbrains'
+  const hasConfig = client.configPaths.length > 0
+  const hasManualConfigPath =
+    typeof client.manualConfigPath === 'string' && client.manualConfigPath.length > 0
+  const manualPathMissing = hasManualConfigPath && client.configPaths.length === 0
   const missingConfig = client.installed && client.configPaths.length === 0
+  const showInstall = !client.installed
 
   return (
     <TableRow
@@ -129,20 +152,73 @@ const ClientRow = ({
 
       {/* Config paths */}
       <TableCell className="px-2 py-2.5 max-w-[14rem]">
-        {client.configPaths.length === 0 ? (
-          missingConfig ? (
-            <span
-              className="inline-flex items-center gap-1 text-xs text-muted-foreground"
-              data-testid={`client-missing-config-path-${client.id}`}
-            >
-              <FileX2 size={13} aria-hidden="true" className="text-amber-500" />
-              {t('clients.noConfigPath')}
+        {manualPathMissing ? (
+          <div className="space-y-1" data-testid={`client-manual-path-stale-${client.id}`}>
+            <p className="text-xs text-muted-foreground font-mono break-all">
+              {client.manualConfigPath}
+            </p>
+            <span className="inline-flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400">
+              <FileX2 size={13} aria-hidden="true" />
+              {t('clients.manualPathMissing')}
             </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="xs"
+              onClick={() => onClearManualPath(client.id)}
+              disabled={clearingManualPath}
+              data-testid={`btn-clear-manual-path-${client.id}`}
+            >
+              <Trash2 size={12} aria-hidden="true" />
+              {t('clients.clearDiscoveredPathButton')}
+            </Button>
+          </div>
+        ) : client.configPaths.length === 0 ? (
+          missingConfig ? (
+            <div className="space-y-1">
+              <span
+                className="inline-flex items-center gap-1 text-xs text-muted-foreground"
+                data-testid={`client-missing-config-path-${client.id}`}
+              >
+                <FileX2 size={13} aria-hidden="true" className="text-amber-500" />
+                {t('clients.noConfigPath')}
+              </span>
+              <Button
+                type="button"
+                variant="outline"
+                size="xs"
+                onClick={() => onCreateConfig(client.id)}
+                disabled={syncing}
+                aria-label={t('clients.createConfigAria', { name: client.displayName })}
+                data-testid={`btn-create-config-${client.id}`}
+              >
+                <FilePlus2 size={12} aria-hidden="true" />
+                {t('clients.createConfigButton')}
+              </Button>
+            </div>
           ) : (
             <span className="text-xs text-muted-foreground">—</span>
           )
         ) : (
           <ul className="space-y-0.5">
+            {hasManualConfigPath && (
+              <li className="flex items-center gap-1">
+                <span className="text-xs text-muted-foreground">
+                  {t('clients.manualPathActive')}
+                </span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="xs"
+                  onClick={() => onClearManualPath(client.id)}
+                  disabled={clearingManualPath}
+                  data-testid={`btn-clear-manual-path-${client.id}`}
+                >
+                  <Trash2 size={12} aria-hidden="true" />
+                  {t('clients.clearDiscoveredPathButton')}
+                </Button>
+              </li>
+            )}
             {client.configPaths.map((p, index) => (
               <li key={p} className="text-xs text-muted-foreground font-mono">
                 <PathWithActions
@@ -209,41 +285,66 @@ const ClientRow = ({
             </TooltipContent>
           </Tooltip>
 
-          {missingConfig && (
+          {isFileBasedClient ? (
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
                   type="button"
                   variant="outline"
                   size="icon-xs"
-                  onClick={() => onCreateConfig(client.id)}
-                  disabled={!client.installed || syncing}
-                  aria-label={t('clients.createConfigAria', { name: client.displayName })}
-                  data-testid={`btn-create-config-${client.id}`}
+                  onClick={() => onDiscover(client.id)}
+                  disabled={discovering}
+                  aria-label={t('clients.discoverAria', { name: client.displayName })}
+                  data-testid={`btn-discover-${client.id}`}
                 >
-                  <FilePlus2 size={11} aria-hidden="true" />
+                  <FolderOpen size={11} aria-hidden="true" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>{t('clients.createConfigTooltip')}</TooltipContent>
+              <TooltipContent>{t('clients.discoverTooltip')}</TooltipContent>
             </Tooltip>
+          ) : (
+            <span className="inline-flex size-6" aria-hidden="true" />
           )}
 
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                type="button"
-                variant="outline"
-                size="icon-xs"
-                onClick={() => onValidate(client.id)}
-                disabled={!client.installed || validating}
-                aria-label={t('clients.validateClientAria', { name: client.displayName })}
-                data-testid={`btn-validate-${client.id}`}
-              >
-                <ShieldCheck size={11} aria-hidden="true" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>{t('clients.validateTooltip')}</TooltipContent>
-          </Tooltip>
+          {showInstall ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon-xs"
+                  onClick={() => onInstall(client.id)}
+                  disabled={installing}
+                  aria-label={t('clients.installAria', { name: client.displayName })}
+                  data-testid={`btn-install-${client.id}`}
+                >
+                  <Download size={11} aria-hidden="true" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t('clients.installTooltip')}</TooltipContent>
+            </Tooltip>
+          ) : (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon-xs"
+                  onClick={() => onValidate(client.id)}
+                  disabled={validating || !hasConfig}
+                  aria-label={t('clients.validateClientAria', { name: client.displayName })}
+                  data-testid={`btn-validate-${client.id}`}
+                >
+                  <ShieldCheck size={11} aria-hidden="true" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {hasConfig
+                  ? t('clients.validateTooltip')
+                  : t('clients.validateDisabledMissingConfigTooltip')}
+              </TooltipContent>
+            </Tooltip>
+          )}
 
           {validationStatus === 'success' && (
             <Tooltip>
@@ -292,11 +393,15 @@ const ClientsPage = () => {
   const { t } = useTranslation()
   const { clients, loading, detectAll, syncClient } = useClientsStore()
   const [syncingId, setSyncingId] = useState<ClientStatus['id'] | null>(null)
+  const [installingId, setInstallingId] = useState<ClientStatus['id'] | null>(null)
+  const [discoveringId, setDiscoveringId] = useState<ClientStatus['id'] | null>(null)
+  const [clearingManualPathId, setClearingManualPathId] = useState<ClientStatus['id'] | null>(null)
   const [validatingId, setValidatingId] = useState<ClientStatus['id'] | null>(null)
   const [validationStatusByClientId, setValidationStatusByClientId] = useState<
     Partial<Record<ClientStatus['id'], ValidationStatus>>
   >({})
   const [createConfigClientId, setCreateConfigClientId] = useState<ClientStatus['id'] | null>(null)
+  const [installClientId, setInstallClientId] = useState<ClientStatus['id'] | null>(null)
 
   useEffect(() => {
     void detectAll()
@@ -316,6 +421,60 @@ const ClientsPage = () => {
       }
     },
     [syncClient, t],
+  )
+
+  const getClientDisplayName = useCallback(
+    (clientId: ClientStatus['id']): string =>
+      clients.find((client) => client.id === clientId)?.displayName ?? clientId,
+    [clients],
+  )
+
+  const handleDiscover = useCallback(
+    async (clientId: ClientStatus['id']) => {
+      if (clientId === 'jetbrains') return
+
+      setDiscoveringId(clientId)
+      try {
+        const selected = await dialogService.showOpen({
+          properties: ['openFile'],
+          title: t('clients.discoverDialogTitle', { name: getClientDisplayName(clientId) }),
+        })
+        const configPath = selected.filePaths[0]
+        if (selected.canceled || !configPath) return
+
+        const validation = await clientsService.setManualConfigPath(clientId, configPath)
+        if (!validation.valid) {
+          toast.warning(t('clients.discoverInvalid', { errors: validation.errors.join(', ') }))
+          return
+        }
+
+        toast.success(t('clients.discoverSaved', { name: getClientDisplayName(clientId) }))
+        await detectAll()
+      } catch (err) {
+        const message = err instanceof Error ? err.message : t('common.error')
+        toast.error(message)
+      } finally {
+        setDiscoveringId(null)
+      }
+    },
+    [detectAll, getClientDisplayName, t],
+  )
+
+  const handleClearManualPath = useCallback(
+    async (clientId: ClientStatus['id']) => {
+      setClearingManualPathId(clientId)
+      try {
+        await clientsService.clearManualConfigPath(clientId)
+        toast.success(t('clients.discoverCleared', { name: getClientDisplayName(clientId) }))
+        await detectAll()
+      } catch (err) {
+        const message = err instanceof Error ? err.message : t('common.error')
+        toast.error(message)
+      } finally {
+        setClearingManualPathId(null)
+      }
+    },
+    [detectAll, getClientDisplayName, t],
   )
 
   const handleValidate = useCallback(
@@ -379,6 +538,7 @@ const ClientsPage = () => {
 
   const installedCount = clients.filter((c) => c.installed).length
   const createConfigClient = clients.find((client) => client.id === createConfigClientId) ?? null
+  const installClient = clients.find((client) => client.id === installClientId) ?? null
 
   const handleConfirmCreateConfig = useCallback(async () => {
     if (!createConfigClient) return
@@ -391,6 +551,47 @@ const ClientsPage = () => {
     }
   }, [createConfigClient, handleSync])
 
+  const handleConfirmInstall = useCallback(async () => {
+    if (!installClient) return
+
+    setInstallingId(installClient.id)
+    try {
+      const result = await clientsService.install(installClient.id)
+
+      if (result.success) {
+        toast.success(
+          t('clients.installSuccess', {
+            name: installClient.displayName,
+            manager: result.installedWith ?? 'unknown',
+          }),
+        )
+      } else if (result.docsUrl) {
+        toast.warning(
+          t('clients.installFailedWithDocs', {
+            name: installClient.displayName,
+            reason: result.message,
+            url: result.docsUrl,
+          }),
+        )
+      } else {
+        toast.warning(
+          t('clients.installFailed', {
+            name: installClient.displayName,
+            reason: result.message,
+          }),
+        )
+      }
+
+      await detectAll()
+    } catch (err) {
+      const message = err instanceof Error ? err.message : t('common.error')
+      toast.error(message)
+    } finally {
+      setInstallingId(null)
+      setInstallClientId(null)
+    }
+  }, [detectAll, installClient, t])
+
   return (
     <main className="flex flex-col gap-6" data-testid="clients-page">
       <CreateConfigConfirmDialog
@@ -399,6 +600,18 @@ const ClientsPage = () => {
         submitting={createConfigClient !== null && syncingId === createConfigClient.id}
         onCancel={() => setCreateConfigClientId(null)}
         onConfirm={() => void handleConfirmCreateConfig()}
+      />
+      <ConfirmActionDialog
+        open={installClient !== null}
+        title={t('clients.installConfirmTitle')}
+        description={t('clients.installConfirmDescription', {
+          name: installClient?.displayName ?? '',
+        })}
+        confirmLabel={t('clients.installConfirm')}
+        pending={installClient !== null && installingId === installClient.id}
+        variant="default"
+        onCancel={() => setInstallClientId(null)}
+        onConfirm={() => void handleConfirmInstall()}
       />
 
       <div className="flex items-start justify-between">
@@ -478,9 +691,15 @@ const ClientsPage = () => {
                     key={client.id}
                     client={client}
                     syncing={syncingId === client.id}
+                    installing={installingId === client.id}
+                    discovering={discoveringId === client.id}
+                    clearingManualPath={clearingManualPathId === client.id}
                     validating={validatingId === client.id}
                     validationStatus={validationStatusByClientId[client.id]}
                     onSync={(id) => void handleSync(id)}
+                    onInstall={(id) => setInstallClientId(id)}
+                    onDiscover={(id) => void handleDiscover(id)}
+                    onClearManualPath={(id) => void handleClearManualPath(id)}
                     onCreateConfig={(id) => setCreateConfigClientId(id)}
                     onValidate={(id) => void handleValidate(id)}
                   />

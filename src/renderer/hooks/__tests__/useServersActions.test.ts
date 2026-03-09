@@ -2,7 +2,7 @@
  * @file src/renderer/hooks/__tests__/useServersActions.test.ts
  *
  * @created 08.03.2026
- * @modified 08.03.2026
+ * @modified 09.03.2026
  *
  * @description Unit tests for useServersActions server-test UX behavior.
  */
@@ -68,6 +68,8 @@ const makeServer = (id = 'srv-1'): McpServer => ({
   args: ['-y', 'chrome-devtools-mcp@latest'],
   env: {},
   secretEnvKeys: [],
+  headers: {},
+  secretHeaderKeys: [],
   enabled: true,
   clientOverrides: {
     'claude-desktop': { enabled: true },

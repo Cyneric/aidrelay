@@ -10,9 +10,10 @@
  * @description Registry provider routing for search requests.
  */
 
-import type { RegistryProvider, RegistryServer } from '@shared/channels'
+import type { RegistryInstallPlan, RegistryProvider, RegistryServer } from '@shared/channels'
 import { smitheryClient } from './smithery.client'
 import { officialRegistryClient } from './official-registry.client'
+import { prepareRegistryInstall } from './install-resolver'
 
 type Searcher = (query: string) => Promise<RegistryServer[]>
 
@@ -28,3 +29,8 @@ export const searchRegistry = (
   const searcher = searchers[provider] ?? searchers.smithery
   return searcher(query)
 }
+
+export const prepareRegistryInstallPlan = (
+  provider: RegistryProvider,
+  serverId: string,
+): Promise<RegistryInstallPlan> => prepareRegistryInstall(provider, serverId)
