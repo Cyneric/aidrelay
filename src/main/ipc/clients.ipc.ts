@@ -20,6 +20,7 @@ import type {
   SyncResult,
   ValidationResult,
 } from '@shared/types'
+import type { ClientInstallProgressPayload } from '@shared/channels'
 import { ADAPTERS, ADAPTER_IDS } from '@main/clients/registry'
 import type { ClientAdapter } from '@main/clients/types'
 import { ClientInstallService } from '@main/clients/client-install.service'
@@ -250,9 +251,11 @@ export const registerClientsIpc = (): void => {
 
   ipcMain.handle(
     'clients:install',
-    async (_event, clientId: ClientId): Promise<ClientInstallResult> => {
+    async (event, clientId: ClientId): Promise<ClientInstallResult> => {
       log.debug(`[ipc] clients:install ${clientId}`)
-      return installService.install(clientId)
+      return installService.install(clientId, (payload: ClientInstallProgressPayload) => {
+        event.sender.send('clients:install-progress', payload)
+      })
     },
   )
 

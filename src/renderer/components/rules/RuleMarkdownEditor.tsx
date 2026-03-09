@@ -19,6 +19,7 @@ import '@uiw/react-md-editor/markdown-editor.css'
 import '@uiw/react-markdown-preview/markdown.css'
 import { useTokenEstimate } from '@/hooks/useTokenEstimate'
 import { useTheme } from '@/lib/useTheme'
+import { tokenBadgeClass } from './tokenBadgeSeverity'
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -30,13 +31,6 @@ interface RuleMarkdownEditorProps {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-/** Returns the CSS class for the token count badge based on the count value. */
-const tokenBadgeClass = (count: number): string => {
-  if (count > 2000) return 'bg-destructive/15 text-destructive'
-  if (count > 500) return 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400'
-  return 'bg-muted text-muted-foreground'
-}
 
 // ─── Component ────────────────────────────────────────────────────────────────
 

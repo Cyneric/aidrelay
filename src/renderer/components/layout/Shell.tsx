@@ -30,7 +30,7 @@ const Shell = () => (
     <div className="flex flex-1 min-h-0 overflow-hidden">
       <Sidebar />
       <main
-        className="relative z-0 flex-1 min-h-0 overflow-x-hidden overflow-y-auto p-6"
+        className="flex-1 min-h-0 overflow-x-hidden overflow-y-auto p-6"
         role="main"
         id="main-content"
       >

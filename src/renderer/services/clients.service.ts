@@ -9,6 +9,7 @@ import type {
   SyncResult,
   ValidationResult,
 } from '@shared/types'
+import type { ClientInstallProgressPayload } from '@shared/channels'
 
 export const clientsService = {
   detectAll: (): Promise<ClientStatus[]> => window.api.clientsDetectAll(),
@@ -29,6 +30,8 @@ export const clientsService = {
     window.api.clientsValidateConfig(clientId),
   onConfigChanged: (handler: (payload: ConfigChangedPayload) => void): (() => void) =>
     window.api.onConfigChanged(handler),
+  onInstallProgress: (handler: (payload: ClientInstallProgressPayload) => void): (() => void) =>
+    window.api.onClientInstallProgress(handler),
   onActivateProfileFromTray: (handler: (profileId: string) => void): (() => void) =>
     window.api.onActivateProfileFromTray(handler),
 }

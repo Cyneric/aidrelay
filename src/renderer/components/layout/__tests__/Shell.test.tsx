@@ -38,14 +38,7 @@ describe('Shell', () => {
     expect(shell).toHaveClass('h-screen', 'min-h-0', 'overflow-hidden')
 
     const main = screen.getByRole('main')
-    expect(main).toHaveClass(
-      'relative',
-      'z-0',
-      'flex-1',
-      'min-h-0',
-      'overflow-y-auto',
-      'overflow-x-hidden',
-    )
+    expect(main).toHaveClass('flex-1', 'min-h-0', 'overflow-y-auto', 'overflow-x-hidden')
 
     const contentRow = main.parentElement
     expect(contentRow).toHaveClass('flex', 'flex-1', 'min-h-0', 'overflow-hidden')

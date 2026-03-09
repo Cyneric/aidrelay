@@ -40,7 +40,7 @@ const rules: AiRule[] = [
     fileGlobs: [],
     alwaysApply: true,
     clientOverrides: {} as AiRule['clientOverrides'],
-    tokenEstimate: 80,
+    tokenEstimate: 2_190,
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
   },
@@ -77,5 +77,9 @@ describe('RulesPage scope badge colors', () => {
     expect(projectScopeBadge).toHaveClass('bg-teal-100')
     expect(projectScopeBadge).toHaveClass('text-teal-800')
     expect(projectScopeBadge.className).not.toContain('violet')
+
+    const projectTokenCell = within(projectRow).getByText(/~2[.,]190/)
+    expect(projectTokenCell).toHaveClass('text-emerald-700')
+    expect(projectTokenCell.className).not.toContain('text-destructive')
   })
 })

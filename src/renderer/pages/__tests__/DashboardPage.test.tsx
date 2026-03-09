@@ -129,8 +129,15 @@ describe('DashboardPage', () => {
     renderWithProviders(<DashboardPage />)
 
     const stickyToolbar = screen.getByTestId('dashboard-sticky-toolbar')
-    expect(stickyToolbar).toHaveClass('sticky', 'top-0', 'bg-background')
-    expect(stickyToolbar).not.toHaveClass('bg-background/95', 'backdrop-blur')
+    expect(stickyToolbar).toHaveClass(
+      'sticky',
+      'top-0',
+      '-mt-6',
+      'pt-8',
+      'bg-background/95',
+      'backdrop-blur',
+    )
+    expect(screen.queryByTestId('dashboard-sticky-top-guard')).not.toBeInTheDocument()
 
     expect(screen.getByTestId('dashboard-toolbar')).toHaveAttribute('role', 'toolbar')
     expect(screen.getByTestId('dashboard-toolbar-row1')).toBeInTheDocument()

@@ -389,7 +389,7 @@ const DashboardPage = () => {
       />
 
       <div
-        className="sticky top-0 z-20 -mx-6 mb-6 border-b border-border/70 bg-background px-6 pb-4 pt-2"
+        className="sticky top-0 z-20 -mx-6 -mt-6 mb-6 border-b border-border/70 bg-background/95 px-6 pb-4 pt-8 backdrop-blur"
         data-testid="dashboard-sticky-toolbar"
       >
         <header className="mb-4 flex flex-wrap items-center justify-between gap-4">

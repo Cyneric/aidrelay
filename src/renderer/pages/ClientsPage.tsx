@@ -45,12 +45,24 @@ import {
 } from '@/components/ui/table'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { CreateConfigConfirmDialog } from '@/components/clients/CreateConfigConfirmDialog'
-import { ConfirmActionDialog } from '@/components/common/ConfirmActionDialog'
+import {
+  InstallClientDialog,
+  type InstallDialogPhase,
+  type InstallTimelineEntry,
+  type InstallTimelineStatus,
+} from '@/components/clients/InstallClientDialog'
 import { PathWithActions } from '@/components/common/PathWithActions'
 import { useClientsStore } from '@/stores/clients.store'
 import { clientsService } from '@/services/clients.service'
 import { dialogService } from '@/services/dialog.service'
-import type { ClientStatus, SyncClientOptions, SyncResult } from '@shared/types'
+import type { ClientInstallProgressPayload } from '@shared/channels'
+import type {
+  ClientInstallResult,
+  ClientStatus,
+  InstallManager,
+  SyncClientOptions,
+  SyncResult,
+} from '@shared/types'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -126,10 +138,7 @@ const ClientRow = ({
 
   return (
     <TableRow
-      className={cn(
-        'border-b last:border-b-0 transition-colors',
-        !client.installed && 'opacity-50',
-      )}
+      className={cn('border-b last:border-b-0 transition-colors')}
       data-testid={`client-row-${client.id}`}
     >
       {/* Name + install badge */}
@@ -311,10 +320,10 @@ const ClientRow = ({
               <TooltipTrigger asChild>
                 <Button
                   type="button"
-                  variant="outline"
                   size="icon-xs"
                   onClick={() => onInstall(client.id)}
                   disabled={installing}
+                  className="bg-amber-600 text-white hover:bg-amber-500 dark:bg-amber-500 dark:hover:bg-amber-400"
                   aria-label={t('clients.installAria', { name: client.displayName })}
                   data-testid={`btn-install-${client.id}`}
                 >
@@ -385,6 +394,72 @@ const ClientRow = ({
 
 type ValidationStatus = 'success' | 'failure'
 
+const MANAGER_LABEL_KEYS = {
+  winget: 'clients.installProgress.manager.winget',
+  choco: 'clients.installProgress.manager.choco',
+  npm: 'clients.installProgress.manager.npm',
+  manual: 'clients.installProgress.manager.manual',
+} as const satisfies Record<InstallManager, string>
+
+const OFFICIAL_INSTALL_URLS: Readonly<Record<ClientStatus['id'], string>> = {
+  cursor: 'https://www.cursor.com/downloads',
+  'claude-desktop': 'https://claude.ai/download',
+  'claude-code': 'https://docs.anthropic.com/en/docs/claude-code/overview',
+  vscode: 'https://code.visualstudio.com/download',
+  'vscode-insiders': 'https://code.visualstudio.com/insiders',
+  windsurf: 'https://codeium.com/windsurf',
+  zed: 'https://zed.dev/download',
+  jetbrains: 'https://www.jetbrains.com/toolbox-app/',
+  'codex-cli': 'https://github.com/openai/codex',
+  'codex-gui': 'https://apps.microsoft.com/detail/9PLM9XGG6VKS',
+  opencode: 'https://opencode.ai/',
+  'visual-studio': 'https://visualstudio.microsoft.com/vs/community/',
+}
+
+const PROGRESS_PHASE_TO_TIMELINE_STATUS: Partial<
+  Record<ClientInstallProgressPayload['phase'], InstallTimelineStatus>
+> = {
+  manager_check: 'pending',
+  manager_running: 'running',
+  manager_skipped: 'skipped',
+  manager_failed: 'failed',
+  manager_succeeded: 'success',
+}
+
+const buildTimelineFromProgress = (
+  previousTimeline: readonly InstallTimelineEntry[],
+  payload: ClientInstallProgressPayload,
+): InstallTimelineEntry[] => {
+  const nextTimeline = [...previousTimeline]
+  const expectedAttempts = Math.max(payload.attemptCount, nextTimeline.length)
+
+  for (let attemptIndex = 1; attemptIndex <= expectedAttempts; attemptIndex += 1) {
+    if (!nextTimeline[attemptIndex - 1]) {
+      nextTimeline[attemptIndex - 1] = {
+        attemptIndex,
+        status: 'pending',
+      }
+    }
+  }
+
+  if (payload.attemptIndex > 0 && payload.attemptIndex <= expectedAttempts) {
+    const arrayIndex = payload.attemptIndex - 1
+    const current = nextTimeline[arrayIndex] ?? {
+      attemptIndex: payload.attemptIndex,
+      status: 'pending' as const,
+    }
+    const nextStatus = PROGRESS_PHASE_TO_TIMELINE_STATUS[payload.phase] ?? current.status
+    const resolvedManager = payload.manager ?? current.manager
+    nextTimeline[arrayIndex] = {
+      attemptIndex: payload.attemptIndex,
+      status: nextStatus,
+      ...(resolvedManager ? { manager: resolvedManager } : {}),
+    }
+  }
+
+  return nextTimeline
+}
+
 /**
  * Client management page. Shows all supported AI tool clients with their
  * status, config paths, server counts, and sync/validate actions.
@@ -402,6 +477,12 @@ const ClientsPage = () => {
   >({})
   const [createConfigClientId, setCreateConfigClientId] = useState<ClientStatus['id'] | null>(null)
   const [installClientId, setInstallClientId] = useState<ClientStatus['id'] | null>(null)
+  const [installDialogPhase, setInstallDialogPhase] = useState<InstallDialogPhase>('confirm')
+  const [installProgressValue, setInstallProgressValue] = useState(0)
+  const [installStepText, setInstallStepText] = useState('')
+  const [installTimeline, setInstallTimeline] = useState<InstallTimelineEntry[]>([])
+  const [installResult, setInstallResult] = useState<ClientInstallResult | undefined>(undefined)
+  const [installErrorMessage, setInstallErrorMessage] = useState<string | undefined>(undefined)
 
   useEffect(() => {
     void detectAll()
@@ -428,6 +509,69 @@ const ClientsPage = () => {
       clients.find((client) => client.id === clientId)?.displayName ?? clientId,
     [clients],
   )
+
+  const resetInstallDialogState = useCallback(() => {
+    setInstallDialogPhase('confirm')
+    setInstallProgressValue(0)
+    setInstallStepText('')
+    setInstallTimeline([])
+    setInstallResult(undefined)
+    setInstallErrorMessage(undefined)
+  }, [])
+
+  const managerLabel = useCallback(
+    (manager: InstallManager | undefined): string => {
+      if (!manager) return t(MANAGER_LABEL_KEYS.manual)
+      return t(MANAGER_LABEL_KEYS[manager])
+    },
+    [t],
+  )
+
+  const getInstallStepText = useCallback(
+    (payload: ClientInstallProgressPayload): string => {
+      const manager = managerLabel(payload.manager)
+      const context = {
+        manager,
+        current: payload.attemptIndex,
+        total: payload.attemptCount,
+      }
+
+      switch (payload.phase) {
+        case 'start':
+          return t('clients.installProgress.phase.start')
+        case 'manager_check':
+          return t('clients.installProgress.phase.managerCheck', context)
+        case 'manager_running':
+          return t('clients.installProgress.phase.managerRunning', context)
+        case 'manager_skipped':
+          return t('clients.installProgress.phase.managerSkipped', context)
+        case 'manager_failed':
+          return t('clients.installProgress.phase.managerFailed', context)
+        case 'manager_succeeded':
+          return t('clients.installProgress.phase.managerSucceeded', context)
+        case 'completed':
+          return payload.failureReason
+            ? t('clients.installProgress.phase.completedFailure')
+            : t('clients.installProgress.phase.completedSuccess')
+        default:
+          return t('clients.installProgress.phase.start')
+      }
+    },
+    [managerLabel, t],
+  )
+
+  useEffect(() => {
+    const unsubscribe = clientsService.onInstallProgress((payload) => {
+      if (!installClientId || payload.clientId !== installClientId) return
+
+      setInstallDialogPhase((previous) => (previous === 'done' ? previous : 'running'))
+      setInstallProgressValue((previous) => Math.max(previous, payload.progress))
+      setInstallStepText(getInstallStepText(payload))
+      setInstallTimeline((previous) => buildTimelineFromProgress(previous, payload))
+    })
+
+    return unsubscribe
+  }, [getInstallStepText, installClientId])
 
   const handleDiscover = useCallback(
     async (clientId: ClientStatus['id']) => {
@@ -539,6 +683,7 @@ const ClientsPage = () => {
   const installedCount = clients.filter((c) => c.installed).length
   const createConfigClient = clients.find((client) => client.id === createConfigClientId) ?? null
   const installClient = clients.find((client) => client.id === installClientId) ?? null
+  const officialInstallUrl = installClient ? OFFICIAL_INSTALL_URLS[installClient.id] : undefined
 
   const handleConfirmCreateConfig = useCallback(async () => {
     if (!createConfigClient) return
@@ -555,8 +700,23 @@ const ClientsPage = () => {
     if (!installClient) return
 
     setInstallingId(installClient.id)
+    setInstallDialogPhase('running')
+    setInstallProgressValue(1)
+    setInstallStepText(t('clients.installProgress.phase.start'))
+    setInstallTimeline([])
+    setInstallResult(undefined)
+    setInstallErrorMessage(undefined)
+
     try {
       const result = await clientsService.install(installClient.id)
+      setInstallResult(result)
+      setInstallDialogPhase('done')
+      setInstallStepText(
+        result.success
+          ? t('clients.installProgress.phase.completedSuccess')
+          : t('clients.installProgress.phase.completedFailure'),
+      )
+      setInstallProgressValue(100)
 
       if (result.success) {
         toast.success(
@@ -585,12 +745,47 @@ const ClientsPage = () => {
       await detectAll()
     } catch (err) {
       const message = err instanceof Error ? err.message : t('common.error')
+      setInstallDialogPhase('done')
+      setInstallProgressValue(100)
+      setInstallStepText(t('clients.installProgress.phase.completedFailure'))
+      setInstallErrorMessage(message)
       toast.error(message)
     } finally {
       setInstallingId(null)
-      setInstallClientId(null)
     }
   }, [detectAll, installClient, t])
+
+  const handleOpenInstallDialog = useCallback(
+    (clientId: ClientStatus['id']) => {
+      resetInstallDialogState()
+      setInstallClientId(clientId)
+    },
+    [resetInstallDialogState],
+  )
+
+  const handleCancelInstallDialog = useCallback(() => {
+    if (installDialogPhase === 'running') return
+    setInstallClientId(null)
+    resetInstallDialogState()
+  }, [installDialogPhase, resetInstallDialogState])
+
+  const handleDoneInstallDialog = useCallback(() => {
+    setInstallClientId(null)
+    resetInstallDialogState()
+  }, [resetInstallDialogState])
+
+  const handleOpenOfficialDownload = useCallback(() => {
+    if (!installClient) return
+    const targetUrl = installResult?.docsUrl ?? OFFICIAL_INSTALL_URLS[installClient.id]
+    if (!targetUrl) return
+
+    window.open(targetUrl, '_blank', 'noopener,noreferrer')
+
+    if (installDialogPhase === 'confirm') {
+      setInstallClientId(null)
+      resetInstallDialogState()
+    }
+  }, [installClient, installDialogPhase, installResult?.docsUrl, resetInstallDialogState])
 
   return (
     <main className="flex flex-col gap-6" data-testid="clients-page">
@@ -601,17 +796,20 @@ const ClientsPage = () => {
         onCancel={() => setCreateConfigClientId(null)}
         onConfirm={() => void handleConfirmCreateConfig()}
       />
-      <ConfirmActionDialog
+      <InstallClientDialog
         open={installClient !== null}
-        title={t('clients.installConfirmTitle')}
-        description={t('clients.installConfirmDescription', {
-          name: installClient?.displayName ?? '',
-        })}
-        confirmLabel={t('clients.installConfirm')}
-        pending={installClient !== null && installingId === installClient.id}
-        variant="default"
-        onCancel={() => setInstallClientId(null)}
+        phase={installDialogPhase}
+        clientName={installClient?.displayName ?? ''}
+        progress={installProgressValue}
+        stepText={installStepText}
+        timeline={installTimeline}
+        onCancel={handleCancelInstallDialog}
+        onOfficialDownload={handleOpenOfficialDownload}
         onConfirm={() => void handleConfirmInstall()}
+        onDone={handleDoneInstallDialog}
+        {...(officialInstallUrl ? { officialUrl: officialInstallUrl } : {})}
+        {...(installResult ? { result: installResult } : {})}
+        {...(installErrorMessage ? { errorMessage: installErrorMessage } : {})}
       />
 
       <div className="flex items-start justify-between">
@@ -697,7 +895,7 @@ const ClientsPage = () => {
                     validating={validatingId === client.id}
                     validationStatus={validationStatusByClientId[client.id]}
                     onSync={(id) => void handleSync(id)}
-                    onInstall={(id) => setInstallClientId(id)}
+                    onInstall={handleOpenInstallDialog}
                     onDiscover={(id) => void handleDiscover(id)}
                     onClearManualPath={(id) => void handleClearManualPath(id)}
                     onCreateConfig={(id) => setCreateConfigClientId(id)}

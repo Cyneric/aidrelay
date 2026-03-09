@@ -12,6 +12,7 @@ import { join } from 'path'
 import type Database from 'better-sqlite3'
 import type { ClientAdapter } from '@main/clients/types'
 import { ServersRepo } from '@main/db/servers.repo'
+import type { ClientInstallProgressPayload } from '@shared/channels'
 import type {
   ClientId,
   ClientInstallResult,
@@ -30,7 +31,14 @@ const syncCalls: Array<{ clientId: ClientId; configPath: string }> = []
 const readCalls: Array<{ clientId: ClientId; configPath: string }> = []
 const validateCalls: Array<{ clientId: ClientId; configPath: string }> = []
 
-const installMock = vi.hoisted(() => vi.fn<(clientId: ClientId) => Promise<ClientInstallResult>>())
+const installMock = vi.hoisted(() =>
+  vi.fn<
+    (
+      clientId: ClientId,
+      reportProgress?: (payload: ClientInstallProgressPayload) => void,
+    ) => Promise<ClientInstallResult>
+  >(),
+)
 
 const detectionById: Record<
   ClientId,
@@ -111,8 +119,11 @@ vi.mock('@main/clients/registry', () => ({
 
 vi.mock('@main/clients/client-install.service', () => ({
   ClientInstallService: class {
-    install(clientId: ClientId): Promise<ClientInstallResult> {
-      return installMock(clientId)
+    install(
+      clientId: ClientId,
+      reportProgress?: (payload: ClientInstallProgressPayload) => void,
+    ): Promise<ClientInstallResult> {
+      return installMock(clientId, reportProgress)
     }
   },
 }))
@@ -139,6 +150,16 @@ const call = async <T>(channel: string, ...args: unknown[]): Promise<T> => {
   const handler = handlers[channel]
   if (!handler) throw new Error(`Handler not registered for channel: ${channel}`)
   return (await handler(undefined, ...args)) as T
+}
+
+const callWithEvent = async <T>(
+  channel: string,
+  event: unknown,
+  ...args: unknown[]
+): Promise<T> => {
+  const handler = handlers[channel]
+  if (!handler) throw new Error(`Handler not registered for channel: ${channel}`)
+  return (await handler(event, ...args)) as T
 }
 
 describe('clients IPC handlers', () => {
@@ -184,10 +205,40 @@ describe('clients IPC handlers', () => {
     }
     installMock.mockResolvedValue(expected)
 
-    const result = await call<ClientInstallResult>('clients:install', 'cursor')
+    const send = vi.fn()
+    const event = { sender: { send } }
+    const result = await callWithEvent<ClientInstallResult>('clients:install', event, 'cursor')
 
-    expect(installMock).toHaveBeenCalledWith('cursor')
+    expect(installMock).toHaveBeenCalledWith('cursor', expect.any(Function))
     expect(result).toEqual(expected)
+    expect(send).not.toHaveBeenCalled()
+  })
+
+  it('clients:install emits typed progress payloads to requesting renderer only', async () => {
+    const progressPayload: ClientInstallProgressPayload = {
+      clientId: 'cursor',
+      phase: 'manager_running',
+      progress: 42,
+      attemptIndex: 1,
+      attemptCount: 2,
+      manager: 'winget',
+    }
+    installMock.mockImplementation((_clientId, reportProgress) => {
+      reportProgress?.(progressPayload)
+      return Promise.resolve({
+        clientId: 'cursor',
+        success: false,
+        attempts: [],
+        failureReason: 'command_failed',
+        message: 'failed',
+      })
+    })
+
+    const send = vi.fn()
+    const event = { sender: { send } }
+    await callWithEvent<ClientInstallResult>('clients:install', event, 'cursor')
+
+    expect(send).toHaveBeenCalledWith('clients:install-progress', progressPayload)
   })
 
   it('clients:sync resolves fallback path for installed vscode with no config file', async () => {
