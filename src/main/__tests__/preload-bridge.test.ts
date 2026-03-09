@@ -53,6 +53,9 @@ const EXPECTED_KEYS = [
   'backupsList',
   'backupsRestore',
   'showOpenDialog',
+  'filesReveal',
+  'filesReadText',
+  'filesWriteText',
   'appVersion',
   'appStartupStatus',
   'settingsGet',
@@ -94,11 +97,13 @@ describe('preload bridge composition', () => {
     await api.rulesSyncAll()
     await api.settingsSet('language', 'en')
     await api.backupsList('cursor')
+    await api.filesReveal('C:\\tmp\\file.txt')
 
     expect(invoke).toHaveBeenCalledWith('clients:detect-all')
     expect(invoke).toHaveBeenCalledWith('servers:list')
     expect(invoke).toHaveBeenCalledWith('rules:sync-all')
     expect(invoke).toHaveBeenCalledWith('settings:set', 'language', 'en')
     expect(invoke).toHaveBeenCalledWith('backups:list', 'cursor')
+    expect(invoke).toHaveBeenCalledWith('files:reveal', 'C:\\tmp\\file.txt')
   })
 })

@@ -23,10 +23,12 @@ import {
   AlertCircle,
   Clock,
   XCircle,
+  Check,
+  X,
   RefreshCw,
   ShieldCheck,
-  FolderOpen,
   FileX2,
+  FilePlus2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -40,8 +42,8 @@ import {
 } from '@/components/ui/table'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { CreateConfigConfirmDialog } from '@/components/clients/CreateConfigConfirmDialog'
+import { PathWithActions } from '@/components/common/PathWithActions'
 import { useClientsStore } from '@/stores/clients.store'
-import { isConfigCreationRequiredError } from '@/lib/sync-errors'
 import { clientsService } from '@/services/clients.service'
 import type { ClientStatus, SyncClientOptions, SyncResult } from '@shared/types'
 
@@ -75,14 +77,24 @@ interface RowProps {
   readonly client: ClientStatus
   readonly syncing: boolean
   readonly validating: boolean
+  readonly validationStatus?: 'success' | 'failure'
   readonly onSync: (id: ClientStatus['id']) => void
+  readonly onCreateConfig: (id: ClientStatus['id']) => void
   readonly onValidate: (id: ClientStatus['id']) => void
 }
 
 /**
  * A single table row for one client.
  */
-const ClientRow = ({ client, syncing, validating, onSync, onValidate }: Readonly<RowProps>) => {
+const ClientRow = ({
+  client,
+  syncing,
+  validating,
+  validationStatus,
+  onSync,
+  onCreateConfig,
+  onValidate,
+}: Readonly<RowProps>) => {
   const { t } = useTranslation()
   const metaBase = SYNC_STATUS_KEYS[client.syncStatus]
   const StatusIcon = metaBase.icon
@@ -98,7 +110,7 @@ const ClientRow = ({ client, syncing, validating, onSync, onValidate }: Readonly
       data-testid={`client-row-${client.id}`}
     >
       {/* Name + install badge */}
-      <TableCell className="px-3 py-2.5">
+      <TableCell className="px-2 py-2.5">
         <div className="flex flex-col gap-0.5">
           <span className="text-sm font-medium">{client.displayName}</span>
           <div className="flex items-center gap-2">
@@ -111,43 +123,34 @@ const ClientRow = ({ client, syncing, validating, onSync, onValidate }: Readonly
             >
               {client.installed ? t('clients.installed') : t('clients.notInstalled')}
             </span>
-            {missingConfig && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    aria-label={t('clients.missingConfigBadge')}
-                    className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-sm text-amber-500 transition-colors hover:text-amber-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    data-testid={`client-missing-config-badge-${client.id}`}
-                  >
-                    <FileX2 size={13} aria-hidden="true" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  {t('clients.missingConfigTooltip', { name: client.displayName })}
-                </TooltipContent>
-              </Tooltip>
-            )}
           </div>
         </div>
       </TableCell>
 
       {/* Config paths */}
-      <TableCell className="px-3 py-2.5 max-w-[18rem]">
+      <TableCell className="px-2 py-2.5 max-w-[14rem]">
         {client.configPaths.length === 0 ? (
-          <span className="text-xs text-muted-foreground">
-            {missingConfig ? t('clients.noConfigPath') : '—'}
-          </span>
+          missingConfig ? (
+            <span
+              className="inline-flex items-center gap-1 text-xs text-muted-foreground"
+              data-testid={`client-missing-config-path-${client.id}`}
+            >
+              <FileX2 size={13} aria-hidden="true" className="text-amber-500" />
+              {t('clients.noConfigPath')}
+            </span>
+          ) : (
+            <span className="text-xs text-muted-foreground">—</span>
+          )
         ) : (
           <ul className="space-y-0.5">
-            {client.configPaths.map((p) => (
-              <li
-                key={p}
-                className="flex items-center gap-1 text-xs text-muted-foreground font-mono truncate"
-                title={p}
-              >
-                <FolderOpen size={11} aria-hidden="true" className="shrink-0" />
-                <span className="truncate">{p}</span>
+            {client.configPaths.map((p, index) => (
+              <li key={p} className="text-xs text-muted-foreground font-mono">
+                <PathWithActions
+                  path={p}
+                  className="flex items-center gap-1 min-w-0"
+                  textClassName="truncate flex-1"
+                  testIdPrefix={`clients-config-path-${client.id}-${index}`}
+                />
               </li>
             ))}
           </ul>
@@ -155,14 +158,14 @@ const ClientRow = ({ client, syncing, validating, onSync, onValidate }: Readonly
       </TableCell>
 
       {/* Servers */}
-      <TableCell className="px-3 py-2.5 text-center">
+      <TableCell className="px-2 py-2.5 text-center">
         <span className="text-sm" data-testid={`client-server-count-${client.id}`}>
           {client.serverCount}
         </span>
       </TableCell>
 
       {/* Sync status */}
-      <TableCell className="px-3 py-2.5">
+      <TableCell className="px-2 py-2.5">
         <span
           className={cn('inline-flex items-center gap-1 text-xs font-medium', meta.className)}
           data-testid={`client-sync-status-${client.id}`}
@@ -173,28 +176,26 @@ const ClientRow = ({ client, syncing, validating, onSync, onValidate }: Readonly
       </TableCell>
 
       {/* Last synced */}
-      <TableCell className="px-3 py-2.5">
+      <TableCell className="px-2 py-2.5">
         <span className="text-xs text-muted-foreground">
           {client.lastSyncedAt ? new Date(client.lastSyncedAt).toLocaleString() : '—'}
         </span>
       </TableCell>
 
       {/* Actions */}
-      <TableCell className="px-3 py-2.5">
-        <div className="flex items-center gap-2">
+      <TableCell className="px-2 py-2.5">
+        <div className="flex items-center gap-1">
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
                 type="button"
-                size="xs"
+                size="icon-xs"
                 onClick={() => onSync(client.id)}
-                disabled={!client.installed || syncing}
-                className="gap-1"
-                aria-label={`Sync ${client.displayName}`}
+                disabled={!client.installed || syncing || missingConfig}
+                aria-label={t('clients.syncTooltip', { name: client.displayName })}
                 data-testid={`btn-sync-${client.id}`}
               >
                 <RefreshCw size={11} className={syncing ? 'animate-spin' : ''} aria-hidden="true" />
-                {syncing ? t('clients.syncingButton') : t('clients.syncButton')}
               </Button>
             </TooltipTrigger>
             <TooltipContent>
@@ -202,28 +203,77 @@ const ClientRow = ({ client, syncing, validating, onSync, onValidate }: Readonly
                 ? client.id === 'codex-gui'
                   ? t('clients.notInstalledCodexGuiTooltip', { name: client.displayName })
                   : t('clients.notInstalledTooltip', { name: client.displayName })
-                : t('clients.syncTooltip', { name: client.displayName })}
+                : missingConfig
+                  ? t('clients.syncDisabledMissingConfigTooltip', { name: client.displayName })
+                  : t('clients.syncTooltip', { name: client.displayName })}
             </TooltipContent>
           </Tooltip>
+
+          {missingConfig && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon-xs"
+                  onClick={() => onCreateConfig(client.id)}
+                  disabled={!client.installed || syncing}
+                  aria-label={t('clients.createConfigAria', { name: client.displayName })}
+                  data-testid={`btn-create-config-${client.id}`}
+                >
+                  <FilePlus2 size={11} aria-hidden="true" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t('clients.createConfigTooltip')}</TooltipContent>
+            </Tooltip>
+          )}
 
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
                 type="button"
                 variant="outline"
-                size="xs"
+                size="icon-xs"
                 onClick={() => onValidate(client.id)}
                 disabled={!client.installed || validating}
-                className="gap-1"
-                aria-label={`Validate ${client.displayName} config`}
+                aria-label={t('clients.validateClientAria', { name: client.displayName })}
                 data-testid={`btn-validate-${client.id}`}
               >
                 <ShieldCheck size={11} aria-hidden="true" />
-                {validating ? t('clients.checkingButton') : t('clients.validateButton')}
               </Button>
             </TooltipTrigger>
             <TooltipContent>{t('clients.validateTooltip')}</TooltipContent>
           </Tooltip>
+
+          {validationStatus === 'success' && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span
+                  className="inline-flex h-6 w-6 items-center justify-center text-green-600 dark:text-green-400"
+                  data-testid={`validation-status-${client.id}-success`}
+                  aria-label={t('clients.validationStatusSuccessAria')}
+                >
+                  <Check size={12} aria-hidden="true" />
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>{t('clients.validationStatusSuccessTooltip')}</TooltipContent>
+            </Tooltip>
+          )}
+
+          {validationStatus === 'failure' && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span
+                  className="inline-flex h-6 w-6 items-center justify-center text-red-600 dark:text-red-400"
+                  data-testid={`validation-status-${client.id}-failure`}
+                  aria-label={t('clients.validationStatusFailureAria')}
+                >
+                  <X size={12} aria-hidden="true" />
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>{t('clients.validationStatusFailureTooltip')}</TooltipContent>
+            </Tooltip>
+          )}
         </div>
       </TableCell>
     </TableRow>
@@ -231,6 +281,8 @@ const ClientRow = ({ client, syncing, validating, onSync, onValidate }: Readonly
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
+
+type ValidationStatus = 'success' | 'failure'
 
 /**
  * Client management page. Shows all supported AI tool clients with their
@@ -241,6 +293,9 @@ const ClientsPage = () => {
   const { clients, loading, detectAll, syncClient } = useClientsStore()
   const [syncingId, setSyncingId] = useState<ClientStatus['id'] | null>(null)
   const [validatingId, setValidatingId] = useState<ClientStatus['id'] | null>(null)
+  const [validationStatusByClientId, setValidationStatusByClientId] = useState<
+    Partial<Record<ClientStatus['id'], ValidationStatus>>
+  >({})
   const [createConfigClientId, setCreateConfigClientId] = useState<ClientStatus['id'] | null>(null)
 
   useEffect(() => {
@@ -248,27 +303,11 @@ const ClientsPage = () => {
   }, [detectAll])
 
   const handleSync = useCallback(
-    async (
-      clientId: ClientStatus['id'],
-      options?: SyncClientOptions,
-      interactive = true,
-    ): Promise<SyncResult> => {
+    async (clientId: ClientStatus['id'], options?: SyncClientOptions): Promise<SyncResult> => {
       setSyncingId(clientId)
       try {
         return await syncClient(clientId, options)
       } catch (err) {
-        if (interactive && isConfigCreationRequiredError(err)) {
-          const errorMessage = err instanceof Error ? err.message : t('common.error')
-          setCreateConfigClientId(clientId)
-          return {
-            clientId,
-            success: false,
-            serversWritten: 0,
-            errorCode: 'config_creation_required',
-            error: errorMessage,
-            syncedAt: new Date().toISOString(),
-          }
-        }
         const message = err instanceof Error ? err.message : t('common.error')
         toast.error(message)
         throw err
@@ -285,13 +324,16 @@ const ClientsPage = () => {
       try {
         const result = await clientsService.validateConfig(clientId)
         if (result.valid) {
+          setValidationStatusByClientId((prev) => ({ ...prev, [clientId]: 'success' }))
           toast.success(t('clients.configValid', { clientId }))
         } else {
+          setValidationStatusByClientId((prev) => ({ ...prev, [clientId]: 'failure' }))
           toast.warning(
             t('clients.configHasIssues', { clientId, errors: result.errors.join(', ') }),
           )
         }
       } catch (err) {
+        setValidationStatusByClientId((prev) => ({ ...prev, [clientId]: 'failure' }))
         const message = err instanceof Error ? err.message : t('common.error')
         toast.error(message)
       } finally {
@@ -306,7 +348,7 @@ const ClientsPage = () => {
     const results: SyncResult[] = []
     for (const client of installed) {
       try {
-        const result = await handleSync(client.id, undefined, false)
+        const result = await handleSync(client.id)
         results.push(result)
       } catch {
         results.push({
@@ -341,9 +383,9 @@ const ClientsPage = () => {
   const handleConfirmCreateConfig = useCallback(async () => {
     if (!createConfigClient) return
     try {
-      await handleSync(createConfigClient.id, { allowCreateConfigIfMissing: true }, false)
+      await handleSync(createConfigClient.id, { allowCreateConfigIfMissing: true })
     } catch {
-      // Error toast is already handled in handleSync for non-interactive retries.
+      // Error toast is already handled in handleSync.
     } finally {
       setCreateConfigClientId(null)
     }
@@ -399,22 +441,22 @@ const ClientsPage = () => {
         <Table className="w-full text-sm" data-testid="clients-table">
           <TableHeader className="border-b bg-muted/50">
             <TableRow>
-              <TableHead className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">
+              <TableHead className="px-2 py-2 text-left text-xs font-medium text-muted-foreground">
                 {t('clients.colClient')}
               </TableHead>
-              <TableHead className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">
+              <TableHead className="px-2 py-2 text-left text-xs font-medium text-muted-foreground">
                 {t('clients.colConfigPath')}
               </TableHead>
-              <TableHead className="px-3 py-2 text-center text-xs font-medium text-muted-foreground">
+              <TableHead className="px-2 py-2 text-center text-xs font-medium text-muted-foreground">
                 {t('clients.colServers')}
               </TableHead>
-              <TableHead className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">
+              <TableHead className="px-2 py-2 text-left text-xs font-medium text-muted-foreground">
                 {t('clients.colStatus')}
               </TableHead>
-              <TableHead className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">
+              <TableHead className="px-2 py-2 text-left text-xs font-medium text-muted-foreground">
                 {t('clients.colLastSynced')}
               </TableHead>
-              <TableHead className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">
+              <TableHead className="px-2 py-2 text-left text-xs font-medium text-muted-foreground">
                 {t('clients.colActions')}
               </TableHead>
             </TableRow>
@@ -423,7 +465,7 @@ const ClientsPage = () => {
             {loading && clients.length === 0
               ? Array.from({ length: 4 }).map((_, i) => (
                   <TableRow key={i} className="border-b last:border-b-0">
-                    <TableCell colSpan={6} className="px-3 py-2.5">
+                    <TableCell colSpan={6} className="px-2 py-2.5">
                       <div
                         className="h-4 w-full animate-pulse rounded bg-muted"
                         aria-hidden="true"
@@ -437,7 +479,9 @@ const ClientsPage = () => {
                     client={client}
                     syncing={syncingId === client.id}
                     validating={validatingId === client.id}
+                    validationStatus={validationStatusByClientId[client.id]}
                     onSync={(id) => void handleSync(id)}
+                    onCreateConfig={(id) => setCreateConfigClientId(id)}
                     onValidate={(id) => void handleValidate(id)}
                   />
                 ))}

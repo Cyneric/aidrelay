@@ -5,6 +5,43 @@ import { ServersPage } from '../ServersPage'
 import type { McpServer } from '@shared/types'
 import type { ServerTestPhase, ServerTestStatus } from '@/hooks/useServersActions'
 
+const COMMAND_PREVIEW_MAX_CHARS = 72
+
+const formatCommandPreview = (
+  command: string,
+  args: string[],
+  maxChars = COMMAND_PREVIEW_MAX_CHARS,
+) => {
+  const parts = [command, ...args].map((part) => part.trim()).filter((part) => part.length > 0)
+  if (parts.length === 0) return ''
+
+  const ellipsis = '...'
+  const budget = Math.max(ellipsis.length + 1, maxChars)
+  const reservedBudget = budget - ellipsis.length
+  const firstPart = parts[0] ?? ''
+
+  if (firstPart.length > reservedBudget) {
+    return `${firstPart.slice(0, reservedBudget)}${ellipsis}`
+  }
+
+  const previewParts = [firstPart]
+  let currentLength = firstPart.length
+  let didTruncate = false
+
+  for (const part of parts.slice(1)) {
+    const nextLength = currentLength + 1 + part.length
+    if (nextLength > reservedBudget) {
+      didTruncate = true
+      break
+    }
+    previewParts.push(part)
+    currentLength = nextLength
+  }
+
+  const preview = previewParts.join(' ')
+  return didTruncate ? `${preview}${ellipsis}` : preview
+}
+
 const loadMock = vi.fn<() => Promise<void>>()
 const deleteMock = vi.fn<(id: string) => Promise<void>>()
 const toggleEnabledMock = vi.fn<(id: string) => Promise<void>>()
@@ -28,7 +65,12 @@ const server: McpServer = {
   name: 'devtools',
   type: 'stdio',
   command: 'npx',
-  args: ['-y', 'chrome-devtools-mcp@latest', '--browser-url=http://localhost:9222'],
+  args: [
+    '-y',
+    'chrome-devtools-mcp@latest',
+    '--browser-url=http://localhost:9222',
+    '--log-file=C:\\Users\\chris\\AppData\\Local\\Temp\\aidrelay\\mcp\\devtools.log',
+  ],
   env: {},
   secretEnvKeys: [],
   enabled: true,
@@ -60,6 +102,7 @@ const secondServer: McpServer = {
 }
 
 const fullCommand = `${server.command} ${server.args.join(' ')}`
+const commandPreview = formatCommandPreview(server.command, server.args)
 
 vi.mock('sonner', () => ({
   toast: {
@@ -130,7 +173,14 @@ describe('ServersPage command column', () => {
     const commandText = screen.getByTestId('server-command-text-srv-1')
     expect(commandText).toHaveClass('truncate')
     expect(commandText).toHaveAttribute('data-slot', 'tooltip-trigger')
-    expect(commandText).toHaveTextContent(fullCommand)
+    expect(commandText).toHaveTextContent(commandPreview)
+    expect(commandPreview).toContain('...')
+  })
+
+  it('keeps full command available via tooltip title', () => {
+    renderWithProviders(<ServersPage />)
+
+    expect(screen.getByTestId('server-command-text-srv-1')).toHaveAttribute('title', fullCommand)
   })
 
   it('copies full command and shows success toast', async () => {

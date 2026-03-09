@@ -74,6 +74,18 @@ describe('codexCliAdapter', () => {
     expect(result.serverCount).toBe(0)
   })
 
+  it('detects installed when an extensionless codex launcher is on a quoted PATH entry', async () => {
+    const binDir = join(tmpDir, 'bin with spaces')
+    mkdirSync(binDir, { recursive: true })
+    writeFileSync(join(binDir, 'codex'), '')
+    process.env['PATH'] = `"${binDir}"`
+
+    const result = await codexCliAdapter.detect()
+    expect(result.installed).toBe(true)
+    expect(result.configPaths).toHaveLength(0)
+    expect(result.serverCount).toBe(0)
+  })
+
   it('detects installed state from .codex/config.json', async () => {
     const codexDir = join(process.env['USERPROFILE'] ?? '', '.codex')
     mkdirSync(codexDir, { recursive: true })

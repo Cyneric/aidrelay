@@ -82,6 +82,17 @@ describe('opencodeAdapter', () => {
     expect(result.configPaths).toEqual([])
   })
 
+  it('detects installed via extensionless launcher in quoted PATH', async () => {
+    const binDir = join(tmpDir, 'bin with spaces')
+    mkdirSync(binDir, { recursive: true })
+    writeFileSync(join(binDir, 'opencode'), '')
+    process.env['PATH'] = `"${binDir}"`
+
+    const result = await opencodeAdapter.detect()
+    expect(result.installed).toBe(true)
+    expect(result.configPaths).toEqual([])
+  })
+
   it('reads and writes mcp section', async () => {
     const configPath = join(tmpDir, 'opencode.json')
     writeFileSync(configPath, JSON.stringify({ other: true }))

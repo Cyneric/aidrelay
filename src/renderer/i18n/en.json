@@ -68,6 +68,9 @@
     "viewDetails": "View details",
     "hideDetails": "Hide details",
     "copyConfigPath": "Copy config path",
+    "copyConfigPathSuccess": "Config path copied to clipboard",
+    "copyConfigPathFailed": "Failed to copy config path",
+    "revealInExplorer": "Reveal in Explorer",
     "moreActions": "More actions for {{name}}"
   },
   "servers": {
@@ -346,9 +349,13 @@
     "validateButton": "Validate",
     "checkingButton": "Checking…",
     "validateTooltip": "Check the config file for schema errors",
+    "validateClientAria": "Validate {{name}} config",
     "notInstalledTooltip": "{{name}} is not installed",
     "notInstalledCodexGuiTooltip": "{{name}} is not detected. If installed from Microsoft Store, open Codex once, click Refresh, and if needed run Get-AppxPackage -Name OpenAI.Codex then restart aidrelay.",
     "syncTooltip": "Write current profile config to {{name}}",
+    "syncDisabledMissingConfigTooltip": "Create a configuration for {{name}} before syncing.",
+    "createConfigTooltip": "Create a new configuration file for this client",
+    "createConfigAria": "Create configuration for {{name}}",
     "missingConfigBadge": "No configuration",
     "missingConfigTooltip": "{{name}} is installed, but no configuration file was found yet.",
     "noConfigPath": "No configuration file yet",
@@ -356,7 +363,11 @@
     "createConfigDescription": "{{name}} has no configuration file yet. Do you want aidrelay to create one now?",
     "createConfigConfirm": "Create configuration",
     "configValid": "{{clientId}} config is valid.",
-    "configHasIssues": "{{clientId}} config has issues: {{errors}}"
+    "configHasIssues": "{{clientId}} config has issues: {{errors}}",
+    "validationStatusSuccessAria": "Validation successful",
+    "validationStatusFailureAria": "Validation failed",
+    "validationStatusSuccessTooltip": "Last validation: successful",
+    "validationStatusFailureTooltip": "Last validation: failed"
   },
   "history": {
     "title": "Backup History",
@@ -547,6 +558,22 @@
     "enterPathFirst": "Enter or select a project path first",
     "scanFailed": "Failed to scan directory",
     "importToast": "Imported {{imported}} rule(s), skipped {{skipped}} duplicate(s)."
+  },
+  "files": {
+    "reveal": "Reveal in Explorer",
+    "edit": "Edit file",
+    "editTitle": "Edit file",
+    "loading": "Loading file…",
+    "reload": "Reload",
+    "save": "Save",
+    "saved": "File saved.",
+    "discardChangesConfirm": "Discard unsaved changes?",
+    "errorRevealDefault": "Failed to reveal file in Explorer.",
+    "errorReveal": "Could not reveal file: {{message}}",
+    "errorRead": "Could not read file: {{message}}",
+    "errorUnsupported": "Only UTF-8 text files up to 1 MiB are supported.",
+    "errorSave": "Could not save file: {{message}}",
+    "errorConflict": "The file changed on disk. Reload and try saving again."
   },
   "app": {
     "trayProfileActivated": "Profile activated from tray.",

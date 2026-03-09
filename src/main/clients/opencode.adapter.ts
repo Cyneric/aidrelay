@@ -18,6 +18,7 @@ import log from 'electron-log'
 import type { ClientAdapter } from './types'
 import type { ClientDetectionResult, McpServerMap, ValidationResult } from '@shared/types'
 import { detectRecentWorkspaces } from '@main/rules/workspace-detector'
+import { hasWindowsCommandOnPath } from './windows-detection.util'
 
 interface OpenCodeConfig {
   mcp?: Record<string, unknown>
@@ -28,31 +29,8 @@ const userHome = (): string => process.env['USERPROFILE'] ?? process.env['HOME']
 
 const globalConfigPath = (): string => join(userHome(), '.config', 'opencode', 'opencode.json')
 
-const isOnPath = (baseNames: readonly string[]): boolean => {
-  const pathEnv = process.env['PATH'] ?? ''
-  const pathDirs = pathEnv.split(';').filter(Boolean)
-  if (pathDirs.length === 0) return false
-
-  const pathExt = (process.env['PATHEXT'] ?? '.EXE;.CMD;.BAT;.COM')
-    .split(';')
-    .map((ext) => ext.toLowerCase())
-
-  for (const dir of pathDirs) {
-    for (const base of baseNames) {
-      const normalizedBase = base.toLowerCase()
-      for (const ext of pathExt) {
-        const candidate = join(dir, `${normalizedBase}${ext}`)
-        if (existsSync(candidate)) return true
-      }
-    }
-  }
-
-  return false
-}
-
 const isOpenCodeInstalled = (): boolean => {
   if (process.platform !== 'win32') return false
-  if (isOnPath(['opencode'])) return true
 
   const appData = process.env['APPDATA'] ?? ''
   const localAppData = process.env['LOCALAPPDATA'] ?? ''
@@ -63,7 +41,11 @@ const isOpenCodeInstalled = (): boolean => {
     join(localAppData, 'Microsoft', 'WindowsApps', 'opencode.cmd'),
   ]
 
-  return candidates.some((path) => existsSync(path))
+  if (candidates.some((path) => existsSync(path))) {
+    return true
+  }
+
+  return hasWindowsCommandOnPath(['opencode'])
 }
 
 const projectConfigPaths = (): string[] =>

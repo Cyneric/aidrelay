@@ -108,6 +108,29 @@ describe('DashboardPage', () => {
     expect(screen.getByTestId('dashboard-kpi-total-servers')).toHaveTextContent('7')
   })
 
+  it('renders a two-row toolbar layout', () => {
+    renderWithProviders(<DashboardPage />)
+
+    expect(screen.getByTestId('dashboard-toolbar')).toHaveAttribute('role', 'toolbar')
+    expect(screen.getByTestId('dashboard-toolbar-row1')).toBeInTheDocument()
+    expect(screen.getByTestId('dashboard-toolbar-row2')).toBeInTheDocument()
+    expect(screen.getByTestId('dashboard-toolbar-actions')).toBeInTheDocument()
+    expect(screen.getByTestId('dashboard-search-container')).toHaveClass('min-w-[280px]')
+    expect(screen.getByTestId('dashboard-toolbar-row2')).toHaveClass('overflow-x-auto')
+  })
+
+  it('keeps search interactive with row-2 filters visible', () => {
+    renderWithProviders(<DashboardPage />)
+
+    const search = screen.getByRole('textbox', { name: 'Search tools...' })
+    fireEvent.change(search, { target: { value: 'codex' } })
+
+    expect(search).toHaveValue('codex')
+    expect(screen.getByTestId('dashboard-filter-all')).toBeInTheDocument()
+    expect(screen.getByTestId('dashboard-filter-needs-attention')).toBeInTheDocument()
+    expect(screen.getByTestId('sync-all-actionable-button')).toBeInTheDocument()
+  })
+
   it('filters clients by needs attention', () => {
     renderWithProviders(<DashboardPage />)
 
@@ -116,6 +139,18 @@ describe('DashboardPage', () => {
     expect(screen.getByTestId('clients-grid-needs-attention')).toBeInTheDocument()
     expect(screen.getByText('No healthy tools match the current filters.')).toBeInTheDocument()
     expect(screen.queryByText('VS Code')).not.toBeInTheDocument()
+  })
+
+  it('shows not-installed section expanded by default and allows collapsing', () => {
+    renderWithProviders(<DashboardPage />)
+
+    expect(screen.getByTestId('clients-grid-not-installed')).toBeInTheDocument()
+    expect(screen.getByText('VS Code')).toBeInTheDocument()
+
+    const section = screen.getByTestId('dashboard-section-not-installed')
+    const toggleButton = within(section).getByRole('button', { expanded: true })
+    fireEvent.click(toggleButton)
+    expect(screen.queryByTestId('clients-grid-not-installed')).not.toBeInTheDocument()
   })
 
   it('sorts by server count in descending order', async () => {
@@ -141,10 +176,12 @@ describe('DashboardPage', () => {
     expect(screen.getByTestId('client-sync-button-codex-cli')).not.toHaveTextContent('Syncing')
   })
 
-  it('prompts to create config when missing and syncs on confirm', async () => {
+  it('prompts to create config from dedicated action and syncs on confirm', async () => {
     renderWithProviders(<DashboardPage />)
 
-    fireEvent.click(screen.getByTestId('client-sync-button-cursor'))
+    expect(screen.getByTestId('client-sync-button-cursor')).toBeDisabled()
+    expect(screen.getByTestId('client-create-config-button-cursor')).toBeInTheDocument()
+    fireEvent.click(screen.getByTestId('client-create-config-button-cursor'))
 
     expect(await screen.findByText('Create new configuration?')).toBeInTheDocument()
     fireEvent.click(screen.getByTestId('create-config-confirm'))

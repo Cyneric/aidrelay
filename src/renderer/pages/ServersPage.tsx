@@ -63,6 +63,42 @@ import type { McpServer } from '@shared/types'
 // ─── Column helper ────────────────────────────────────────────────────────────
 
 const columnHelper = createColumnHelper<McpServer>()
+const COMMAND_PREVIEW_MAX_CHARS = 72
+
+const formatCommandPreview = (
+  command: string,
+  args: string[],
+  maxChars = COMMAND_PREVIEW_MAX_CHARS,
+) => {
+  const parts = [command, ...args].map((part) => part.trim()).filter((part) => part.length > 0)
+  if (parts.length === 0) return ''
+
+  const ellipsis = '...'
+  const budget = Math.max(ellipsis.length + 1, maxChars)
+  const reservedBudget = budget - ellipsis.length
+
+  const firstPart = parts[0] ?? ''
+  if (firstPart.length > reservedBudget) {
+    return `${firstPart.slice(0, reservedBudget)}${ellipsis}`
+  }
+
+  const previewParts = [firstPart]
+  let currentLength = firstPart.length
+  let didTruncate = false
+
+  for (const part of parts.slice(1)) {
+    const nextLength = currentLength + 1 + part.length
+    if (nextLength > reservedBudget) {
+      didTruncate = true
+      break
+    }
+    previewParts.push(part)
+    currentLength = nextLength
+  }
+
+  const preview = previewParts.join(' ')
+  return didTruncate ? `${preview}${ellipsis}` : preview
+}
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -228,20 +264,22 @@ const ServersPage = () => {
     }),
     columnHelper.accessor('command', {
       header: () => t('servers.command'),
-      size: 396,
+      size: 320,
       cell: ({ getValue, row }) => {
         const fullCommand = `${getValue()} ${row.original.args.join(' ')}`.trim()
+        const previewCommand = formatCommandPreview(getValue(), row.original.args)
         const testingPhase = getTestingPhase(row.original.id)
         const isTestingRow = testingPhase !== null
         return (
-          <div className="group relative w-full max-w-[32rem] min-w-0 pr-8">
+          <div className="group relative w-full max-w-[24rem] min-w-0 pr-8">
             <Tooltip>
               <TooltipTrigger asChild>
                 <span
                   className="block min-w-0 cursor-default truncate font-mono text-xs text-muted-foreground"
                   data-testid={`server-command-text-${row.original.id}`}
+                  title={fullCommand}
                 >
-                  {fullCommand}
+                  {previewCommand}
                 </span>
               </TooltipTrigger>
               <TooltipContent className="max-w-[50rem] break-all font-mono text-[11px] leading-relaxed">

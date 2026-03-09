@@ -31,7 +31,7 @@
   --color-popover: oklch(1 0 0);
   --color-popover-foreground: oklch(0.145 0.049 264.364);
 
-  --color-primary: oklch(0.585 0.233 275.5);
+  --color-primary: var(--color-teal-500);
   --color-primary-foreground: oklch(0.985 0.002 247.858);
 
   --color-secondary: oklch(0.961 0.006 286.029);
@@ -48,7 +48,7 @@
 
   --color-border: oklch(0.928 0.007 264.531);
   --color-input: oklch(0.928 0.007 264.531);
-  --color-ring: oklch(0.585 0.233 275.5);
+  --color-ring: var(--color-teal-500);
 
   /* Enterprise surface + semantic text/status tokens */
   --color-surface-1: oklch(0.985 0.003 264);
@@ -82,7 +82,7 @@
   --color-popover: oklch(0.145 0.049 264.364);
   --color-popover-foreground: oklch(0.985 0.002 247.858);
 
-  --color-primary: oklch(0.541 0.207 275.5);
+  --color-primary: var(--color-teal-400);
   --color-primary-foreground: oklch(0.985 0.002 247.858);
 
   --color-secondary: oklch(0.275 0.037 264.047);
@@ -99,7 +99,7 @@
 
   --color-border: oklch(0.275 0.037 264.047);
   --color-input: oklch(0.275 0.037 264.047);
-  --color-ring: oklch(0.541 0.207 275.5);
+  --color-ring: var(--color-teal-400);
 
   /* Enterprise surface + semantic text/status tokens */
   --color-surface-1: oklch(0.19 0.03 264);

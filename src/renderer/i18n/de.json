@@ -38,9 +38,9 @@
     "filterLabel": "Tools filtern",
     "filters": {
       "all": "Alle",
-      "needs-attention": "Benötigt Aufmerksamkeit",
+      "needs-attention": "Aufmerksamkeit",
       "synced": "Synchronisiert",
-      "not-installed": "Nicht installiert"
+      "not-installed": "Nicht install."
     },
     "sortLabel": "Sortieren nach",
     "sort": {
@@ -68,6 +68,9 @@
     "viewDetails": "Details anzeigen",
     "hideDetails": "Details ausblenden",
     "copyConfigPath": "Konfigurationspfad kopieren",
+    "copyConfigPathSuccess": "Konfigurationspfad in die Zwischenablage kopiert",
+    "copyConfigPathFailed": "Konfigurationspfad konnte nicht kopiert werden",
+    "revealInExplorer": "Im Explorer anzeigen",
     "moreActions": "Weitere Aktionen für {{name}}"
   },
   "servers": {
@@ -346,9 +349,13 @@
     "validateButton": "Prüfen",
     "checkingButton": "Wird geprüft…",
     "validateTooltip": "Konfigurationsdatei auf Schemafehler prüfen",
+    "validateClientAria": "{{name}}-Konfiguration prüfen",
     "notInstalledTooltip": "{{name}} ist nicht installiert",
     "notInstalledCodexGuiTooltip": "{{name}} wird nicht erkannt. Wenn es aus dem Microsoft Store installiert wurde, öffnen Sie Codex einmal, klicken Sie auf Aktualisieren und führen Sie bei Bedarf Get-AppxPackage -Name OpenAI.Codex aus, dann aidrelay neu starten.",
     "syncTooltip": "Aktuelle Profilkonfiguration auf {{name}} schreiben",
+    "syncDisabledMissingConfigTooltip": "Erstellen Sie zuerst eine Konfiguration fuer {{name}}, bevor Sie synchronisieren.",
+    "createConfigTooltip": "Neue Konfigurationsdatei fuer diesen Client erstellen",
+    "createConfigAria": "Konfiguration fuer {{name}} erstellen",
     "missingConfigBadge": "Keine Konfiguration",
     "missingConfigTooltip": "{{name}} ist installiert, aber es wurde noch keine Konfigurationsdatei gefunden.",
     "noConfigPath": "Noch keine Konfigurationsdatei",
@@ -356,7 +363,11 @@
     "createConfigDescription": "{{name}} hat noch keine Konfigurationsdatei. Soll aidrelay jetzt eine erstellen?",
     "createConfigConfirm": "Konfiguration erstellen",
     "configValid": "{{clientId}}-Konfiguration ist gültig.",
-    "configHasIssues": "{{clientId}}-Konfiguration hat Probleme: {{errors}}"
+    "configHasIssues": "{{clientId}}-Konfiguration hat Probleme: {{errors}}",
+    "validationStatusSuccessAria": "Validierung erfolgreich",
+    "validationStatusFailureAria": "Validierung fehlgeschlagen",
+    "validationStatusSuccessTooltip": "Letzte Validierung: erfolgreich",
+    "validationStatusFailureTooltip": "Letzte Validierung: fehlgeschlagen"
   },
   "history": {
     "title": "Sicherungsverlauf",
@@ -547,6 +558,22 @@
     "enterPathFirst": "Zuerst einen Projektpfad eingeben oder auswählen",
     "scanFailed": "Verzeichnis konnte nicht gescannt werden",
     "importToast": "{{imported}} Regel(n) importiert, {{skipped}} Duplikat(e) übersprungen."
+  },
+  "files": {
+    "reveal": "Im Explorer anzeigen",
+    "edit": "Datei bearbeiten",
+    "editTitle": "Datei bearbeiten",
+    "loading": "Datei wird geladen…",
+    "reload": "Neu laden",
+    "save": "Speichern",
+    "saved": "Datei gespeichert.",
+    "discardChangesConfirm": "Ungespeicherte Änderungen verwerfen?",
+    "errorRevealDefault": "Datei konnte im Explorer nicht angezeigt werden.",
+    "errorReveal": "Datei konnte nicht angezeigt werden: {{message}}",
+    "errorRead": "Datei konnte nicht gelesen werden: {{message}}",
+    "errorUnsupported": "Nur UTF-8-Textdateien bis 1 MiB werden unterstützt.",
+    "errorSave": "Datei konnte nicht gespeichert werden: {{message}}",
+    "errorConflict": "Die Datei wurde auf der Festplatte geändert. Neu laden und erneut speichern."
   },
   "app": {
     "trayProfileActivated": "Profil über das Tray aktiviert.",

@@ -17,6 +17,7 @@ import { join, dirname } from 'path'
 import log from 'electron-log'
 import type { ClientDetectionResult, McpServerMap, ValidationResult } from '@shared/types'
 import type { ClientAdapter } from './types'
+import { hasWindowsCommandOnPath } from './windows-detection.util'
 
 interface VsCodeInsidersConfig {
   servers?: Record<string, unknown>
@@ -35,11 +36,21 @@ const isVsCodeInsidersInstalled = (): boolean => {
 
   const candidates = [
     join(localAppData, 'Programs', 'Microsoft VS Code Insiders', 'Code - Insiders.exe'),
+    join(localAppData, 'Programs', 'Microsoft VS Code Insiders', 'bin', 'code-insiders.cmd'),
+    join(localAppData, 'Programs', 'Microsoft VS Code Insiders', 'bin', 'code-insiders.exe'),
     join(programFiles, 'Microsoft VS Code Insiders', 'Code - Insiders.exe'),
+    join(programFiles, 'Microsoft VS Code Insiders', 'bin', 'code-insiders.cmd'),
+    join(programFiles, 'Microsoft VS Code Insiders', 'bin', 'code-insiders.exe'),
     join(programFilesX86, 'Microsoft VS Code Insiders', 'Code - Insiders.exe'),
+    join(programFilesX86, 'Microsoft VS Code Insiders', 'bin', 'code-insiders.cmd'),
+    join(programFilesX86, 'Microsoft VS Code Insiders', 'bin', 'code-insiders.exe'),
   ]
 
-  return candidates.some((path) => existsSync(path))
+  if (candidates.some((path) => existsSync(path))) {
+    return true
+  }
+
+  return hasWindowsCommandOnPath(['code-insiders'])
 }
 
 export const vscodeInsidersAdapter: ClientAdapter = {

@@ -30,7 +30,6 @@ import {
 import { ClientCard } from '@/components/clients/ClientCard'
 import { CreateConfigConfirmDialog } from '@/components/clients/CreateConfigConfirmDialog'
 import { useClientsStore } from '@/stores/clients.store'
-import { isConfigCreationRequiredError } from '@/lib/sync-errors'
 import { clientsService } from '@/services/clients.service'
 import { cn } from '@/lib/utils'
 import type { ClientStatus, ConfigChangedPayload, SyncClientOptions } from '@shared/types'
@@ -66,7 +65,7 @@ const DashboardPage = () => {
   const [query, setQuery] = useState('')
   const [activeFilter, setActiveFilter] = useState<DashboardFilter>('all')
   const [sortBy, setSortBy] = useState<DashboardSort>('priority')
-  const [collapsedNotInstalled, setCollapsedNotInstalled] = useState(true)
+  const [collapsedNotInstalled, setCollapsedNotInstalled] = useState(false)
   const [syncingIds, setSyncingIds] = useState<Set<ClientStatus['id']>>(new Set())
   const [bulkSyncRunning, setBulkSyncRunning] = useState(false)
   const [createConfigClientId, setCreateConfigClientId] = useState<ClientStatus['id'] | null>(null)
@@ -201,19 +200,11 @@ const DashboardPage = () => {
     return { needsAttention, healthy, notInstalled }
   }, [sortedFilteredClients])
 
-  const handleSync = async (
-    clientId: ClientStatus['id'],
-    options?: SyncClientOptions,
-    interactive = true,
-  ) => {
+  const handleSync = async (clientId: ClientStatus['id'], options?: SyncClientOptions) => {
     setClientSyncing(clientId, true)
     try {
       await syncClient(clientId, options)
     } catch (err) {
-      if (interactive && isConfigCreationRequiredError(err)) {
-        setCreateConfigClientId(clientId)
-        return
-      }
       const message = err instanceof Error ? err.message : t('common.error')
       toast.error(message)
     } finally {
@@ -279,7 +270,7 @@ const DashboardPage = () => {
         onConfirm={() => {
           if (!createConfigClient) return
           setCreateConfigClientId(null)
-          void handleSync(createConfigClient.id, { allowCreateConfigIfMissing: true }, false)
+          void handleSync(createConfigClient.id, { allowCreateConfigIfMissing: true })
         }}
       />
 
@@ -343,9 +334,22 @@ const DashboardPage = () => {
           </Card>
         </div>
 
-        <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_auto_auto]">
-          <div className="flex flex-col gap-3 md:flex-row">
-            <div className="relative grow">
+        <div
+          role="toolbar"
+          aria-label={t('dashboard.filterLabel')}
+          className="space-y-3"
+          data-testid="dashboard-toolbar"
+        >
+          <div
+            role="group"
+            aria-label={t('dashboard.sortLabel')}
+            className="flex flex-col gap-3 xl:flex-row xl:items-center"
+            data-testid="dashboard-toolbar-row1"
+          >
+            <div
+              className="relative min-w-[280px] flex-1 xl:max-w-[460px]"
+              data-testid="dashboard-search-container"
+            >
               <Search
                 size={14}
                 className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary"
@@ -359,11 +363,60 @@ const DashboardPage = () => {
                 aria-label={t('dashboard.searchPlaceholder')}
               />
             </div>
+
+            <Select value={sortBy} onValueChange={(value) => setSortBy(value as DashboardSort)}>
+              <SelectTrigger className="w-48 shrink-0" aria-label={t('dashboard.sortLabel')}>
+                <SelectValue placeholder={t('dashboard.sortLabel')} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="priority">{t('dashboard.sort.priority')}</SelectItem>
+                <SelectItem value="name">{t('dashboard.sort.name')}</SelectItem>
+                <SelectItem value="servers">{t('dashboard.sort.servers')}</SelectItem>
+              </SelectContent>
+            </Select>
+
             <div
-              className="flex flex-wrap items-center gap-2"
               role="group"
-              aria-label={t('dashboard.filterLabel')}
+              aria-label={t('dashboard.refresh')}
+              className="flex shrink-0 items-center gap-2 xl:ml-auto"
+              data-testid="dashboard-toolbar-actions"
             >
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => void detectAll()}
+                disabled={loading}
+                className="gap-1.5"
+                aria-label={t('dashboard.refresh')}
+                data-testid="detect-all-button"
+              >
+                <RefreshCw size={14} className={loading ? 'animate-spin' : ''} aria-hidden="true" />
+                {loading ? t('common.loading') : t('dashboard.refresh')}
+              </Button>
+              <Button
+                type="button"
+                onClick={() => void handleSyncAllActionable()}
+                disabled={bulkSyncRunning || actionableTargets.length === 0}
+                className="gap-1.5"
+                data-testid="sync-all-actionable-button"
+              >
+                <RefreshCw
+                  size={14}
+                  className={bulkSyncRunning ? 'animate-spin' : ''}
+                  aria-hidden="true"
+                />
+                {bulkSyncRunning ? t('clients.syncingButton') : t('dashboard.syncAllActionable')}
+              </Button>
+            </div>
+          </div>
+
+          <div
+            role="group"
+            aria-label={t('dashboard.filterLabel')}
+            className="overflow-x-auto"
+            data-testid="dashboard-toolbar-row2"
+          >
+            <div className="flex min-w-max flex-nowrap items-center gap-2 pb-1">
               {FILTERS.map((filter) => {
                 const selected = activeFilter === filter
                 return (
@@ -372,57 +425,17 @@ const DashboardPage = () => {
                     type="button"
                     size="sm"
                     variant={selected ? 'default' : 'outline'}
-                    className={cn('gap-1.5', !selected && 'text-text-secondary')}
+                    className={cn('shrink-0 gap-1.5', !selected && 'text-text-secondary')}
                     onClick={() => setActiveFilter(filter)}
                     aria-pressed={selected}
                     data-testid={`dashboard-filter-${filter}`}
                   >
                     {t(`dashboard.filters.${filter}`)}
-                    <span className="text-xs opacity-80">{filterCounts[filter]}</span>
+                    <span className="text-[11px] text-current/75">{filterCounts[filter]}</span>
                   </Button>
                 )
               })}
             </div>
-          </div>
-
-          <Select value={sortBy} onValueChange={(value) => setSortBy(value as DashboardSort)}>
-            <SelectTrigger className="w-full xl:w-52" aria-label={t('dashboard.sortLabel')}>
-              <SelectValue placeholder={t('dashboard.sortLabel')} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="priority">{t('dashboard.sort.priority')}</SelectItem>
-              <SelectItem value="name">{t('dashboard.sort.name')}</SelectItem>
-              <SelectItem value="servers">{t('dashboard.sort.servers')}</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <div className="flex items-center justify-end gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => void detectAll()}
-              disabled={loading}
-              className="gap-1.5"
-              aria-label={t('dashboard.refresh')}
-              data-testid="detect-all-button"
-            >
-              <RefreshCw size={14} className={loading ? 'animate-spin' : ''} aria-hidden="true" />
-              {loading ? t('common.loading') : t('dashboard.refresh')}
-            </Button>
-            <Button
-              type="button"
-              onClick={() => void handleSyncAllActionable()}
-              disabled={bulkSyncRunning || actionableTargets.length === 0}
-              className="gap-1.5"
-              data-testid="sync-all-actionable-button"
-            >
-              <RefreshCw
-                size={14}
-                className={bulkSyncRunning ? 'animate-spin' : ''}
-                aria-hidden="true"
-              />
-              {bulkSyncRunning ? t('clients.syncingButton') : t('dashboard.syncAllActionable')}
-            </Button>
           </div>
         </div>
       </div>
