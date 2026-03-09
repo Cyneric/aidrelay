@@ -93,16 +93,177 @@ describe('opencodeAdapter', () => {
     expect(result.configPaths).toEqual([])
   })
 
-  it('reads and writes mcp section', async () => {
+  it('reads legacy mcp server shape', async () => {
+    const configPath = join(tmpDir, 'opencode.json')
+    writeFileSync(
+      configPath,
+      JSON.stringify({
+        mcp: {
+          legacy: {
+            command: 'npx',
+            args: ['-y', 'legacy-mcp'],
+            env: { TOKEN: 'abc' },
+          },
+        },
+      }),
+    )
+
+    const read = await opencodeAdapter.read(configPath)
+    expect(read).toEqual({
+      legacy: {
+        command: 'npx',
+        args: ['-y', 'legacy-mcp'],
+        env: { TOKEN: 'abc' },
+      },
+    })
+  })
+
+  it('reads new OpenCode local/remote shapes into canonical format', async () => {
+    const configPath = join(tmpDir, 'opencode.json')
+    writeFileSync(
+      configPath,
+      JSON.stringify({
+        mcp: {
+          localServer: {
+            type: 'local',
+            command: ['npx', '-y', 'local-mcp'],
+            environment: { TOKEN: 'abc' },
+          },
+          sseRemote: {
+            type: 'remote',
+            url: 'https://example.test/sse',
+            transport: 'sse',
+            headers: { Authorization: 'Bearer token' },
+          },
+          httpRemote: {
+            type: 'remote',
+            url: 'https://example.test/http',
+          },
+        },
+      }),
+    )
+
+    const read = await opencodeAdapter.read(configPath)
+    expect(read).toEqual({
+      localServer: {
+        command: 'npx',
+        args: ['-y', 'local-mcp'],
+        env: { TOKEN: 'abc' },
+      },
+      sseRemote: {
+        command: 'fetch',
+        type: 'sse',
+        url: 'https://example.test/sse',
+        headers: { Authorization: 'Bearer token' },
+      },
+      httpRemote: {
+        command: 'fetch',
+        type: 'http',
+        url: 'https://example.test/http',
+      },
+    })
+  })
+
+  it('writes canonical stdio server shape to OpenCode local format', async () => {
     const configPath = join(tmpDir, 'opencode.json')
     writeFileSync(configPath, JSON.stringify({ other: true }))
 
-    await opencodeAdapter.write(configPath, { myServer: { command: 'npx' } })
+    await opencodeAdapter.write(configPath, {
+      myServer: {
+        command: 'npx',
+        args: ['-y', 'my-mcp'],
+        env: { TOKEN: 'abc' },
+      },
+    })
     const written = JSON.parse(readFileSync(configPath, 'utf-8')) as Record<string, unknown>
-    expect(written['mcp']).toEqual({ myServer: { command: 'npx' } })
+    const mcp = written['mcp'] as Record<string, unknown>
+    expect(mcp['myServer']).toEqual({
+      type: 'local',
+      command: ['npx', '-y', 'my-mcp'],
+      environment: { TOKEN: 'abc' },
+      enabled: true,
+    })
     expect(written['other']).toBe(true)
+  })
 
+  it('writes canonical remote server shape to OpenCode remote format', async () => {
+    const configPath = join(tmpDir, 'opencode.json')
+    writeFileSync(configPath, JSON.stringify({}))
+
+    await opencodeAdapter.write(configPath, {
+      sseRemote: {
+        command: 'fetch',
+        type: 'sse',
+        url: 'https://example.test/sse',
+        headers: { Authorization: 'Bearer sse' },
+      },
+      httpRemote: {
+        command: 'fetch',
+        type: 'http',
+        url: 'https://example.test/http',
+      },
+    })
+
+    const written = JSON.parse(readFileSync(configPath, 'utf-8')) as Record<string, unknown>
+    const mcp = written['mcp'] as Record<string, unknown>
+    expect(mcp['sseRemote']).toEqual({
+      type: 'remote',
+      url: 'https://example.test/sse',
+      headers: { Authorization: 'Bearer sse' },
+      transport: 'sse',
+      enabled: true,
+    })
+    expect(mcp['httpRemote']).toEqual({
+      type: 'remote',
+      url: 'https://example.test/http',
+      transport: 'streamable-http',
+      enabled: true,
+    })
+  })
+
+  it('round-trips canonical config through write/read', async () => {
+    const configPath = join(tmpDir, 'opencode.json')
+    writeFileSync(configPath, JSON.stringify({}))
+
+    await opencodeAdapter.write(configPath, {
+      myServer: { command: 'npx', args: ['-y', 'pkg'] },
+    })
     const read = await opencodeAdapter.read(configPath)
-    expect(read).toEqual({ myServer: { command: 'npx' } })
+    expect(read).toEqual({ myServer: { command: 'npx', args: ['-y', 'pkg'] } })
+  })
+
+  it('validates new and legacy mcp entry formats', async () => {
+    const configPath = join(tmpDir, 'opencode.json')
+    writeFileSync(
+      configPath,
+      JSON.stringify({
+        mcp: {
+          legacy: { command: 'npx', args: ['-y', 'legacy'] },
+          local: { type: 'local', command: ['npx', '-y', 'local'] },
+          remote: { type: 'remote', url: 'https://example.test', transport: 'sse' },
+        },
+      }),
+    )
+
+    const validation = await opencodeAdapter.validate(configPath)
+    expect(validation.valid).toBe(true)
+    expect(validation.errors).toEqual([])
+  })
+
+  it('rejects malformed OpenCode entries', async () => {
+    const configPath = join(tmpDir, 'opencode.json')
+    writeFileSync(
+      configPath,
+      JSON.stringify({
+        mcp: {
+          brokenLocal: { type: 'local', command: [] },
+          brokenRemote: { type: 'remote', url: '' },
+        },
+      }),
+    )
+
+    const validation = await opencodeAdapter.validate(configPath)
+    expect(validation.valid).toBe(false)
+    expect(validation.errors.length).toBeGreaterThan(0)
   })
 })

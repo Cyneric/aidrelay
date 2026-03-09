@@ -57,7 +57,9 @@ export interface ClientAdapter {
   detect(): Promise<ClientDetectionResult>
 
   /**
-   * Reads and returns the MCP server map from the given config file.
+   * Reads and returns the MCP server map from the given config file in
+   * aidrelay's canonical internal shape (`command` + optional `args`/`env`
+   * plus optional `type`/`url`/`headers`).
    * Returns an empty object if the file does not contain any servers.
    *
    * @param configPath - Absolute path to the client's config file.
@@ -66,8 +68,9 @@ export interface ClientAdapter {
   read(configPath: string): Promise<McpServerMap>
 
   /**
-   * Writes the given server map into the client's config file, merging with
-   * any existing non-MCP keys rather than replacing the entire file.
+   * Writes the given canonical server map into the client's config file,
+   * converting to whatever client-native shape is required and merging with
+   * existing non-MCP keys rather than replacing the entire file.
    * Uses an atomic write (`.aidrelay.tmp` → rename) per the safety spec.
    *
    * @param configPath - Absolute path to the client's config file.

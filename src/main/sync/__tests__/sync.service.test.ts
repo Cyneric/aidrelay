@@ -63,8 +63,18 @@ const makeAdapter = (): ClientAdapter =>
     displayName: 'Cursor',
     schemaKey: 'mcpServers' as const,
     detect: vi.fn(),
-    read: vi.fn(),
-    write: vi.fn(),
+    read: vi.fn((configPath: string) => {
+      if (!existsSync(configPath)) return {}
+      const raw = JSON.parse(readFileSync(configPath, 'utf-8')) as Record<string, unknown>
+      return (raw['mcpServers'] ?? {}) as Record<string, unknown>
+    }),
+    write: vi.fn((configPath: string, servers: Record<string, unknown>) => {
+      const existing = existsSync(configPath)
+        ? (JSON.parse(readFileSync(configPath, 'utf-8')) as Record<string, unknown>)
+        : {}
+      const merged = { ...existing, mcpServers: servers }
+      writeFileSync(configPath, JSON.stringify(merged, null, 2), 'utf-8')
+    }),
     validate: vi.fn(),
   }) as unknown as ClientAdapter
 

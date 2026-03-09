@@ -21,25 +21,15 @@
  * If any step fails the method throws, leaving the original file untouched.
  */
 
-import { existsSync, readFileSync, writeFileSync, renameSync } from 'fs'
+import { existsSync, readFileSync } from 'fs'
 import log from 'electron-log'
-import type { ClientId, McpServer, SyncResult } from '@shared/types'
+import type { ClientId, McpServer, McpServerConfig, McpServerMap, SyncResult } from '@shared/types'
 import type { ClientAdapter } from '@main/clients/types'
 import type { ActivityLogRepo } from '@main/db/activity-log.repo'
 import type { ServersRepo } from '@main/db/servers.repo'
 import type { BackupService } from './backup.service'
 import { getSecret } from '@main/secrets/keytar.service'
 import { toSecretHeaderAccountKey } from '@main/secrets/secret-keys'
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-/**
- * Raw JSON shape of a client config file. Preserving the unknown-key index
- * is important so we never lose fields that aidrelay doesn't manage.
- */
-interface ClientConfig {
-  [key: string]: unknown
-}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -55,13 +45,13 @@ interface ClientConfig {
  *
  * @param servers  - All servers in the aidrelay registry.
  * @param clientId - The client being synced.
- * @returns Map of server name → minimal config shape expected by the client.
+ * @returns Map of server name -> canonical MCP config shape used by adapters.
  */
 const buildManagedMap = async (
   servers: McpServer[],
   clientId: ClientId,
-): Promise<Record<string, unknown>> => {
-  const result: Record<string, unknown> = {}
+): Promise<Record<string, McpServerConfig>> => {
+  const result: Record<string, McpServerConfig> = {}
 
   for (const server of servers) {
     const clientOverride = server.clientOverrides[clientId]
@@ -139,9 +129,8 @@ export class SyncService {
       let rawContent = fileExists ? readFileSync(configPath, 'utf-8') : '{}'
 
       // ── Step 2: PARSE ─────────────────────────────────────────────────────
-      let existingConfig: ClientConfig
       try {
-        existingConfig = JSON.parse(rawContent) as ClientConfig
+        JSON.parse(rawContent)
       } catch (err) {
         throw new Error(`Config parse failed (step 2): ${String(err)}`)
       }
@@ -158,46 +147,41 @@ export class SyncService {
       // Inject secrets from the OS credential store for each server.
       const managedMap = await buildManagedMap(allServers, clientId)
 
-      // Get the currently existing server entries from the client config
-      const schemaKey = adapter.schemaKey
-      const existingServers = (existingConfig[schemaKey] ?? {}) as Record<string, unknown>
+      // Read the existing server entries through the adapter boundary so each
+      // client can normalize its own on-disk schema into the canonical format.
+      const existingServers = await adapter.read(configPath)
 
       // Identify which keys in the existing config are NOT managed by aidrelay.
       // These are preserved unchanged — we only touch our own entries.
       const managedNames = new Set(Object.keys(managedMap))
-      const unmanagedEntries: Record<string, unknown> = {}
+      const unmanagedEntries: Record<string, McpServerConfig> = {}
       for (const [name, config] of Object.entries(existingServers)) {
         if (!managedNames.has(name)) {
           unmanagedEntries[name] = config
         }
       }
 
-      const mergedServers = { ...unmanagedEntries, ...managedMap }
-      const mergedConfig: ClientConfig = { ...existingConfig, [schemaKey]: mergedServers }
+      const mergedServers: McpServerMap = { ...unmanagedEntries, ...managedMap }
 
       // ── Step 5: VALIDATE ──────────────────────────────────────────────────
-      let mergedJson: string
       try {
-        mergedJson = JSON.stringify(mergedConfig, null, 2)
+        // Ensure the canonical server map is JSON-serializable before writing.
+        const mergedJson = JSON.stringify(mergedServers, null, 2)
         JSON.parse(mergedJson) // round-trip check
       } catch (err) {
         throw new Error(`Merged config failed validation (step 5): ${String(err)}`)
       }
 
-      // ── Step 6: WRITE (atomic) ────────────────────────────────────────────
-      const tmpPath = `${configPath}.aidrelay.tmp`
+      // ── Step 6: WRITE (adapter-owned persistence) ────────────────────────
       try {
-        writeFileSync(tmpPath, mergedJson, 'utf-8')
-        renameSync(tmpPath, configPath)
+        await adapter.write(configPath, mergedServers)
       } catch (err) {
-        throw new Error(`Atomic write failed (step 6): ${String(err)}`)
+        throw new Error(`Adapter write failed (step 6): ${String(err)}`)
       }
 
       // ── Step 7: VERIFY ────────────────────────────────────────────────────
       try {
-        rawContent = readFileSync(configPath, 'utf-8')
-        const verified = JSON.parse(rawContent) as ClientConfig
-        const verifiedServers = verified[schemaKey] as Record<string, unknown> | undefined
+        const verifiedServers = await adapter.read(configPath)
         const writtenKeys = Object.keys(verifiedServers ?? {})
         const expectedKeys = Object.keys(mergedServers)
 
