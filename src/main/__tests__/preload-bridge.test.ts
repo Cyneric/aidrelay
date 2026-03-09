@@ -74,6 +74,7 @@ const EXPECTED_KEYS = [
   'windowMaximize',
   'windowClose',
   'onConfigChanged',
+  'onClientInstallProgress',
   'onActivateProfileFromTray',
   'onUpdateAvailable',
   'onUpdateDownloaded',
@@ -122,6 +123,8 @@ describe('preload bridge composition', () => {
     await api.backupsList('cursor')
     await api.filesReveal('C:\\tmp\\file.txt')
     await api.registryPrepareInstall('smithery', '@anthropic/github-mcp')
+    const offInstallProgress = api.onClientInstallProgress(() => {})
+    offInstallProgress()
 
     expect(invoke).toHaveBeenCalledWith('clients:detect-all')
     expect(invoke).toHaveBeenCalledWith('clients:install', 'cursor')
@@ -155,5 +158,10 @@ describe('preload bridge composition', () => {
       'smithery',
       '@anthropic/github-mcp',
     )
+    const installProgressListener = (
+      on.mock.calls as [string, (...args: unknown[]) => void][]
+    ).find((call) => call[0] === 'clients:install-progress')?.[1]
+    expect(installProgressListener).toBeTypeOf('function')
+    expect(removeListener).toHaveBeenCalledWith('clients:install-progress', installProgressListener)
   })
 })

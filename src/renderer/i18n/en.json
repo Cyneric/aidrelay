@@ -380,11 +380,45 @@
     "installTooltip": "Install this client",
     "installAria": "Install {{name}}",
     "installConfirmTitle": "Install client?",
-    "installConfirmDescription": "aidrelay will run package manager commands to install {{name}}. Continue?",
+    "installConfirmDescription": "Choose how you want to install {{name}}.",
+    "installOfficial": "Official download",
+    "installOpenOfficial": "Open official download",
     "installConfirm": "Install now",
     "installSuccess": "{{name}} installed via {{manager}}.",
     "installFailed": "Install failed for {{name}}: {{reason}}",
     "installFailedWithDocs": "Install failed for {{name}}: {{reason}} See: {{url}}",
+    "installProgress": {
+      "runningTitle": "Installing {{name}}",
+      "doneTitleSuccess": "{{name}} installation complete",
+      "doneTitleFailure": "{{name}} installation failed",
+      "doneButton": "Done",
+      "phase": {
+        "start": "Preparing installation...",
+        "managerCheck": "Checking {{manager}} ({{current}}/{{total}})",
+        "managerRunning": "Running {{manager}} install command ({{current}}/{{total}})",
+        "managerSkipped": "{{manager}} is unavailable, trying next option...",
+        "managerFailed": "{{manager}} failed, trying next option...",
+        "managerSucceeded": "{{manager}} succeeded.",
+        "completedSuccess": "Installation finished successfully.",
+        "completedFailure": "Installation finished with errors."
+      },
+      "manager": {
+        "winget": "winget",
+        "choco": "choco",
+        "npm": "npm",
+        "manual": "manual",
+        "attempt": "Attempt {{index}}"
+      },
+      "timeline": {
+        "pending": "Pending",
+        "running": "Running",
+        "success": "Success",
+        "failed": "Failed",
+        "skipped": "Skipped",
+        "noAttemptsYet": "Waiting for install attempts..."
+      },
+      "noPackageManagerHint": "No supported package manager was detected. Use the official download page below."
+    },
     "discoverTooltip": "Pick a config file manually",
     "discoverAria": "Discover config path for {{name}}",
     "discoverDialogTitle": "Choose a config file for {{name}}",

@@ -1,8 +1,9 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, screen, waitFor } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { act, fireEvent, screen, waitFor } from '@testing-library/react'
 import { renderWithProviders } from '@/test-utils'
 import { ClientsPage } from '../ClientsPage'
 import type { ClientInstallResult, ClientStatus, SyncResult } from '@shared/types'
+import type { ClientInstallProgressPayload } from '@shared/channels'
 import type * as ClientsStoreModule from '@/stores/clients.store'
 
 const detectAllMock = vi.fn<() => Promise<void>>()
@@ -14,6 +15,9 @@ const showOpenDialogMock = vi.fn<() => Promise<{ canceled: boolean; filePaths: s
 const setManualPathMock =
   vi.fn<(id: string, path: string) => Promise<{ valid: boolean; errors: string[] }>>()
 const clearManualPathMock = vi.fn<(id: string) => Promise<void>>()
+const onInstallProgressMock =
+  vi.fn<(handler: (payload: ClientInstallProgressPayload) => void) => () => void>()
+let installProgressHandler: ((payload: ClientInstallProgressPayload) => void) | null = null
 
 let clientsFixture: ClientStatus[] = []
 
@@ -44,8 +48,15 @@ vi.mock('@/stores/clients.store', async (importOriginal) => {
 })
 
 describe('ClientsPage sync-all reporting', () => {
+  const windowOpenMock =
+    vi.fn<(url?: string | URL, target?: string, features?: string) => Window | null>()
+
   beforeEach(() => {
     vi.clearAllMocks()
+    windowOpenMock.mockReset()
+    windowOpenMock.mockReturnValue(null)
+    vi.spyOn(window, 'open').mockImplementation(windowOpenMock)
+
     clientsFixture = [
       {
         id: 'cursor',
@@ -83,6 +94,12 @@ describe('ClientsPage sync-all reporting', () => {
       installedWith: 'winget',
       message: 'ok',
     })
+    onInstallProgressMock.mockImplementation((handler) => {
+      installProgressHandler = handler
+      return () => {
+        if (installProgressHandler === handler) installProgressHandler = null
+      }
+    })
     showOpenDialogMock.mockResolvedValue({ canceled: true, filePaths: [] })
     setManualPathMock.mockResolvedValue({ valid: true, errors: [] })
     clearManualPathMock.mockResolvedValue()
@@ -95,11 +112,16 @@ describe('ClientsPage sync-all reporting', () => {
         showOpenDialog: showOpenDialogMock,
         clientsSetManualConfigPath: setManualPathMock,
         clientsClearManualConfigPath: clearManualPathMock,
+        onClientInstallProgress: onInstallProgressMock,
       },
       writable: true,
       configurable: true,
     })
     validateConfigMock.mockResolvedValue({ valid: true, errors: [] })
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
   })
 
   it('shows mixed-result summary when sync-all has failures', async () => {
@@ -246,10 +268,124 @@ describe('ClientsPage sync-all reporting', () => {
 
     fireEvent.click(screen.getByTestId('btn-install-cursor'))
     expect(await screen.findByText('Install client?')).toBeInTheDocument()
-    fireEvent.click(screen.getByTestId('confirm-action-submit'))
+    fireEvent.click(screen.getByTestId('install-dialog-confirm'))
 
     await waitFor(() => expect(installClientMock).toHaveBeenCalledWith('cursor'))
+    expect(await screen.findByTestId('install-dialog-done')).toBeInTheDocument()
+    fireEvent.click(screen.getByTestId('install-dialog-done'))
+    await waitFor(() =>
+      expect(screen.queryByTestId('install-client-dialog')).not.toBeInTheDocument(),
+    )
     await waitFor(() => expect(detectAllMock).toHaveBeenCalledTimes(2))
+  })
+
+  it('opens official provider download when selected and skips automatic install', async () => {
+    clientsFixture = [
+      {
+        id: 'cursor',
+        displayName: 'Cursor',
+        installed: false,
+        configPaths: [],
+        serverCount: 0,
+        syncStatus: 'never-synced',
+      },
+    ]
+
+    renderWithProviders(<ClientsPage />)
+
+    fireEvent.click(screen.getByTestId('btn-install-cursor'))
+    expect(await screen.findByText('Install client?')).toBeInTheDocument()
+    fireEvent.click(screen.getByTestId('install-dialog-official'))
+
+    expect(windowOpenMock).toHaveBeenCalledWith(
+      'https://www.cursor.com/downloads',
+      '_blank',
+      'noopener,noreferrer',
+    )
+    expect(installClientMock).not.toHaveBeenCalled()
+    await waitFor(() =>
+      expect(screen.queryByTestId('install-client-dialog')).not.toBeInTheDocument(),
+    )
+  })
+
+  it('shows install progress step text and timeline updates while running', async () => {
+    clientsFixture = [
+      {
+        id: 'cursor',
+        displayName: 'Cursor',
+        installed: false,
+        configPaths: [],
+        serverCount: 0,
+        syncStatus: 'never-synced',
+      },
+    ]
+
+    let resolveInstall: ((value: ClientInstallResult) => void) | null = null
+    installClientMock.mockImplementation(
+      () =>
+        new Promise<ClientInstallResult>((resolve) => {
+          resolveInstall = resolve
+        }),
+    )
+
+    renderWithProviders(<ClientsPage />)
+
+    fireEvent.click(screen.getByTestId('btn-install-cursor'))
+    fireEvent.click(await screen.findByTestId('install-dialog-confirm'))
+
+    expect(await screen.findByTestId('install-progress-panel')).toBeInTheDocument()
+    expect(screen.getByTestId('install-dialog-running')).toBeInTheDocument()
+
+    act(() => {
+      installProgressHandler?.({
+        clientId: 'cursor',
+        phase: 'manager_running',
+        progress: 30,
+        attemptIndex: 1,
+        attemptCount: 2,
+        manager: 'winget',
+      })
+    })
+    expect(await screen.findByText('Running winget install command (1/2)')).toBeInTheDocument()
+    expect(screen.getByTestId('install-progress-attempt-1')).toHaveTextContent('Running')
+
+    act(() => {
+      installProgressHandler?.({
+        clientId: 'cursor',
+        phase: 'manager_failed',
+        progress: 50,
+        attemptIndex: 1,
+        attemptCount: 2,
+        manager: 'winget',
+      })
+      installProgressHandler?.({
+        clientId: 'cursor',
+        phase: 'manager_running',
+        progress: 70,
+        attemptIndex: 2,
+        attemptCount: 2,
+        manager: 'choco',
+      })
+    })
+    expect(screen.getByTestId('install-progress-attempt-1')).toHaveTextContent('Failed')
+    expect(screen.getByTestId('install-progress-attempt-2')).toHaveTextContent('Running')
+
+    act(() => {
+      resolveInstall?.({
+        clientId: 'cursor',
+        success: true,
+        attempts: [],
+        installedWith: 'choco',
+        message: 'Installed via choco.',
+      })
+    })
+
+    expect(await screen.findByTestId('install-dialog-done')).toBeInTheDocument()
+    expect(screen.getByTestId('install-client-dialog')).toBeInTheDocument()
+    fireEvent.click(screen.getByTestId('install-dialog-done'))
+    await waitFor(() =>
+      expect(screen.queryByTestId('install-client-dialog')).not.toBeInTheDocument(),
+    )
   })
 
   it('runs discover flow with file picker and saves manual path', async () => {

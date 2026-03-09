@@ -23,6 +23,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { RuleForm } from './RuleForm'
 import { RuleMarkdownEditor } from './RuleMarkdownEditor'
+import { tokenBadgeClass } from './tokenBadgeSeverity'
 import { useRulesStore } from '@/stores/rules.store'
 import { useTokenEstimate } from '@/hooks/useTokenEstimate'
 import type { AiRule } from '@shared/types'
@@ -115,11 +116,7 @@ const RuleEditor = ({ rule, onClose }: RuleEditorProps) => {
               <span
                 className={cn(
                   'rounded px-1.5 py-0.5 text-xs font-mono',
-                  tokenEstimate > 2000
-                    ? 'bg-destructive/15 text-destructive'
-                    : tokenEstimate > 500
-                      ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400'
-                      : 'bg-muted text-muted-foreground',
+                  tokenBadgeClass(tokenEstimate),
                 )}
                 data-testid="editor-token-estimate"
               >

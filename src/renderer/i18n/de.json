@@ -380,11 +380,45 @@
     "installTooltip": "Diesen Client installieren",
     "installAria": "{{name}} installieren",
     "installConfirmTitle": "Client installieren?",
-    "installConfirmDescription": "aidrelay fuehrt Paketmanager-Befehle aus, um {{name}} zu installieren. Fortfahren?",
+    "installConfirmDescription": "Waehlen Sie, wie {{name}} installiert werden soll.",
+    "installOfficial": "Offizieller Download",
+    "installOpenOfficial": "Offiziellen Download oeffnen",
     "installConfirm": "Jetzt installieren",
     "installSuccess": "{{name}} wurde ueber {{manager}} installiert.",
     "installFailed": "Installation fuer {{name}} fehlgeschlagen: {{reason}}",
     "installFailedWithDocs": "Installation fuer {{name}} fehlgeschlagen: {{reason}} Siehe: {{url}}",
+    "installProgress": {
+      "runningTitle": "{{name}} wird installiert",
+      "doneTitleSuccess": "{{name}}-Installation abgeschlossen",
+      "doneTitleFailure": "{{name}}-Installation fehlgeschlagen",
+      "doneButton": "Fertig",
+      "phase": {
+        "start": "Installation wird vorbereitet...",
+        "managerCheck": "{{manager}} wird geprueft ({{current}}/{{total}})",
+        "managerRunning": "{{manager}}-Installationsbefehl wird ausgefuehrt ({{current}}/{{total}})",
+        "managerSkipped": "{{manager}} ist nicht verfuegbar, naechster Versuch...",
+        "managerFailed": "{{manager}} fehlgeschlagen, naechster Versuch...",
+        "managerSucceeded": "{{manager}} erfolgreich.",
+        "completedSuccess": "Installation erfolgreich abgeschlossen.",
+        "completedFailure": "Installation mit Fehlern beendet."
+      },
+      "manager": {
+        "winget": "winget",
+        "choco": "choco",
+        "npm": "npm",
+        "manual": "manuell",
+        "attempt": "Versuch {{index}}"
+      },
+      "timeline": {
+        "pending": "Ausstehend",
+        "running": "Laeuft",
+        "success": "Erfolgreich",
+        "failed": "Fehlgeschlagen",
+        "skipped": "Uebersprungen",
+        "noAttemptsYet": "Warte auf Installationsversuche..."
+      },
+      "noPackageManagerHint": "Kein unterstuetzter Paketmanager wurde gefunden. Nutzen Sie die offizielle Download-Seite unten."
+    },
     "discoverTooltip": "Konfigurationsdatei manuell auswaehlen",
     "discoverAria": "Konfigurationspfad fuer {{name}} finden",
     "discoverDialogTitle": "Konfigurationsdatei fuer {{name}} auswaehlen",

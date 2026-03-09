@@ -8,6 +8,7 @@
 
 import spawn from 'cross-spawn'
 import log from 'electron-log'
+import type { ClientInstallProgressPayload } from '@shared/channels'
 import type {
   ClientId,
   ClientInstallAttempt,
@@ -37,6 +38,8 @@ interface InstallExecutionResult {
   readonly stderr: string
   readonly error?: string
 }
+
+type InstallProgressReporter = (payload: ClientInstallProgressPayload) => void
 
 const INSTALL_DEFINITIONS: Readonly<Record<ClientId, ClientInstallDefinition>> = {
   cursor: {
@@ -335,6 +338,46 @@ const requiresElevation = (text: string): boolean =>
 const managerAvailable = (manager: AutomaticInstallManager): boolean =>
   hasWindowsCommandOnPath(MANAGER_COMMANDS[manager])
 
+const clampProgress = (progress: number): number => Math.min(100, Math.max(0, Math.round(progress)))
+
+const progressForAttempt = (
+  attemptIndex: number,
+  attemptCount: number,
+  segment: 'check' | 'running' | 'result',
+): number => {
+  if (attemptCount <= 0) return 95
+  const start = 5
+  const total = 90
+  const span = total / attemptCount
+  const offset = segment === 'check' ? 0 : segment === 'running' ? 0.5 : 1
+  return start + (attemptIndex - 1 + offset) * span
+}
+
+const createProgressEmitter = (
+  clientId: ClientId,
+  reportProgress?: InstallProgressReporter,
+): ((payload: Omit<ClientInstallProgressPayload, 'clientId'>) => void) => {
+  let lastProgress = 0
+
+  return (payload) => {
+    if (!reportProgress) return
+
+    const nextProgress = clampProgress(payload.progress)
+    const monotonicProgress = Math.max(lastProgress, nextProgress)
+    lastProgress = monotonicProgress
+
+    try {
+      reportProgress({
+        ...payload,
+        clientId,
+        progress: monotonicProgress,
+      })
+    } catch (err) {
+      log.warn(`[clients:install] progress reporter failed for ${clientId}: ${String(err)}`)
+    }
+  }
+}
+
 const execute = async (command: string, args: readonly string[]): Promise<InstallExecutionResult> =>
   new Promise((resolve) => {
     const child = spawn(command, [...args], {
@@ -388,41 +431,88 @@ const failureResult = (
 })
 
 export class ClientInstallService {
-  async install(clientId: ClientId): Promise<ClientInstallResult> {
+  async install(
+    clientId: ClientId,
+    reportProgress?: InstallProgressReporter,
+  ): Promise<ClientInstallResult> {
+    const expectedAttemptCount = INSTALL_DEFINITIONS[clientId]?.attempts.length ?? 0
+    const emitProgress = createProgressEmitter(clientId, reportProgress)
+    emitProgress({
+      phase: 'start',
+      progress: 1,
+      attemptIndex: 0,
+      attemptCount: expectedAttemptCount,
+    })
+
     if (process.platform !== 'win32') {
-      return failureResult(
+      const result = failureResult(
         clientId,
         [],
         'unsupported_platform',
         'In-app installs are currently supported on Windows only.',
       )
+      emitProgress({
+        phase: 'completed',
+        progress: 100,
+        attemptIndex: 0,
+        attemptCount: expectedAttemptCount,
+        ...(result.failureReason ? { failureReason: result.failureReason } : {}),
+      })
+      return result
     }
 
     const definition = INSTALL_DEFINITIONS[clientId]
     if (!definition) {
-      return failureResult(
+      const result = failureResult(
         clientId,
         [],
         'unsupported_client',
         `No install definition is available for client: ${clientId}`,
       )
+      emitProgress({
+        phase: 'completed',
+        progress: 100,
+        attemptIndex: 0,
+        attemptCount: 0,
+        ...(result.failureReason ? { failureReason: result.failureReason } : {}),
+      })
+      return result
     }
 
     if (definition.manualOnly || definition.attempts.length === 0) {
-      return failureResult(
+      const result = failureResult(
         clientId,
         [],
         'manual_install_required',
         'Automatic install is not available for this client. Please install it manually.',
         definition.docsUrl,
       )
+      emitProgress({
+        phase: 'completed',
+        progress: 100,
+        attemptIndex: 0,
+        attemptCount: definition.attempts.length,
+        ...(result.failureReason ? { failureReason: result.failureReason } : {}),
+      })
+      return result
     }
 
     const attempts: ClientInstallAttempt[] = []
     let hadRunnableManager = false
     let sawElevationFailure = false
+    const attemptCount = definition.attempts.length
+    let attemptIndex = 0
 
     for (const installAttempt of definition.attempts) {
+      attemptIndex += 1
+      emitProgress({
+        phase: 'manager_check',
+        progress: progressForAttempt(attemptIndex, attemptCount, 'check'),
+        attemptIndex,
+        attemptCount,
+        manager: installAttempt.manager,
+      })
+
       if (!managerAvailable(installAttempt.manager)) {
         attempts.push({
           manager: installAttempt.manager,
@@ -432,10 +522,24 @@ export class ClientInstallService {
           skipped: true,
           error: `${installAttempt.manager} is not available on PATH`,
         })
+        emitProgress({
+          phase: 'manager_skipped',
+          progress: progressForAttempt(attemptIndex, attemptCount, 'result'),
+          attemptIndex,
+          attemptCount,
+          manager: installAttempt.manager,
+        })
         continue
       }
 
       hadRunnableManager = true
+      emitProgress({
+        phase: 'manager_running',
+        progress: progressForAttempt(attemptIndex, attemptCount, 'running'),
+        attemptIndex,
+        attemptCount,
+        manager: installAttempt.manager,
+      })
       const runResult = await execute(installAttempt.command, installAttempt.args)
       const combinedOutput = `${runResult.stdout}\n${runResult.stderr}\n${runResult.error ?? ''}`
 
@@ -456,9 +560,17 @@ export class ClientInstallService {
 
       attempts.push(result)
 
+      emitProgress({
+        phase: result.success ? 'manager_succeeded' : 'manager_failed',
+        progress: progressForAttempt(attemptIndex, attemptCount, 'result'),
+        attemptIndex,
+        attemptCount,
+        manager: installAttempt.manager,
+      })
+
       if (result.success) {
         log.info(`[clients:install] ${clientId} installed via ${installAttempt.manager}`)
-        return {
+        const successResult: ClientInstallResult = {
           clientId,
           success: true,
           attempts,
@@ -466,35 +578,67 @@ export class ClientInstallService {
           docsUrl: definition.docsUrl,
           message: `Installed via ${installAttempt.manager}.`,
         }
+        emitProgress({
+          phase: 'completed',
+          progress: 100,
+          attemptIndex,
+          attemptCount,
+          manager: installAttempt.manager,
+        })
+        return successResult
       }
     }
 
     if (!hadRunnableManager) {
-      return failureResult(
+      const result = failureResult(
         clientId,
         attempts,
         'no_available_manager',
         'No supported package manager is available (winget/choco/npm).',
         definition.docsUrl,
       )
+      emitProgress({
+        phase: 'completed',
+        progress: 100,
+        attemptIndex,
+        attemptCount,
+        ...(result.failureReason ? { failureReason: result.failureReason } : {}),
+      })
+      return result
     }
 
     if (sawElevationFailure) {
-      return failureResult(
+      const result = failureResult(
         clientId,
         attempts,
         'requires_elevation',
         'Install failed because elevated privileges are required. aidrelay does not auto-elevate.',
         definition.docsUrl,
       )
+      emitProgress({
+        phase: 'completed',
+        progress: 100,
+        attemptIndex,
+        attemptCount,
+        ...(result.failureReason ? { failureReason: result.failureReason } : {}),
+      })
+      return result
     }
 
-    return failureResult(
+    const result = failureResult(
       clientId,
       attempts,
       'command_failed',
       'Install failed for all attempted package managers.',
       definition.docsUrl,
     )
+    emitProgress({
+      phase: 'completed',
+      progress: 100,
+      attemptIndex,
+      attemptCount,
+      ...(result.failureReason ? { failureReason: result.failureReason } : {}),
+    })
+    return result
   }
 }

@@ -48,6 +48,7 @@ Object.defineProperty(window, 'api', {
       }),
     clientsSetManualConfigPath: () => Promise.resolve({ valid: true, errors: [] }),
     clientsClearManualConfigPath: () => Promise.resolve(),
+    onClientInstallProgress: () => () => {},
     showOpenDialog: () => Promise.resolve({ canceled: true, filePaths: [] }),
     filesReveal: () => Promise.resolve(),
     filesReadText: () =>

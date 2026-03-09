@@ -16,11 +16,13 @@
 
 import type {
   ClientId,
+  ClientInstallFailureReason,
   ClientInstallResult,
   ClientStatus,
   ConfigChangedPayload,
   ConfigImportPreviewResult,
   ConfigImportResult,
+  InstallManager,
   McpServer,
   McpServerMap,
   AiRule,
@@ -70,6 +72,27 @@ export interface AppStartupStatus {
   readonly ready: boolean
   readonly startedAt: number
   readonly completedAt?: number
+}
+
+/**
+ * Install progress payload pushed during a `clients:install` execution.
+ * The renderer uses this to render deterministic, step-based install UX.
+ */
+export interface ClientInstallProgressPayload {
+  readonly clientId: ClientId
+  readonly phase:
+    | 'start'
+    | 'manager_check'
+    | 'manager_running'
+    | 'manager_skipped'
+    | 'manager_failed'
+    | 'manager_succeeded'
+    | 'completed'
+  readonly progress: number
+  readonly attemptIndex: number
+  readonly attemptCount: number
+  readonly manager?: InstallManager
+  readonly failureReason?: ClientInstallFailureReason
 }
 
 // ─── Input Types (used in create/update calls) ────────────────────────────────

@@ -7,6 +7,7 @@
 
 import { EventEmitter } from 'events'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { ClientInstallProgressPayload } from '@shared/channels'
 
 type Platform = typeof process.platform
 
@@ -100,6 +101,34 @@ describe('ClientInstallService', () => {
     expect(spawnMock).toHaveBeenNthCalledWith(2, 'choco', expect.any(Array), expect.any(Object))
   })
 
+  it('emits monotonic progress events across fallback attempts', async () => {
+    spawnPlanQueue.push(
+      { command: 'winget', exitCode: 1, stderr: 'failed' },
+      { command: 'choco', exitCode: 0, stdout: 'ok' },
+    )
+    const service = new ClientInstallService()
+    const progressEvents: ClientInstallProgressPayload[] = []
+
+    await service.install('cursor', (payload) => {
+      progressEvents.push(payload)
+    })
+
+    expect(progressEvents.map((event) => event.phase)).toEqual([
+      'start',
+      'manager_check',
+      'manager_running',
+      'manager_failed',
+      'manager_check',
+      'manager_running',
+      'manager_succeeded',
+      'completed',
+    ])
+    expect(progressEvents.map((event) => event.progress)).toEqual(
+      [...progressEvents.map((event) => event.progress)].sort((a, b) => a - b),
+    )
+    expect(progressEvents.at(-1)?.progress).toBe(100)
+  })
+
   it('returns no_available_manager when none of the managers are present', async () => {
     managerAvailability.winget = false
     managerAvailability.choco = false
@@ -113,6 +142,26 @@ describe('ClientInstallService', () => {
     expect(result.attempts).toHaveLength(3)
     expect(result.attempts.every((attempt) => attempt.skipped === true)).toBe(true)
     expect(spawnMock).not.toHaveBeenCalled()
+  })
+
+  it('emits manager_skipped progress events when managers are unavailable', async () => {
+    managerAvailability.winget = false
+    managerAvailability.choco = false
+    managerAvailability.npm = false
+    const service = new ClientInstallService()
+    const progressEvents: ClientInstallProgressPayload[] = []
+
+    const result = await service.install('codex-cli', (payload) => {
+      progressEvents.push(payload)
+    })
+
+    expect(result.failureReason).toBe('no_available_manager')
+    expect(progressEvents.filter((event) => event.phase === 'manager_skipped')).toHaveLength(3)
+    expect(progressEvents.at(-1)).toMatchObject({
+      phase: 'completed',
+      failureReason: 'no_available_manager',
+      progress: 100,
+    })
   })
 
   it('returns requires_elevation without trying to elevate automatically', async () => {
@@ -136,13 +185,18 @@ describe('ClientInstallService', () => {
 
   it('returns manual_install_required for manual-only clients', async () => {
     const service = new ClientInstallService()
+    const progressEvents: ClientInstallProgressPayload[] = []
 
-    const result = await service.install('jetbrains')
+    const result = await service.install('jetbrains', (payload) => {
+      progressEvents.push(payload)
+    })
 
     expect(result.success).toBe(false)
     expect(result.failureReason).toBe('manual_install_required')
     expect(result.docsUrl).toContain('jetbrains.com')
     expect(result.attempts).toHaveLength(0)
+    expect(progressEvents.map((event) => event.phase)).toEqual(['start', 'completed'])
+    expect(progressEvents.at(-1)?.failureReason).toBe('manual_install_required')
     expect(spawnMock).not.toHaveBeenCalled()
   })
 

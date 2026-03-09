@@ -1,6 +1,7 @@
 import type {
   AppStartupCompletePayload,
   AppStartupProgressPayload,
+  ClientInstallProgressPayload,
   WindowMaximizeChangedPayload,
 } from '../../shared/channels'
 import type { ConfigChangedPayload } from '../../shared/types'
@@ -13,6 +14,16 @@ export const createEventsApi = (ipcRenderer: IpcRendererLike) => ({
     }
     ipcRenderer.on('clients:config-changed', wrapped)
     return () => ipcRenderer.removeListener('clients:config-changed', wrapped)
+  },
+
+  onClientInstallProgress: (
+    handler: (payload: ClientInstallProgressPayload) => void,
+  ): (() => void) => {
+    const wrapped = (...args: unknown[]) => {
+      handler(args[1] as ClientInstallProgressPayload)
+    }
+    ipcRenderer.on('clients:install-progress', wrapped)
+    return () => ipcRenderer.removeListener('clients:install-progress', wrapped)
   },
 
   onActivateProfileFromTray: (handler: (profileId: string) => void): (() => void) => {

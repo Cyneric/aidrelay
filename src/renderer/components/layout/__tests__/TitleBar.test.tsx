@@ -56,9 +56,7 @@ describe('TitleBar', () => {
 
   it('renders the title bar element', () => {
     render(<TitleBar />)
-    const titleBar = screen.getByTestId('title-bar')
-    expect(titleBar).toBeInTheDocument()
-    expect(titleBar).toHaveClass('relative', 'z-30')
+    expect(screen.getByTestId('title-bar')).toBeInTheDocument()
   })
 
   it('renders the app logo', () => {

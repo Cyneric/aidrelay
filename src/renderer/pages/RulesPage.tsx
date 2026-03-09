@@ -45,6 +45,7 @@ import { ScopeToggle } from '@/components/rules/ScopeToggle'
 import { RuleEditor } from '@/components/rules/RuleEditor'
 import { TokenBudgetPanel } from '@/components/rules/TokenBudgetPanel'
 import { ImportRulesDialog } from '@/components/rules/ImportRulesDialog'
+import { tokenTextClass } from '@/components/rules/tokenBadgeSeverity'
 import { ConfirmActionDialog } from '@/components/common/ConfirmActionDialog'
 import { useRulesStore } from '@/stores/rules.store'
 import { rulesService } from '@/services/rules.service'
@@ -52,15 +53,6 @@ import { rulesColumnHelper, useRulesTable } from '@/hooks/useRulesTable'
 import type { AiRule, RuleScope } from '@shared/types'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-/**
- * Returns a Tailwind color class for a token count value.
- */
-const tokenColor = (count: number): string => {
-  if (count > 2000) return 'text-destructive font-medium'
-  if (count > 500) return 'text-amber-600 dark:text-amber-400'
-  return 'text-muted-foreground'
-}
 
 /**
  * Returns a Tailwind color class for a priority badge.
@@ -275,7 +267,7 @@ const RulesPage = () => {
       cell: ({ getValue }) => {
         const count = getValue()
         return (
-          <span className={cn('text-xs tabular-nums text-right block', tokenColor(count))}>
+          <span className={cn('text-xs tabular-nums text-right block', tokenTextClass(count))}>
             ~{count.toLocaleString()}
           </span>
         )
@@ -494,7 +486,7 @@ const RulesPage = () => {
                 {totalVisibleTokens > 0 && (
                   <>
                     <span aria-hidden="true">·</span>
-                    <span className={tokenColor(totalVisibleTokens)}>
+                    <span className={tokenTextClass(totalVisibleTokens)}>
                       {t('rules.tokensEnabled', { count: totalVisibleTokens })}
                     </span>
                   </>
