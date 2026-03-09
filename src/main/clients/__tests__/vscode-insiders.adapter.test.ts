@@ -25,6 +25,8 @@ describe('vscodeInsidersAdapter', () => {
   let originalLocalAppData: string | undefined
   let originalProgramFiles: string | undefined
   let originalProgramFilesX86: string | undefined
+  let originalPath: string | undefined
+  let originalPathExt: string | undefined
 
   beforeEach(() => {
     tmpDir = makeTmpDir()
@@ -32,11 +34,15 @@ describe('vscodeInsidersAdapter', () => {
     originalLocalAppData = process.env['LOCALAPPDATA']
     originalProgramFiles = process.env['ProgramFiles']
     originalProgramFilesX86 = process.env['ProgramFiles(x86)']
+    originalPath = process.env['PATH']
+    originalPathExt = process.env['PATHEXT']
 
     process.env['APPDATA'] = join(tmpDir, 'appdata')
     process.env['LOCALAPPDATA'] = join(tmpDir, 'localappdata')
     process.env['ProgramFiles'] = join(tmpDir, 'programfiles')
     process.env['ProgramFiles(x86)'] = join(tmpDir, 'programfiles-x86')
+    process.env['PATH'] = join(tmpDir, 'bin')
+    process.env['PATHEXT'] = '.EXE;.CMD;.BAT'
   })
 
   afterEach(() => {
@@ -44,6 +50,8 @@ describe('vscodeInsidersAdapter', () => {
     process.env['LOCALAPPDATA'] = originalLocalAppData
     process.env['ProgramFiles'] = originalProgramFiles
     process.env['ProgramFiles(x86)'] = originalProgramFilesX86
+    process.env['PATH'] = originalPath
+    process.env['PATHEXT'] = originalPathExt
     rmSync(tmpDir, { recursive: true, force: true })
   })
 
@@ -71,6 +79,18 @@ describe('vscodeInsidersAdapter', () => {
     const result = await vscodeInsidersAdapter.detect()
     expect(result.installed).toBe(true)
     expect(result.configPaths).toEqual([])
+  })
+
+  it('detects installed via code-insiders launcher on PATH when fixed install paths are absent', async () => {
+    const binDir = join(tmpDir, 'bin with spaces')
+    mkdirSync(binDir, { recursive: true })
+    writeFileSync(join(binDir, 'code-insiders.cmd'), '')
+    process.env['PATH'] = `"${binDir}"`
+
+    const result = await vscodeInsidersAdapter.detect()
+    expect(result.installed).toBe(true)
+    expect(result.configPaths).toEqual([])
+    expect(result.serverCount).toBe(0)
   })
 
   it('reads and writes servers under the servers key', async () => {

@@ -20,6 +20,7 @@ import { RotateCcw, Shield, RefreshCw, Clock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { ConfirmActionDialog } from '@/components/common/ConfirmActionDialog'
+import { PathWithActions } from '@/components/common/PathWithActions'
 import { backupsService } from '@/services/backups.service'
 import type { BackupEntry } from '@shared/channels'
 import type { ClientId } from '@shared/types'
@@ -187,6 +188,14 @@ const BackupTimeline = ({ clientId }: Readonly<Props>) => {
                   >
                     {relativeTime(backup.createdAt)}
                   </time>
+                  <div className="mt-1 max-w-[26rem]">
+                    <PathWithActions
+                      path={backup.backupPath}
+                      className="flex items-center gap-1 min-w-0 text-xs text-muted-foreground"
+                      textClassName="font-mono truncate flex-1"
+                      testIdPrefix={`backup-path-${backup.id}`}
+                    />
+                  </div>
                 </div>
               </div>
 

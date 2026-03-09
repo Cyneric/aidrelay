@@ -4,6 +4,7 @@ import { createBackupsApi } from './backups.api'
 import { createClientsApi } from './clients.api'
 import { createDialogApi } from './dialog.api'
 import { createEventsApi } from './events.api'
+import { createFilesApi } from './files.api'
 import { createGitSyncApi } from './git-sync.api'
 import { createLicenseApi } from './license.api'
 import { createLogApi } from './log.api'
@@ -30,6 +31,7 @@ export const createApi = (ipcRenderer: IpcRendererLike) => ({
   ...createStacksApi(ipcRenderer),
   ...createBackupsApi(ipcRenderer),
   ...createDialogApi(ipcRenderer),
+  ...createFilesApi(ipcRenderer),
   ...createAppApi(ipcRenderer),
   ...createSettingsApi(ipcRenderer),
   ...createUpdaterApi(ipcRenderer),

@@ -30,6 +30,7 @@ import { registerUpdaterIpc } from './updater.ipc'
 import { registerDialogIpc } from './dialog.ipc'
 import { registerAppIpc } from './app.ipc'
 import { registerWindowIpc } from './window.ipc'
+import { registerFilesIpc } from './files.ipc'
 
 /**
  * Registers all IPC handlers for every implemented domain.
@@ -50,6 +51,7 @@ export const registerIpcHandlers = (): void => {
   registerBackupsIpc()
   registerUpdaterIpc()
   registerDialogIpc()
+  registerFilesIpc()
   registerAppIpc()
   registerWindowIpc()
   log.info('[ipc] all handlers registered')

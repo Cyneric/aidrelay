@@ -13,12 +13,24 @@
  */
 
 import { useState } from 'react'
-import { RefreshCw, CheckCircle2, AlertCircle, Clock, XCircle, MoreHorizontal } from 'lucide-react'
+import {
+  RefreshCw,
+  CheckCircle2,
+  AlertCircle,
+  Clock,
+  XCircle,
+  MoreHorizontal,
+  FilePlus2,
+} from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card'
+import { PathWithActions } from '@/components/common/PathWithActions'
+import { filesService } from '@/services/files.service'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -92,11 +104,7 @@ const ClientCard = ({ client, onSync, onCreateConfig, syncing = false }: ClientC
     label: t(statusMetaBase.labelKey as Parameters<typeof t>[0]),
   }
   const missingConfig = client.installed && client.configPaths.length === 0
-  const primaryActionLabel = missingConfig
-    ? t('dashboard.createConfigAction')
-    : syncing
-      ? t('clients.syncingButton')
-      : t('clients.syncButton')
+  const syncActionLabel = syncing ? t('clients.syncingButton') : t('clients.syncButton')
 
   const lastSyncedLabel = (() => {
     if (!client.lastSyncedAt) return t('dashboard.lastSyncedNever')
@@ -107,16 +115,33 @@ const ClientCard = ({ client, onSync, onCreateConfig, syncing = false }: ClientC
 
   const copyConfigPath = async () => {
     const firstPath = client.configPaths[0]
-    if (!firstPath || !navigator?.clipboard?.writeText) return
-    await navigator.clipboard.writeText(firstPath)
+    if (!firstPath) return
+
+    try {
+      if (typeof navigator === 'undefined' || !navigator.clipboard?.writeText) {
+        throw new Error('Clipboard unavailable')
+      }
+      await navigator.clipboard.writeText(firstPath)
+      toast.success(t('dashboard.copyConfigPathSuccess'))
+    } catch {
+      toast.error(t('dashboard.copyConfigPathFailed'))
+    }
+  }
+
+  const revealConfigPath = async () => {
+    const firstPath = client.configPaths[0]
+    if (!firstPath) return
+
+    try {
+      await filesService.reveal(firstPath)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : t('files.errorRevealDefault')
+      toast.error(t('files.errorReveal', { message }))
+    }
   }
 
   const onPrimaryAction = () => {
-    if (!client.installed || syncing) return
-    if (missingConfig) {
-      onCreateConfig(client.id)
-      return
-    }
+    if (!client.installed || syncing || missingConfig) return
     onSync(client.id)
   }
 
@@ -185,9 +210,14 @@ const ClientCard = ({ client, onSync, onCreateConfig, syncing = false }: ClientC
               </p>
               {client.configPaths.length > 0 ? (
                 <ul className="space-y-1">
-                  {client.configPaths.map((path) => (
-                    <li key={path} className="break-all">
-                      {path}
+                  {client.configPaths.map((path, index) => (
+                    <li key={path}>
+                      <PathWithActions
+                        path={path}
+                        className="flex items-center gap-1 min-w-0"
+                        textClassName="break-all flex-1"
+                        testIdPrefix={`client-card-config-path-${client.id}-${index}`}
+                      />
                     </li>
                   ))}
                 </ul>
@@ -200,20 +230,47 @@ const ClientCard = ({ client, onSync, onCreateConfig, syncing = false }: ClientC
       </CardContent>
 
       <CardFooter className="justify-between gap-2">
-        <Button
-          type="button"
-          size="sm"
-          onClick={onPrimaryAction}
-          disabled={!client.installed || syncing}
-          className="gap-1.5"
-          data-testid={`client-sync-button-${client.id}`}
-          aria-label={`${primaryActionLabel} ${client.displayName}`}
-        >
-          <RefreshCw size={12} className={syncing ? 'animate-spin' : ''} aria-hidden="true" />
-          {primaryActionLabel}
-        </Button>
+        <div className="flex min-w-0 items-center gap-2">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                size="sm"
+                onClick={onPrimaryAction}
+                disabled={!client.installed || syncing || missingConfig}
+                className="gap-1.5 px-2.5 xl:px-3"
+                data-testid={`client-sync-button-${client.id}`}
+                aria-label={`${syncActionLabel} ${client.displayName}`}
+              >
+                <RefreshCw size={12} className={syncing ? 'animate-spin' : ''} aria-hidden="true" />
+                <span className="hidden xl:inline">{syncActionLabel}</span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{syncActionLabel}</TooltipContent>
+          </Tooltip>
+          {missingConfig ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => onCreateConfig(client.id)}
+                  disabled={!client.installed || syncing}
+                  className="gap-1.5 px-2.5 xl:px-3"
+                  data-testid={`client-create-config-button-${client.id}`}
+                  aria-label={`${t('dashboard.createConfigAction')} ${client.displayName}`}
+                >
+                  <FilePlus2 size={12} aria-hidden="true" />
+                  <span className="hidden 2xl:inline">{t('dashboard.createConfigAction')}</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t('dashboard.createConfigAction')}</TooltipContent>
+            </Tooltip>
+          ) : null}
+        </div>
 
-        <DropdownMenu>
+        <DropdownMenu modal={false}>
           <DropdownMenuTrigger asChild>
             <Button
               type="button"
@@ -241,8 +298,25 @@ const ClientCard = ({ client, onSync, onCreateConfig, syncing = false }: ClientC
                 event.preventDefault()
                 void copyConfigPath()
               }}
+              onClick={() => {
+                void copyConfigPath()
+              }}
+              data-testid={`client-copy-config-path-${client.id}`}
             >
               {t('dashboard.copyConfigPath')}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={client.configPaths.length === 0}
+              onSelect={(event) => {
+                event.preventDefault()
+                void revealConfigPath()
+              }}
+              onClick={() => {
+                void revealConfigPath()
+              }}
+              data-testid={`client-reveal-config-path-${client.id}`}
+            >
+              {t('dashboard.revealInExplorer')}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

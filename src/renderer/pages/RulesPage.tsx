@@ -239,7 +239,7 @@ const RulesPage = () => {
               'rounded px-1.5 py-0.5 text-xs font-medium',
               s === 'global'
                 ? 'bg-sky-100 text-sky-800 dark:bg-sky-900/30 dark:text-sky-400'
-                : 'bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-400',
+                : 'bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-400',
             )}
           >
             {s}

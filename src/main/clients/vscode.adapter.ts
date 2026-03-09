@@ -17,6 +17,7 @@ import { join, dirname } from 'path'
 import log from 'electron-log'
 import type { ClientDetectionResult, McpServerMap, ValidationResult } from '@shared/types'
 import type { ClientAdapter } from './types'
+import { hasWindowsCommandOnPath } from './windows-detection.util'
 
 // ─── Config Shape ─────────────────────────────────────────────────────────────
 
@@ -49,11 +50,21 @@ const isVsCodeInstalled = (): boolean => {
 
   const candidates = [
     join(localAppData, 'Programs', 'Microsoft VS Code', 'Code.exe'),
+    join(localAppData, 'Programs', 'Microsoft VS Code', 'bin', 'code.cmd'),
+    join(localAppData, 'Programs', 'Microsoft VS Code', 'bin', 'code.exe'),
     join(programFiles, 'Microsoft VS Code', 'Code.exe'),
+    join(programFiles, 'Microsoft VS Code', 'bin', 'code.cmd'),
+    join(programFiles, 'Microsoft VS Code', 'bin', 'code.exe'),
     join(programFilesX86, 'Microsoft VS Code', 'Code.exe'),
+    join(programFilesX86, 'Microsoft VS Code', 'bin', 'code.cmd'),
+    join(programFilesX86, 'Microsoft VS Code', 'bin', 'code.exe'),
   ]
 
-  return candidates.some((path) => existsSync(path))
+  if (candidates.some((path) => existsSync(path))) {
+    return true
+  }
+
+  return hasWindowsCommandOnPath(['code'])
 }
 
 // ─── Adapter ──────────────────────────────────────────────────────────────────

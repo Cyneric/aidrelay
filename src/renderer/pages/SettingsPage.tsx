@@ -25,6 +25,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
+import { PathWithActions } from '@/components/common/PathWithActions'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import {
   Select,
@@ -398,6 +399,16 @@ const ClientPathsSection = () => {
             placeholder={t('settings.visualStudioPathPlaceholder')}
             data-testid="input-visual-studio-config-path"
           />
+          {visualStudioPath.trim().length > 0 ? (
+            <div className="mt-2 rounded-md border border-border/70 bg-muted/30 px-2 py-1">
+              <PathWithActions
+                path={visualStudioPath.trim()}
+                className="flex items-center gap-1 min-w-0 text-xs"
+                textClassName="font-mono truncate flex-1"
+                testIdPrefix="settings-visual-studio-path"
+              />
+            </div>
+          ) : null}
         </div>
         <Button
           type="button"

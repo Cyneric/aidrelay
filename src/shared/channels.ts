@@ -302,6 +302,23 @@ export interface SettingsResetResult {
   readonly restartTriggered: boolean
 }
 
+/**
+ * UTF-8 text file payload returned by `files:read-text`.
+ */
+export interface ReadTextFileResult {
+  readonly content: string
+  readonly mtimeMs: number
+  readonly size: number
+  readonly encoding: 'utf-8'
+}
+
+/**
+ * Result returned after writing a UTF-8 text file.
+ */
+export interface WriteTextFileResult {
+  readonly mtimeMs: number
+}
+
 // ─── IPC Channel Map ──────────────────────────────────────────────────────────
 
 /**
@@ -393,6 +410,15 @@ export interface IpcChannels {
 
   // Dialog
   'dialog:show-open': (options?: ShowOpenDialogOptions) => Promise<ShowOpenDialogResult>
+
+  // Files
+  'files:reveal': (path: string) => Promise<void>
+  'files:read-text': (path: string) => Promise<ReadTextFileResult>
+  'files:write-text': (
+    path: string,
+    content: string,
+    expectedMtimeMs: number,
+  ) => Promise<WriteTextFileResult>
 
   // App
   'app:version': () => Promise<string>

@@ -15,6 +15,7 @@
 import { useState, useEffect, useCallback } from 'react'
 
 const STORAGE_KEY = 'theme'
+const THEME_CHANGED_EVENT = 'aidrelay:theme-changed'
 
 export type Theme = 'light' | 'dark' | 'system'
 
@@ -81,11 +82,26 @@ export const useTheme = () => {
     })
   }, [])
 
+  useEffect(() => {
+    const handler = (event: Event): void => {
+      const nextTheme = (event as CustomEvent<Theme>).detail
+      if (nextTheme === 'light' || nextTheme === 'dark' || nextTheme === 'system') {
+        setThemeState(nextTheme)
+        localStorage.setItem(STORAGE_KEY, nextTheme)
+        applyTheme(isDark(nextTheme))
+      }
+    }
+
+    window.addEventListener(THEME_CHANGED_EVENT, handler)
+    return () => window.removeEventListener(THEME_CHANGED_EVENT, handler)
+  }, [])
+
   const setTheme = useCallback((value: Theme) => {
     setThemeState(value)
     localStorage.setItem(STORAGE_KEY, value)
     void window.api.settingsSet(STORAGE_KEY, value)
     applyTheme(isDark(value))
+    window.dispatchEvent(new CustomEvent<Theme>(THEME_CHANGED_EVENT, { detail: value }))
   }, [])
 
   return { theme, setTheme, effectiveTheme }

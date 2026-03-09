@@ -23,6 +23,10 @@ Object.defineProperty(window, 'api', {
     settingsGet: () => Promise.resolve(undefined),
     settingsSet: () => Promise.resolve(),
     settingsDelete: () => Promise.resolve(),
+    filesReveal: () => Promise.resolve(),
+    filesReadText: () =>
+      Promise.resolve({ content: '', mtimeMs: Date.now(), size: 0, encoding: 'utf-8' as const }),
+    filesWriteText: () => Promise.resolve({ mtimeMs: Date.now() }),
     settingsReset: () =>
       Promise.resolve({
         resetKeys: [],

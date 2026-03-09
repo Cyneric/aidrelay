@@ -17,6 +17,7 @@ import { join, dirname } from 'path'
 import log from 'electron-log'
 import type { ClientDetectionResult, McpServerMap, ValidationResult } from '@shared/types'
 import type { ClientAdapter } from './types'
+import { hasWindowsCommandOnPath } from './windows-detection.util'
 
 // ─── Config Shape ─────────────────────────────────────────────────────────────
 
@@ -30,41 +31,10 @@ interface CodexConfig {
 const configPath = (): string => join(process.env['USERPROFILE'] ?? '', '.codex', 'config.json')
 
 /**
- * Returns true when an executable with one of the given basenames is found in PATH.
- */
-const isOnPath = (baseNames: readonly string[]): boolean => {
-  const pathEnv = process.env['PATH'] ?? ''
-  const pathDirs = pathEnv.split(';').filter(Boolean)
-  if (pathDirs.length === 0) return false
-
-  const pathExt = (process.env['PATHEXT'] ?? '.EXE;.CMD;.BAT;.COM')
-    .split(';')
-    .map((ext) => ext.toLowerCase())
-
-  for (const dir of pathDirs) {
-    for (const base of baseNames) {
-      const normalizedBase = base.toLowerCase()
-      for (const ext of pathExt) {
-        const candidate = join(dir, `${normalizedBase}${ext}`)
-        if (existsSync(candidate)) {
-          return true
-        }
-      }
-    }
-  }
-
-  return false
-}
-
-/**
  * Checks common Codex CLI install locations and PATH command aliases.
  */
 const isCodexCliInstalled = (): boolean => {
   if (process.platform !== 'win32') return false
-
-  if (isOnPath(['codex'])) {
-    return true
-  }
 
   const appData = process.env['APPDATA'] ?? ''
   const localAppData = process.env['LOCALAPPDATA'] ?? ''
@@ -76,7 +46,11 @@ const isCodexCliInstalled = (): boolean => {
     join(localAppData, 'Microsoft', 'WindowsApps', 'codex.cmd'),
   ]
 
-  return candidates.some((path) => existsSync(path))
+  if (candidates.some((path) => existsSync(path))) {
+    return true
+  }
+
+  return hasWindowsCommandOnPath(['codex'])
 }
 
 // ─── Adapter ──────────────────────────────────────────────────────────────────
