@@ -14,7 +14,7 @@
  */
 
 import Database from 'better-sqlite3'
-import { MIGRATION_001, MIGRATION_002 } from '../migrations/index'
+import { MIGRATION_001, MIGRATION_002, MIGRATION_003 } from '../migrations/index'
 
 /**
  * Creates a fresh in-memory SQLite database with the full schema applied.
@@ -30,5 +30,6 @@ export const createTestDb = (): Database.Database => {
   db.pragma('foreign_keys = ON')
   db.exec(MIGRATION_001)
   db.exec(MIGRATION_002)
+  db.exec(MIGRATION_003)
   return db
 }

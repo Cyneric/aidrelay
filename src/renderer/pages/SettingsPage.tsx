@@ -45,6 +45,7 @@ import {
 import { useLicense } from '@/lib/useLicense'
 import { useTheme, type Theme } from '@/lib/useTheme'
 import { useSettingsSections } from '@/hooks/useSettingsSections'
+import { DEFAULT_LANGUAGE, normalizeLanguage, type SupportedLanguage } from '@/i18n/language'
 import { appService } from '@/services/app.service'
 import { settingsService } from '@/services/settings.service'
 
@@ -297,23 +298,61 @@ const GitRemoteSection = () => {
 // ─── General Section ──────────────────────────────────────────────────────────
 
 const GeneralSection = () => {
-  const { t } = useTranslation()
-  const [language, setLanguage] = useState('en')
+  const { t, i18n } = useTranslation()
+  const [language, setLanguage] = useState<SupportedLanguage>(() => {
+    const current = normalizeLanguage(i18n.resolvedLanguage ?? i18n.language)
+    return current ?? DEFAULT_LANGUAGE
+  })
   const { theme, setTheme } = useTheme()
 
   useEffect(() => {
+    let mounted = true
+
     void settingsService.get('language').then((lang) => {
-      if (typeof lang === 'string') setLanguage(lang)
+      const savedLanguage = normalizeLanguage(lang)
+      const activeLanguage =
+        normalizeLanguage(i18n.resolvedLanguage ?? i18n.language) ?? DEFAULT_LANGUAGE
+
+      if (!mounted) return
+
+      if (savedLanguage) {
+        setLanguage(savedLanguage)
+        if (savedLanguage !== activeLanguage) {
+          void i18n.changeLanguage(savedLanguage)
+        }
+        localStorage.setItem('language', savedLanguage)
+        return
+      }
+
+      setLanguage(activeLanguage)
     })
-  }, [])
+
+    const handleLanguageChanged = (nextLanguage: string): void => {
+      const normalized = normalizeLanguage(nextLanguage)
+      if (normalized) {
+        setLanguage(normalized)
+      }
+    }
+
+    i18n.on('languageChanged', handleLanguageChanged)
+    return () => {
+      mounted = false
+      i18n.off('languageChanged', handleLanguageChanged)
+    }
+  }, [i18n])
 
   const saveLanguage = useCallback(
     async (lang: string) => {
-      setLanguage(lang)
-      await settingsService.set('language', lang)
+      const normalized = normalizeLanguage(lang)
+      if (!normalized) return
+
+      setLanguage(normalized)
+      await i18n.changeLanguage(normalized)
+      localStorage.setItem('language', normalized)
+      await settingsService.set('language', normalized)
       toast.success(t('settings.languageSaved'))
     },
-    [t],
+    [i18n, t],
   )
 
   return (

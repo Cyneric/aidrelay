@@ -32,6 +32,8 @@ interface ServerRow {
   args: string
   env: string
   secret_env_keys: string
+  headers: string
+  secret_header_keys: string
   enabled: number
   client_overrides: string
   tags: string
@@ -57,6 +59,8 @@ const rowToServer = (row: ServerRow): McpServer => ({
   args: JSON.parse(row.args) as string[],
   env: JSON.parse(row.env) as Record<string, string>,
   secretEnvKeys: JSON.parse(row.secret_env_keys) as string[],
+  headers: JSON.parse(row.headers) as Record<string, string>,
+  secretHeaderKeys: JSON.parse(row.secret_header_keys) as string[],
   enabled: row.enabled === 1,
   clientOverrides: JSON.parse(row.client_overrides) as Record<ClientId, { enabled: boolean }>,
   tags: JSON.parse(row.tags) as string[],
@@ -111,10 +115,10 @@ export class ServersRepo {
     this.db
       .prepare(
         `INSERT INTO servers
-          (id, name, type, url, command, args, env, secret_env_keys, enabled,
+          (id, name, type, url, command, args, env, secret_env_keys, headers, secret_header_keys, enabled,
            client_overrides, tags, notes, created_at, updated_at)
          VALUES
-          (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         id,
@@ -125,6 +129,8 @@ export class ServersRepo {
         JSON.stringify(input.args ?? []),
         JSON.stringify(input.env ?? {}),
         JSON.stringify(input.secretEnvKeys ?? []),
+        JSON.stringify(input.headers ?? {}),
+        JSON.stringify(input.secretHeaderKeys ?? []),
         1,
         JSON.stringify({}),
         JSON.stringify(input.tags ?? []),
@@ -161,7 +167,8 @@ export class ServersRepo {
       .prepare(
         `UPDATE servers SET
           name = ?, type = ?, url = ?, command = ?, args = ?, env = ?,
-          secret_env_keys = ?, enabled = ?, client_overrides = ?,
+          secret_env_keys = ?, headers = ?, secret_header_keys = ?,
+          enabled = ?, client_overrides = ?,
           tags = ?, notes = ?, updated_at = ?
          WHERE id = ?`,
       )
@@ -173,6 +180,8 @@ export class ServersRepo {
         JSON.stringify(updates.args ?? existing.args),
         JSON.stringify(updates.env ?? existing.env),
         JSON.stringify(updates.secretEnvKeys ?? existing.secretEnvKeys),
+        JSON.stringify(updates.headers ?? existing.headers),
+        JSON.stringify(updates.secretHeaderKeys ?? existing.secretHeaderKeys),
         updates.enabled !== undefined ? (updates.enabled ? 1 : 0) : existing.enabled ? 1 : 0,
         JSON.stringify(mergedOverrides),
         JSON.stringify(updates.tags ?? existing.tags),

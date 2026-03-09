@@ -12,14 +12,15 @@
  * clients by attention level for faster decision-making.
  */
 
-import { useEffect, useMemo, useState } from 'react'
-import { ChevronDown, RefreshCw, Search } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { AlertTriangle, CheckCircle2, ChevronDown, Info, RefreshCw, Search } from 'lucide-react'
 import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { CardGrid } from '@/components/ui/card-grid'
 import { Input } from '@/components/ui/input'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
   Select,
   SelectContent,
@@ -29,13 +30,20 @@ import {
 } from '@/components/ui/select'
 import { ClientCard } from '@/components/clients/ClientCard'
 import { CreateConfigConfirmDialog } from '@/components/clients/CreateConfigConfirmDialog'
+import { ConfigImportDiffDialog } from '@/components/clients/ConfigImportDiffDialog'
 import { useClientsStore } from '@/stores/clients.store'
 import { clientsService } from '@/services/clients.service'
 import { cn } from '@/lib/utils'
-import type { ClientStatus, ConfigChangedPayload, SyncClientOptions } from '@shared/types'
+import type {
+  ClientStatus,
+  ConfigChangedPayload,
+  ConfigImportPreviewResult,
+  SyncClientOptions,
+} from '@shared/types'
 
 type DashboardFilter = 'all' | 'needs-attention' | 'synced' | 'not-installed'
 type DashboardSort = 'priority' | 'name' | 'servers'
+type BulkSyncIndicatorState = 'success' | 'warning' | 'neutral'
 
 interface ClientViewModel {
   readonly client: ClientStatus
@@ -69,10 +77,38 @@ const DashboardPage = () => {
   const [syncingIds, setSyncingIds] = useState<Set<ClientStatus['id']>>(new Set())
   const [bulkSyncRunning, setBulkSyncRunning] = useState(false)
   const [createConfigClientId, setCreateConfigClientId] = useState<ClientStatus['id'] | null>(null)
+  const [configImportPayload, setConfigImportPayload] = useState<ConfigChangedPayload | null>(null)
+  const [configImportPreview, setConfigImportPreview] = useState<ConfigImportPreviewResult | null>(
+    null,
+  )
+  const [configImportDialogOpen, setConfigImportDialogOpen] = useState(false)
+  const [configImportLoading, setConfigImportLoading] = useState(false)
+  const [configImporting, setConfigImporting] = useState(false)
 
   useEffect(() => {
     void detectAll()
   }, [detectAll])
+
+  const openConfigImportDialog = useCallback(
+    async (payload: ConfigChangedPayload) => {
+      setConfigImportPayload(payload)
+      setConfigImportDialogOpen(true)
+      setConfigImportLoading(true)
+      try {
+        const preview = await clientsService.previewConfigImport(payload)
+        setConfigImportPreview(preview)
+      } catch (err) {
+        const message = err instanceof Error ? err.message : t('common.error')
+        toast.error(message)
+        setConfigImportDialogOpen(false)
+        setConfigImportPayload(null)
+        setConfigImportPreview(null)
+      } finally {
+        setConfigImportLoading(false)
+      }
+    },
+    [t],
+  )
 
   useEffect(() => {
     const unsubscribe = clientsService.onConfigChanged((payload: ConfigChangedPayload) => {
@@ -80,13 +116,59 @@ const DashboardPage = () => {
         description: t('dashboard.configChangedDescription', { clientId: payload.clientId }),
         action: {
           label: t('dashboard.importChanges'),
-          onClick: () => void syncClient(payload.clientId),
+          onClick: () => {
+            void openConfigImportDialog(payload)
+          },
         },
         duration: 8000,
       })
     })
     return unsubscribe
-  }, [syncClient, t])
+  }, [openConfigImportDialog, t])
+
+  const closeConfigImportDialog = () => {
+    if (configImporting) return
+    setConfigImportDialogOpen(false)
+    setConfigImportPreview(null)
+    setConfigImportPayload(null)
+    setConfigImportLoading(false)
+  }
+
+  const handleConfirmConfigImport = async () => {
+    if (!configImportPayload || configImporting) return
+    setConfigImporting(true)
+    try {
+      const result = await clientsService.importConfigChanges(configImportPayload)
+      await detectAll()
+      if (result.errors.length > 0) {
+        toast.info(
+          t('dashboard.configImportResultWithErrors', {
+            created: result.created,
+            updated: result.updated,
+            skipped: result.skipped,
+            count: result.errors.length,
+          }),
+          { description: result.errors.slice(0, 3).join(' ') },
+        )
+      } else {
+        toast.success(
+          t('dashboard.configImportResult', {
+            created: result.created,
+            updated: result.updated,
+            skipped: result.skipped,
+          }),
+        )
+      }
+      setConfigImportDialogOpen(false)
+      setConfigImportPayload(null)
+      setConfigImportPreview(null)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : t('common.error')
+      toast.error(message)
+    } finally {
+      setConfigImporting(false)
+    }
+  }
 
   const setClientSyncing = (clientId: ClientStatus['id'], syncing: boolean) => {
     setSyncingIds((prev) => {
@@ -154,6 +236,29 @@ const DashboardPage = () => {
         .map((item) => item.client),
     [clientView],
   )
+  const isBulkSyncDisabled = bulkSyncRunning || actionableTargets.length === 0
+  const bulkSyncIndicatorState = useMemo<BulkSyncIndicatorState | null>(() => {
+    if (actionableTargets.length > 0) return null
+    if (kpis.missingConfigTools > 0) return 'warning'
+    if (kpis.installedTools === 0) return 'neutral'
+    return 'success'
+  }, [actionableTargets.length, kpis.installedTools, kpis.missingConfigTools])
+  const bulkSyncIndicatorLabel = useMemo(() => {
+    if (bulkSyncIndicatorState === 'warning') {
+      return t('dashboard.syncIndicatorMissingConfig', { count: kpis.missingConfigTools })
+    }
+    if (bulkSyncIndicatorState === 'neutral') return t('dashboard.syncIndicatorNoInstalled')
+    if (bulkSyncIndicatorState === 'success') return t('dashboard.syncIndicatorAllSynced')
+    return ''
+  }, [bulkSyncIndicatorState, kpis.missingConfigTools, t])
+  const bulkSyncIndicatorCompactLabel = useMemo(() => {
+    if (bulkSyncIndicatorState === 'warning') {
+      return t('dashboard.syncIndicatorMissingConfigCompact', { count: kpis.missingConfigTools })
+    }
+    if (bulkSyncIndicatorState === 'neutral') return t('dashboard.syncIndicatorNoInstalledCompact')
+    if (bulkSyncIndicatorState === 'success') return t('dashboard.syncIndicatorAllSyncedCompact')
+    return ''
+  }, [bulkSyncIndicatorState, kpis.missingConfigTools, t])
 
   const sortedFilteredClients = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase()
@@ -262,6 +367,15 @@ const DashboardPage = () => {
 
   return (
     <section aria-labelledby="dashboard-heading" data-testid="dashboard-page">
+      <ConfigImportDiffDialog
+        open={configImportDialogOpen}
+        preview={configImportPreview}
+        loading={configImportLoading}
+        importing={configImporting}
+        onCancel={closeConfigImportDialog}
+        onConfirm={() => void handleConfirmConfigImport()}
+      />
+
       <CreateConfigConfirmDialog
         open={createConfigClient !== null}
         clientName={createConfigClient?.displayName ?? ''}
@@ -274,7 +388,10 @@ const DashboardPage = () => {
         }}
       />
 
-      <div className="sticky top-0 z-20 -mx-6 mb-6 border-b border-border/70 bg-background/95 px-6 pb-4 pt-2 backdrop-blur">
+      <div
+        className="sticky top-0 z-20 -mx-6 mb-6 border-b border-border/70 bg-background px-6 pb-4 pt-2"
+        data-testid="dashboard-sticky-toolbar"
+      >
         <header className="mb-4 flex flex-wrap items-center justify-between gap-4">
           <div>
             <h1
@@ -396,7 +513,7 @@ const DashboardPage = () => {
               <Button
                 type="button"
                 onClick={() => void handleSyncAllActionable()}
-                disabled={bulkSyncRunning || actionableTargets.length === 0}
+                disabled={isBulkSyncDisabled}
                 className="gap-1.5"
                 data-testid="sync-all-actionable-button"
               >
@@ -413,29 +530,75 @@ const DashboardPage = () => {
           <div
             role="group"
             aria-label={t('dashboard.filterLabel')}
-            className="overflow-x-auto"
+            className="flex flex-col gap-2 xl:flex-row xl:items-center xl:justify-between"
             data-testid="dashboard-toolbar-row2"
           >
-            <div className="flex min-w-max flex-nowrap items-center gap-2 pb-1">
-              {FILTERS.map((filter) => {
-                const selected = activeFilter === filter
-                return (
-                  <Button
-                    key={filter}
-                    type="button"
-                    size="sm"
-                    variant={selected ? 'default' : 'outline'}
-                    className={cn('shrink-0 gap-1.5', !selected && 'text-text-secondary')}
-                    onClick={() => setActiveFilter(filter)}
-                    aria-pressed={selected}
-                    data-testid={`dashboard-filter-${filter}`}
-                  >
-                    {t(`dashboard.filters.${filter}`)}
-                    <span className="text-[11px] text-current/75">{filterCounts[filter]}</span>
-                  </Button>
-                )
-              })}
+            <div
+              className="min-w-0 flex-1 overflow-x-auto"
+              data-testid="dashboard-toolbar-row2-filters"
+            >
+              <div className="flex min-w-max flex-nowrap items-center gap-2 pb-1">
+                {FILTERS.map((filter) => {
+                  const selected = activeFilter === filter
+                  return (
+                    <Button
+                      key={filter}
+                      type="button"
+                      size="sm"
+                      variant={selected ? 'default' : 'outline'}
+                      className={cn('shrink-0 gap-1.5', !selected && 'text-text-secondary')}
+                      onClick={() => setActiveFilter(filter)}
+                      aria-pressed={selected}
+                      data-testid={`dashboard-filter-${filter}`}
+                    >
+                      {t(`dashboard.filters.${filter}`)}
+                      <span className="text-[11px] text-current/75">{filterCounts[filter]}</span>
+                    </Button>
+                  )
+                })}
+              </div>
             </div>
+            {bulkSyncIndicatorState !== null ? (
+              <div className="flex justify-end xl:pb-1" data-testid="dashboard-toolbar-status">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span
+                      className={cn(
+                        'inline-flex min-w-0 shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium',
+                        'max-w-[220px] sm:max-w-[300px] xl:max-w-[380px]',
+                        bulkSyncIndicatorState === 'success' &&
+                          'border-status-success/50 bg-status-success/15 text-status-success',
+                        bulkSyncIndicatorState === 'warning' &&
+                          'border-status-warn/50 bg-status-warn/15 text-status-warn',
+                        bulkSyncIndicatorState === 'neutral' &&
+                          'border-border/70 bg-surface-2 text-text-secondary',
+                      )}
+                      data-testid="dashboard-sync-indicator"
+                      data-state={bulkSyncIndicatorState}
+                      aria-live="polite"
+                      aria-label={bulkSyncIndicatorLabel}
+                    >
+                      {bulkSyncIndicatorState === 'success' ? (
+                        <CheckCircle2 size={12} aria-hidden="true" className="shrink-0" />
+                      ) : null}
+                      {bulkSyncIndicatorState === 'warning' ? (
+                        <AlertTriangle size={12} aria-hidden="true" className="shrink-0" />
+                      ) : null}
+                      {bulkSyncIndicatorState === 'neutral' ? (
+                        <Info size={12} aria-hidden="true" className="shrink-0" />
+                      ) : null}
+                      <span
+                        className="min-w-0 truncate"
+                        data-testid="dashboard-sync-indicator-text"
+                      >
+                        {bulkSyncIndicatorCompactLabel}
+                      </span>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>{bulkSyncIndicatorLabel}</TooltipContent>
+                </Tooltip>
+              </div>
+            ) : null}
           </div>
         </div>
       </div>

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { renderWithProviders } from '@/test-utils'
 import { DashboardPage } from '../DashboardPage'
@@ -9,6 +9,8 @@ import type { ClientStatus } from '@shared/types'
 const detectAllMock = vi.fn<() => Promise<void>>()
 const syncClientMock =
   vi.fn<(id: string, options?: { allowCreateConfigIfMissing?: boolean }) => Promise<unknown>>()
+const previewConfigImportMock = vi.fn()
+const importConfigChangesMock = vi.fn()
 
 const toastErrorMock = vi.fn<(message?: unknown) => void>()
 const toastInfoMock = vi.fn<(message?: unknown, options?: unknown) => void>()
@@ -87,11 +89,26 @@ describe('DashboardPage', () => {
     mockClients = baseClients()
     detectAllMock.mockResolvedValue()
     syncClientMock.mockResolvedValue({})
+    previewConfigImportMock.mockResolvedValue({
+      clientId: 'codex-cli',
+      configPath: 'C:\\Users\\tester\\.codex\\config.json',
+      items: [],
+    })
+    importConfigChangesMock.mockResolvedValue({
+      clientId: 'codex-cli',
+      configPath: 'C:\\Users\\tester\\.codex\\config.json',
+      created: 0,
+      updated: 0,
+      skipped: 0,
+      errors: [],
+    })
     HTMLElement.prototype.scrollIntoView = vi.fn()
 
     Object.defineProperty(window, 'api', {
       value: {
         ...window.api,
+        clientsPreviewConfigImport: previewConfigImportMock,
+        clientsImportConfigChanges: importConfigChangesMock,
         onConfigChanged: () => () => {},
       },
       writable: true,
@@ -111,12 +128,16 @@ describe('DashboardPage', () => {
   it('renders a two-row toolbar layout', () => {
     renderWithProviders(<DashboardPage />)
 
+    const stickyToolbar = screen.getByTestId('dashboard-sticky-toolbar')
+    expect(stickyToolbar).toHaveClass('sticky', 'top-0', 'bg-background')
+    expect(stickyToolbar).not.toHaveClass('bg-background/95', 'backdrop-blur')
+
     expect(screen.getByTestId('dashboard-toolbar')).toHaveAttribute('role', 'toolbar')
     expect(screen.getByTestId('dashboard-toolbar-row1')).toBeInTheDocument()
     expect(screen.getByTestId('dashboard-toolbar-row2')).toBeInTheDocument()
     expect(screen.getByTestId('dashboard-toolbar-actions')).toBeInTheDocument()
     expect(screen.getByTestId('dashboard-search-container')).toHaveClass('min-w-[280px]')
-    expect(screen.getByTestId('dashboard-toolbar-row2')).toHaveClass('overflow-x-auto')
+    expect(screen.getByTestId('dashboard-toolbar-row2-filters')).toHaveClass('overflow-x-auto')
   })
 
   it('keeps search interactive with row-2 filters visible', () => {
@@ -129,6 +150,118 @@ describe('DashboardPage', () => {
     expect(screen.getByTestId('dashboard-filter-all')).toBeInTheDocument()
     expect(screen.getByTestId('dashboard-filter-needs-attention')).toBeInTheDocument()
     expect(screen.getByTestId('sync-all-actionable-button')).toBeInTheDocument()
+  })
+
+  it('shows warning sync indicator when only missing-config clients are blocking sync', () => {
+    mockClients = [
+      {
+        id: 'cursor',
+        displayName: 'Cursor',
+        installed: true,
+        configPaths: [],
+        serverCount: 1,
+        syncStatus: 'out-of-sync',
+      },
+      {
+        id: 'claude-desktop',
+        displayName: 'Claude Desktop',
+        installed: true,
+        configPaths: ['C:\\Users\\tester\\.claude\\mcp.json'],
+        serverCount: 2,
+        syncStatus: 'synced',
+      },
+    ]
+
+    renderWithProviders(<DashboardPage />)
+
+    expect(screen.getByTestId('sync-all-actionable-button')).toBeDisabled()
+    expect(screen.getByTestId('dashboard-sync-indicator')).toHaveAttribute('data-state', 'warning')
+    expect(screen.getByTestId('dashboard-sync-indicator')).toHaveTextContent('1 missing config')
+    expect(screen.getByTestId('dashboard-sync-indicator-text')).toHaveClass('truncate')
+    expect(screen.getByTestId('dashboard-toolbar-status')).toBeInTheDocument()
+    expect(screen.getByTestId('sync-all-actionable-button')).toBeInTheDocument()
+  })
+
+  it('shows success sync indicator when all installed clients are in sync', () => {
+    mockClients = [
+      {
+        id: 'claude-desktop',
+        displayName: 'Claude Desktop',
+        installed: true,
+        configPaths: ['C:\\Users\\tester\\.claude\\mcp.json'],
+        serverCount: 2,
+        syncStatus: 'synced',
+      },
+      {
+        id: 'codex-cli',
+        displayName: 'Codex CLI',
+        installed: true,
+        configPaths: ['C:\\Users\\tester\\.codex\\mcp.json'],
+        serverCount: 1,
+        syncStatus: 'synced',
+      },
+    ]
+
+    renderWithProviders(<DashboardPage />)
+
+    expect(screen.getByTestId('sync-all-actionable-button')).toBeDisabled()
+    expect(screen.getByTestId('dashboard-sync-indicator')).toHaveAttribute('data-state', 'success')
+    expect(screen.getByTestId('dashboard-sync-indicator')).toHaveTextContent('All synced')
+  })
+
+  it('shows neutral sync indicator when no clients are installed', () => {
+    mockClients = [
+      {
+        id: 'vscode',
+        displayName: 'VS Code',
+        installed: false,
+        configPaths: [],
+        serverCount: 0,
+        syncStatus: 'never-synced',
+      },
+    ]
+
+    renderWithProviders(<DashboardPage />)
+
+    expect(screen.getByTestId('sync-all-actionable-button')).toBeDisabled()
+    expect(screen.getByTestId('dashboard-sync-indicator')).toHaveAttribute('data-state', 'neutral')
+    expect(screen.getByTestId('dashboard-sync-indicator')).toHaveTextContent('No installed clients')
+  })
+
+  it('hides sync indicator and enables bulk sync button when actionable targets exist', () => {
+    renderWithProviders(<DashboardPage />)
+
+    expect(screen.getByTestId('sync-all-actionable-button')).toBeEnabled()
+    expect(screen.queryByTestId('dashboard-sync-indicator')).not.toBeInTheDocument()
+  })
+
+  it('shows the full indicator text in a tooltip on hover', async () => {
+    const user = userEvent.setup()
+    mockClients = [
+      {
+        id: 'cursor',
+        displayName: 'Cursor',
+        installed: true,
+        configPaths: [],
+        serverCount: 1,
+        syncStatus: 'out-of-sync',
+      },
+      {
+        id: 'claude-desktop',
+        displayName: 'Claude Desktop',
+        installed: true,
+        configPaths: ['C:\\Users\\tester\\.claude\\mcp.json'],
+        serverCount: 2,
+        syncStatus: 'synced',
+      },
+    ]
+    renderWithProviders(<DashboardPage />)
+
+    await user.hover(screen.getByTestId('dashboard-sync-indicator'))
+
+    expect(await screen.findByRole('tooltip')).toHaveTextContent(
+      'No syncable clients (1 missing config).',
+    )
   })
 
   it('filters clients by needs attention', () => {
@@ -191,5 +324,72 @@ describe('DashboardPage', () => {
         allowCreateConfigIfMissing: true,
       }),
     )
+  })
+
+  it('opens import diff from toast action and imports after confirm', async () => {
+    const payload = {
+      clientId: 'codex-cli',
+      configPath: 'C:\\Users\\tester\\.codex\\config.json',
+      added: ['beta'],
+      removed: ['alpha'],
+      modified: ['gamma'],
+    } as const
+
+    previewConfigImportMock.mockResolvedValue({
+      clientId: payload.clientId,
+      configPath: payload.configPath,
+      items: [
+        {
+          name: 'beta',
+          source: 'added',
+          action: 'create',
+          before: null,
+          after: { command: 'npx', args: ['-y', '@scope/server-beta'] },
+        },
+      ],
+    })
+    importConfigChangesMock.mockResolvedValue({
+      clientId: payload.clientId,
+      configPath: payload.configPath,
+      created: 1,
+      updated: 0,
+      skipped: 0,
+      errors: [],
+    })
+
+    let configChangedHandler: ((event: typeof payload) => void) | null = null
+    Object.defineProperty(window, 'api', {
+      value: {
+        ...window.api,
+        clientsPreviewConfigImport: previewConfigImportMock,
+        clientsImportConfigChanges: importConfigChangesMock,
+        onConfigChanged: (handler: (event: typeof payload) => void) => {
+          configChangedHandler = handler
+          return () => {}
+        },
+      },
+      writable: true,
+      configurable: true,
+    })
+
+    renderWithProviders(<DashboardPage />)
+    expect(configChangedHandler).not.toBeNull()
+
+    act(() => {
+      configChangedHandler?.(payload)
+    })
+    const toastOptions = toastInfoMock.mock.calls.at(-1)?.[1] as
+      | { action?: { onClick?: () => void } }
+      | undefined
+    act(() => {
+      toastOptions?.action?.onClick?.()
+    })
+
+    await waitFor(() => expect(previewConfigImportMock).toHaveBeenCalledWith(payload))
+    expect(await screen.findByTestId('config-import-diff-dialog')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Import changes' }))
+    await waitFor(() => expect(importConfigChangesMock).toHaveBeenCalledWith(payload))
+    expect(toastSuccessMock).toHaveBeenCalled()
   })
 })

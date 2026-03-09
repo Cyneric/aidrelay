@@ -23,6 +23,32 @@ Object.defineProperty(window, 'api', {
     settingsGet: () => Promise.resolve(undefined),
     settingsSet: () => Promise.resolve(),
     settingsDelete: () => Promise.resolve(),
+    clientsInstall: () =>
+      Promise.resolve({
+        clientId: 'cursor',
+        success: false,
+        attempts: [],
+        failureReason: 'command_failed' as const,
+        message: '',
+      }),
+    clientsPreviewConfigImport: () =>
+      Promise.resolve({
+        clientId: 'cursor',
+        configPath: '',
+        items: [],
+      }),
+    clientsImportConfigChanges: () =>
+      Promise.resolve({
+        clientId: 'cursor',
+        configPath: '',
+        created: 0,
+        updated: 0,
+        skipped: 0,
+        errors: [],
+      }),
+    clientsSetManualConfigPath: () => Promise.resolve({ valid: true, errors: [] }),
+    clientsClearManualConfigPath: () => Promise.resolve(),
+    showOpenDialog: () => Promise.resolve({ canceled: true, filePaths: [] }),
     filesReveal: () => Promise.resolve(),
     filesReadText: () =>
       Promise.resolve({ content: '', mtimeMs: Date.now(), size: 0, encoding: 'utf-8' as const }),
@@ -78,4 +104,9 @@ if (!HTMLElement.prototype.setPointerCapture) {
 }
 if (!HTMLElement.prototype.releasePointerCapture) {
   HTMLElement.prototype.releasePointerCapture = () => {}
+}
+
+// Radix Select may call scrollIntoView on active options.
+if (!HTMLElement.prototype.scrollIntoView) {
+  HTMLElement.prototype.scrollIntoView = () => {}
 }

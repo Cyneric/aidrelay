@@ -9,7 +9,7 @@ const COMMAND_PREVIEW_MAX_CHARS = 72
 
 const formatCommandPreview = (
   command: string,
-  args: string[],
+  args: readonly string[],
   maxChars = COMMAND_PREVIEW_MAX_CHARS,
 ) => {
   const parts = [command, ...args].map((part) => part.trim()).filter((part) => part.length > 0)
@@ -73,6 +73,8 @@ const server: McpServer = {
   ],
   env: {},
   secretEnvKeys: [],
+  headers: {},
+  secretHeaderKeys: [],
   enabled: true,
   clientOverrides: {
     'claude-desktop': { enabled: true },

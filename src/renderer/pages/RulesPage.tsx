@@ -93,7 +93,7 @@ const RulesPage = () => {
   const [scope, setScope] = useState<RuleScope>('global')
   const [projectPath, setProjectPath] = useState('')
   const [syncingAll, setSyncingAll] = useState(false)
-  const [budgetExpanded, setBudgetExpanded] = useState(false)
+  const [budgetExpanded, setBudgetExpanded] = useState(true)
   const [editingRule, setEditingRule] = useState<AiRule | undefined>(undefined)
   const [showEditor, setShowEditor] = useState(false)
   const [showImport, setShowImport] = useState(false)

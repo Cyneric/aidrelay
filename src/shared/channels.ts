@@ -16,7 +16,11 @@
 
 import type {
   ClientId,
+  ClientInstallResult,
   ClientStatus,
+  ConfigChangedPayload,
+  ConfigImportPreviewResult,
+  ConfigImportResult,
   McpServer,
   McpServerMap,
   AiRule,
@@ -82,6 +86,8 @@ export interface CreateServerInput {
   readonly args?: readonly string[]
   readonly env?: Readonly<Record<string, string>>
   readonly secretEnvKeys?: readonly string[]
+  readonly headers?: Readonly<Record<string, string>>
+  readonly secretHeaderKeys?: readonly string[]
   readonly tags?: readonly string[]
   readonly notes?: string
 }
@@ -224,6 +230,65 @@ export interface RegistryServer {
 export type RegistryProvider = 'smithery' | 'official'
 
 /**
+ * One input field required (or optionally available) to resolve a registry
+ * install option into a final server config.
+ */
+export interface RegistryInstallInputField {
+  readonly key: string
+  readonly label: string
+  readonly description?: string
+  readonly required: boolean
+  readonly secret: boolean
+  readonly defaultValue?: string
+  readonly placeholder?: string
+  readonly target: 'arg' | 'env' | 'url' | 'header'
+}
+
+/**
+ * One concrete install option produced by registry metadata resolution.
+ * A server can expose multiple options (for example stdio package vs hosted
+ * remote endpoint), and the user must pick one before install.
+ */
+export interface RegistryInstallOption {
+  readonly id: string
+  readonly label: string
+  readonly description?: string
+  readonly type: McpServer['type']
+  readonly command: string
+  readonly args: readonly string[]
+  readonly url?: string
+  readonly env?: Readonly<Record<string, string>>
+  readonly headers?: Readonly<Record<string, string>>
+  readonly inputFields: readonly RegistryInstallInputField[]
+}
+
+/**
+ * Prepared install plan returned by the main process for a registry entry.
+ * The renderer uses this plan to render the wizard and final review step.
+ */
+export interface RegistryInstallPlan {
+  readonly provider: RegistryProvider
+  readonly serverId: string
+  readonly displayName: string
+  readonly description: string
+  readonly options: readonly RegistryInstallOption[]
+  readonly defaultOptionId?: string
+}
+
+/**
+ * Install request sent after the user completes option selection, variable
+ * input, and final review in the add-server wizard.
+ */
+export interface RegistryInstallRequest {
+  readonly provider: RegistryProvider
+  readonly serverId: string
+  readonly optionId: string
+  readonly inputs?: Readonly<Record<string, string>>
+  readonly serverName?: string
+  readonly confirmed: boolean
+}
+
+/**
  * Result of an MCP server connection test (JSON-RPC initialize handshake).
  */
 export interface TestResult {
@@ -242,7 +307,10 @@ export interface McpStack {
   readonly name: string
   readonly description: string
   readonly version: string
-  readonly servers: readonly Omit<McpServer, 'id' | 'secretEnvKeys' | 'clientOverrides'>[]
+  readonly servers: readonly Omit<
+    McpServer,
+    'id' | 'secretEnvKeys' | 'secretHeaderKeys' | 'clientOverrides'
+  >[]
   readonly rules: readonly Omit<AiRule, 'id' | 'clientOverrides'>[]
   readonly exportedAt: string
 }
@@ -328,9 +396,19 @@ export interface WriteTextFileResult {
 export interface IpcChannels {
   // Clients
   'clients:detect-all': () => Promise<ClientStatus[]>
+  'clients:install': (clientId: ClientId) => Promise<ClientInstallResult>
   'clients:read-config': (clientId: ClientId) => Promise<McpServerMap>
   'clients:sync': (clientId: ClientId, options?: SyncClientOptions) => Promise<SyncResult>
   'clients:sync-all': () => Promise<SyncResult[]>
+  'clients:preview-config-import': (
+    payload: ConfigChangedPayload,
+  ) => Promise<ConfigImportPreviewResult>
+  'clients:import-config-changes': (payload: ConfigChangedPayload) => Promise<ConfigImportResult>
+  'clients:set-manual-config-path': (
+    clientId: ClientId,
+    configPath: string,
+  ) => Promise<ValidationResult>
+  'clients:clear-manual-config-path': (clientId: ClientId) => Promise<void>
 
   // Servers
   'servers:list': () => Promise<McpServer[]>
@@ -359,7 +437,11 @@ export interface IpcChannels {
 
   // Registry
   'registry:search': (provider: RegistryProvider, query: string) => Promise<RegistryServer[]>
-  'registry:install': (qualifiedName: string) => Promise<McpServer>
+  'registry:prepare-install': (
+    provider: RegistryProvider,
+    serverId: string,
+  ) => Promise<RegistryInstallPlan>
+  'registry:install': (request: RegistryInstallRequest) => Promise<McpServer>
 
   // Stacks
   'stacks:export': (serverIds: string[], ruleIds: string[], name: string) => Promise<string>

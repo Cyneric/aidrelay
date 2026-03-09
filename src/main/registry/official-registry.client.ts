@@ -19,19 +19,64 @@ import type { RegistryServer } from '@shared/channels'
 const OFFICIAL_REGISTRY_BASE = 'https://registry.modelcontextprotocol.io'
 const PAGE_SIZE = 20
 
-interface OfficialRemote {
+export interface OfficialInput {
+  name?: string
+  description?: string
+  format?: string
+  isRequired?: boolean
+  isSecret?: boolean
+  default?: string
+  placeholder?: string
+  value?: string
+  variables?: Record<string, string>
+}
+
+export interface OfficialArgument extends OfficialInput {
+  type?: string
+  valueHint?: string
+  isRepeated?: boolean
+}
+
+export interface OfficialKeyValueInput extends OfficialInput {
+  name?: string
+}
+
+export interface OfficialTransport {
+  type?: string
   url?: string
+  headers?: OfficialKeyValueInput[]
+  variables?: Record<string, OfficialInput>
+}
+
+export interface OfficialPackage {
+  registryType?: string
+  identifier?: string
+  version?: string
+  runtimeHint?: string
+  runtimeArguments?: OfficialArgument[]
+  packageArguments?: OfficialArgument[]
+  environmentVariables?: OfficialKeyValueInput[]
+  transport?: OfficialTransport
+}
+
+export interface OfficialServerDetail {
+  name?: string
+  title?: string
+  description?: string
+  version?: string
+  packages?: OfficialPackage[]
+  remotes?: OfficialTransport[]
 }
 
 interface OfficialServer {
   name?: string
   title?: string
   description?: string
-  remotes?: OfficialRemote[]
+  remotes?: OfficialTransport[]
 }
 
 interface OfficialRegistryEntry {
-  server?: OfficialServer
+  server?: OfficialServerDetail
   _meta?: {
     'io.modelcontextprotocol.registry/official'?: {
       status?: string
@@ -41,6 +86,10 @@ interface OfficialRegistryEntry {
 
 interface OfficialListResponse {
   servers?: OfficialRegistryEntry[]
+}
+
+interface OfficialServerResponse {
+  server?: OfficialServerDetail
 }
 
 const isHttpUrl = (value: unknown): boolean => {
@@ -91,7 +140,7 @@ export class OfficialRegistryClient {
     }
 
     const encoded = encodeURIComponent(query.trim())
-    const path = `/v0/servers?search=${encoded}&limit=${PAGE_SIZE}`
+    const path = `/v0.1/servers?search=${encoded}&limit=${PAGE_SIZE}`
 
     try {
       const data = await this.fetch<OfficialListResponse>(path)
@@ -119,6 +168,24 @@ export class OfficialRegistryClient {
     } catch (err) {
       log.warn(`[official-registry] search failed: ${String(err)}`)
       return []
+    }
+  }
+
+  async getLatestServerVersion(serverName: string): Promise<OfficialServerDetail | null> {
+    const normalized = serverName.trim()
+    if (!normalized) return null
+
+    const encoded = encodeURIComponent(normalized)
+    const path = `/v0.1/servers/${encoded}/versions/latest`
+
+    try {
+      const data = await this.fetch<OfficialServerResponse>(path)
+      return data.server ?? null
+    } catch (err) {
+      log.warn(
+        `[official-registry] latest version lookup failed for "${serverName}": ${String(err)}`,
+      )
+      return null
     }
   }
 }

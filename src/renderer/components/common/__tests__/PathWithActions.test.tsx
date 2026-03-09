@@ -16,11 +16,6 @@ vi.mock('@monaco-editor/react', () => ({
 describe('PathWithActions', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    Object.defineProperty(window, 'confirm', {
-      value: vi.fn(() => true),
-      configurable: true,
-      writable: true,
-    })
     Object.defineProperty(window, 'api', {
       value: {
         ...window.api,
@@ -95,5 +90,36 @@ describe('PathWithActions', () => {
     expect(
       await screen.findByText('The file changed on disk. Reload and try saving again.'),
     ).toBeInTheDocument()
+  })
+
+  it('keeps editor open when discard dialog is cancelled', async () => {
+    renderWithProviders(<PathWithActions path={'C:\\tmp\\config.json'} />)
+
+    fireEvent.click(screen.getByTestId('path-action-edit'))
+    const editor = await screen.findByTestId('monaco-editor')
+    fireEvent.change(editor, { target: { value: 'updated' } })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+
+    expect(await screen.findByText('Discard unsaved changes?')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    expect(screen.getByText('Edit file')).toBeInTheDocument()
+    expect(screen.queryByText('Discard unsaved changes?')).not.toBeInTheDocument()
+  })
+
+  it('closes editor when discard is confirmed', async () => {
+    renderWithProviders(<PathWithActions path={'C:\\tmp\\config.json'} />)
+
+    fireEvent.click(screen.getByTestId('path-action-edit'))
+    const editor = await screen.findByTestId('monaco-editor')
+    fireEvent.change(editor, { target: { value: 'updated' } })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Discard changes' }))
+
+    await waitFor(() => {
+      expect(screen.queryByText('Edit file')).not.toBeInTheDocument()
+    })
   })
 })

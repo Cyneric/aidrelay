@@ -40,7 +40,7 @@ const TitleBar = () => {
 
   return (
     <header
-      className="flex h-10 shrink-0 items-center justify-between bg-background border-b select-none"
+      className="relative z-30 flex h-10 shrink-0 items-center justify-between border-b bg-background select-none"
       style={{ WebkitAppRegion: 'drag' }}
       data-testid="title-bar"
     >

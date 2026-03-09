@@ -29,6 +29,7 @@ import type { ActivityLogRepo } from '@main/db/activity-log.repo'
 import type { ServersRepo } from '@main/db/servers.repo'
 import type { BackupService } from './backup.service'
 import { getSecret } from '@main/secrets/keytar.service'
+import { toSecretHeaderAccountKey } from '@main/secrets/secret-keys'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -49,8 +50,8 @@ interface ClientConfig {
  * config are left alone — they are preserved during the merge step.
  *
  * Secret env vars are fetched from the Windows Credential Manager and injected
- * in-place before the config is written. If a secret cannot be retrieved, that
- * key is omitted from the written env block and a warning is logged.
+ * in-place before the config is written. Secret header values follow the same
+ * pattern and are injected into `headers`.
  *
  * @param servers  - All servers in the aidrelay registry.
  * @param clientId - The client being synced.
@@ -79,11 +80,26 @@ const buildManagedMap = async (
       }
     }
 
+    // Build the headers block, injecting secret header values from keytar.
+    const headerBlock: Record<string, string> = { ...server.headers }
+    for (const headerKey of server.secretHeaderKeys) {
+      const secretValue = await getSecret(server.name, toSecretHeaderAccountKey(headerKey))
+      if (secretValue !== null) {
+        headerBlock[headerKey] = secretValue
+      } else {
+        log.warn(
+          `[sync] secret header "${headerKey}" not found for server "${server.name}" — skipping`,
+        )
+      }
+    }
+
     result[server.name] = {
       command: server.command,
       ...(server.args.length > 0 && { args: [...server.args] }),
       ...(Object.keys(envBlock).length > 0 && { env: envBlock }),
       ...(server.type !== 'stdio' && { type: server.type }),
+      ...(server.url && { url: server.url }),
+      ...(Object.keys(headerBlock).length > 0 && { headers: headerBlock }),
     }
   }
 

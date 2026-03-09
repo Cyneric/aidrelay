@@ -2,7 +2,7 @@
  * @file src/main/ipc/__tests__/stacks.ipc.test.ts
  *
  * @created 07.03.2026
- * @modified 07.03.2026
+ * @modified 09.03.2026
  *
  * @author Christian Blank <christianblank91@protonmail.com>
  * @copyright 2026
@@ -63,6 +63,7 @@ const makeStack = (overrides: Partial<McpStack> = {}): string =>
         command: 'npx',
         args: ['-y', '@test/mcp'],
         env: {},
+        headers: {},
         enabled: true,
         tags: [],
         notes: '',

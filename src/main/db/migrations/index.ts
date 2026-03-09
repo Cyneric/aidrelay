@@ -14,6 +14,7 @@
  * Migration history:
  *   001 — Initial schema (servers, rules, profiles, backups, activity_log, settings)
  *   002 — Add `url` column to servers (for SSE and HTTP transport types)
+ *   003 — Add remote headers + secret header key tracking columns to servers
  */
 
 /**
@@ -133,4 +134,14 @@ CREATE INDEX idx_backups_client ON backups(client_id);
  */
 export const MIGRATION_002 = /* sql */ `
 ALTER TABLE servers ADD COLUMN url TEXT NOT NULL DEFAULT '';
+`
+
+/**
+ * Migration 003 — Adds remote HTTP header support to the `servers` table.
+ * `headers` stores non-secret header values and `secret_header_keys` stores
+ * only key names whose values are persisted in keytar.
+ */
+export const MIGRATION_003 = /* sql */ `
+ALTER TABLE servers ADD COLUMN headers TEXT NOT NULL DEFAULT '{}';
+ALTER TABLE servers ADD COLUMN secret_header_keys TEXT NOT NULL DEFAULT '[]';
 `

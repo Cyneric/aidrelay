@@ -22,6 +22,7 @@ import log from 'electron-log'
 import type { McpServer } from '@shared/types'
 import type { TestResult } from '@shared/channels'
 import { getSecret } from '@main/secrets/keytar.service'
+import { toSecretHeaderAccountKey } from '@main/secrets/secret-keys'
 import { CommandLaunchError, spawnCommandWithWindowsFallback } from './command-launch.util'
 
 /** How long to wait for an initialize response before declaring a timeout. */
@@ -131,6 +132,20 @@ export class ServerTesterService {
       }
     }
     return { ...process.env, ...base }
+  }
+
+  /**
+   * Builds request headers for HTTP/SSE checks, including secret header values.
+   */
+  private async buildHeaders(server: McpServer): Promise<Record<string, string>> {
+    const headers: Record<string, string> = { ...server.headers }
+    for (const key of server.secretHeaderKeys) {
+      const value = await getSecret(server.name, toSecretHeaderAccountKey(key))
+      if (value !== null) {
+        headers[key] = value
+      }
+    }
+    return headers
   }
 
   /**
@@ -319,7 +334,9 @@ export class ServerTesterService {
    * @param server - The `McpServer` record with type `sse` or `http` and a `url`.
    * @returns A `TestResult` describing whether the endpoint responded.
    */
-  private testHttpSseServer(server: McpServer): Promise<TestResult> {
+  private async testHttpSseServer(server: McpServer): Promise<TestResult> {
+    const headers = await this.buildHeaders(server)
+
     return new Promise<TestResult>((resolve) => {
       const url = server.url?.trim()
       if (!url) {
@@ -339,16 +356,23 @@ export class ServerTesterService {
       const isHttps = parsed.protocol === 'https:'
       const client = isHttps ? https : http
 
-      const req = client.get(url, { timeout: HTTP_SSE_TIMEOUT_MS }, (res) => {
-        res.resume() // Consume body so the connection can close
-        const responseTimeMs = Date.now() - startedAt
-        // Any HTTP response means the server is reachable.
-        resolve({
-          success: true,
-          message: `Connected — HTTP ${res.statusCode}`,
-          responseTimeMs,
-        })
-      })
+      const req = client.get(
+        url,
+        {
+          timeout: HTTP_SSE_TIMEOUT_MS,
+          ...(Object.keys(headers).length > 0 ? { headers } : {}),
+        },
+        (res) => {
+          res.resume() // Consume body so the connection can close
+          const responseTimeMs = Date.now() - startedAt
+          // Any HTTP response means the server is reachable.
+          resolve({
+            success: true,
+            message: `Connected — HTTP ${res.statusCode}`,
+            responseTimeMs,
+          })
+        },
+      )
 
       req.on('timeout', () => {
         req.destroy()
