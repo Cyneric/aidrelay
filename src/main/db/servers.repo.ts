@@ -2,7 +2,7 @@
  * @file src/main/db/servers.repo.ts
  *
  * @created 07.03.2026
- * @modified 07.03.2026
+ * @modified 09.03.2026
  *
  * @author Christian Blank <christianblank91@protonmail.com>
  * @copyright 2026
@@ -32,8 +32,8 @@ interface ServerRow {
   args: string
   env: string
   secret_env_keys: string
-  headers: string
-  secret_header_keys: string
+  headers: string | undefined
+  secret_header_keys: string | undefined
   enabled: number
   client_overrides: string
   tags: string
@@ -59,8 +59,8 @@ const rowToServer = (row: ServerRow): McpServer => ({
   args: JSON.parse(row.args) as string[],
   env: JSON.parse(row.env) as Record<string, string>,
   secretEnvKeys: JSON.parse(row.secret_env_keys) as string[],
-  headers: JSON.parse(row.headers) as Record<string, string>,
-  secretHeaderKeys: JSON.parse(row.secret_header_keys) as string[],
+  headers: JSON.parse(row.headers ?? '{}') as Record<string, string>,
+  secretHeaderKeys: JSON.parse(row.secret_header_keys ?? '[]') as string[],
   enabled: row.enabled === 1,
   clientOverrides: JSON.parse(row.client_overrides) as Record<ClientId, { enabled: boolean }>,
   tags: JSON.parse(row.tags) as string[],
