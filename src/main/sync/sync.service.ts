@@ -2,7 +2,7 @@
  * @file src/main/sync/sync.service.ts
  *
  * @created 07.03.2026
- * @modified 07.03.2026
+ * @modified 09.03.2026
  *
  * @author Christian Blank <christianblank91@protonmail.com>
  * @copyright 2026
@@ -23,13 +23,21 @@
 
 import { existsSync, readFileSync } from 'fs'
 import log from 'electron-log'
-import type { ClientId, McpServer, McpServerConfig, McpServerMap, SyncResult } from '@shared/types'
+import type {
+  ClientId,
+  McpServer,
+  McpServerConfig,
+  McpServerMap,
+  SyncResult,
+  SyncPreviewResult,
+} from '@shared/types'
 import type { ClientAdapter } from '@main/clients/types'
 import type { ActivityLogRepo } from '@main/db/activity-log.repo'
 import type { ServersRepo } from '@main/db/servers.repo'
 import type { BackupService } from './backup.service'
 import { getSecret } from '@main/secrets/keytar.service'
 import { toSecretHeaderAccountKey } from '@main/secrets/secret-keys'
+import { computeSyncPreviewItems } from './diff.helper'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -132,7 +140,19 @@ export class SyncService {
       try {
         JSON.parse(rawContent)
       } catch (err) {
-        throw new Error(`Config parse failed (step 2): ${String(err)}`)
+        const message = err instanceof Error ? err.message : String(err)
+        // Create a backup of the corrupted file before failing
+        if (fileExists) {
+          try {
+            this.backupService.createBackup(clientId, configPath, 'manual')
+          } catch (backupErr) {
+            const backupErrMsg = backupErr instanceof Error ? backupErr.message : String(backupErr)
+            log.warn(`[sync] failed to backup corrupted file ${configPath}: ${backupErrMsg}`)
+          }
+        }
+        throw new Error(
+          `Config file contains invalid JSON: ${configPath}\nError: ${message}\n\nA backup of the corrupted file has been saved. You can:\n1. Restore from a backup in the Backup tab\n2. Manually edit the file to fix the JSON\n3. Delete the file to start fresh`,
+        )
       }
 
       // ── Step 3: BACKUP ────────────────────────────────────────────────────
@@ -226,6 +246,72 @@ export class SyncService {
         error: message,
         syncedAt,
       }
+    }
+  }
+
+  async previewSync(adapter: ClientAdapter, configPath: string): Promise<SyncPreviewResult> {
+    const clientId = adapter.id
+
+    log.info(`[sync] starting preview sync for ${clientId} → ${configPath}`)
+
+    try {
+      // ── Step 1: READ ──────────────────────────────────────────────────────
+      const fileExists = existsSync(configPath)
+      let rawContent = fileExists ? readFileSync(configPath, 'utf-8') : '{}'
+
+      // ── Step 2: PARSE ─────────────────────────────────────────────────────
+      try {
+        JSON.parse(rawContent)
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err)
+        // Create a backup of the corrupted file before failing
+        if (fileExists) {
+          try {
+            this.backupService.createBackup(clientId, configPath, 'manual')
+          } catch (backupErr) {
+            const backupErrMsg = backupErr instanceof Error ? backupErr.message : String(backupErr)
+            log.warn(`[sync] failed to backup corrupted file ${configPath}: ${backupErrMsg}`)
+          }
+        }
+        throw new Error(
+          `Config file contains invalid JSON: ${configPath}\nError: ${message}\n\nA backup of the corrupted file has been saved. You can:\n1. Restore from a backup in the Backup tab\n2. Manually edit the file to fix the JSON\n3. Delete the file to start fresh`,
+        )
+      }
+
+      // ── Step 4: MERGE ─────────────────────────────────────────────────────
+      const allServers = this.serversRepo.findAll()
+      const managedMap = await buildManagedMap(allServers, clientId)
+      const existingServers = await adapter.read(configPath)
+      const managedNames = new Set(Object.keys(managedMap))
+      const unmanagedEntries: Record<string, McpServerConfig> = {}
+      for (const [name, config] of Object.entries(existingServers)) {
+        if (!managedNames.has(name)) {
+          unmanagedEntries[name] = config
+        }
+      }
+      const mergedServers: McpServerMap = { ...unmanagedEntries, ...managedMap }
+
+      // ── Step 5: VALIDATE ──────────────────────────────────────────────────
+      try {
+        const mergedJson = JSON.stringify(mergedServers, null, 2)
+        JSON.parse(mergedJson) // round-trip check
+      } catch (err) {
+        throw new Error(`Merged config failed validation (step 5): ${String(err)}`)
+      }
+
+      const items = computeSyncPreviewItems(existingServers, mergedServers, managedNames)
+
+      log.info(`[sync] preview completed for ${clientId}: ${items.length} item(s)`)
+
+      return {
+        clientId,
+        configPath,
+        items,
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      log.error(`[sync] preview failed for ${clientId}: ${message}`)
+      throw err
     }
   }
 }

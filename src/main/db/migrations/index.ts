@@ -2,7 +2,7 @@
  * @file src/main/db/migrations/index.ts
  *
  * @created 07.03.2026
- * @modified 07.03.2026
+ * @modified 09.03.2026
  *
  * @author Christian Blank <christianblank91@protonmail.com>
  * @copyright 2026
@@ -15,6 +15,9 @@
  *   001 — Initial schema (servers, rules, profiles, backups, activity_log, settings)
  *   002 — Add `url` column to servers (for SSE and HTTP transport types)
  *   003 — Add remote headers + secret header key tracking columns to servers
+ *   004 — Add install metadata columns to servers (recipe, setup status, install policy)
+ *   005 — Create device_setup_state table for per-device installation state
+ *   006 — Create sync_install_intent table for syncing install intent across devices
  */
 
 /**
@@ -144,4 +147,53 @@ ALTER TABLE servers ADD COLUMN url TEXT NOT NULL DEFAULT '';
 export const MIGRATION_003 = /* sql */ `
 ALTER TABLE servers ADD COLUMN headers TEXT NOT NULL DEFAULT '{}';
 ALTER TABLE servers ADD COLUMN secret_header_keys TEXT NOT NULL DEFAULT '[]';
+`
+
+/**
+ * Migration 004 — Adds install metadata columns to the `servers` table.
+ * Enables tracking of local server installation status and recipe information.
+ */
+export const MIGRATION_004 = /* sql */ `
+ALTER TABLE servers ADD COLUMN recipe_id TEXT NOT NULL DEFAULT '';
+ALTER TABLE servers ADD COLUMN recipe_version TEXT NOT NULL DEFAULT '';
+ALTER TABLE servers ADD COLUMN setup_status TEXT NOT NULL DEFAULT 'ready';
+ALTER TABLE servers ADD COLUMN last_install_result TEXT NOT NULL DEFAULT '{}';
+ALTER TABLE servers ADD COLUMN last_install_timestamp TEXT NOT NULL DEFAULT '';
+ALTER TABLE servers ADD COLUMN install_policy TEXT NOT NULL DEFAULT 'manual';
+ALTER TABLE servers ADD COLUMN normalized_launch_config TEXT NOT NULL DEFAULT '{}';
+`
+
+/**
+ * Migration 005 — Creates the `device_setup_state` table for local-only
+ * per-device installation state. Never synced across devices.
+ */
+export const MIGRATION_005 = /* sql */ `
+CREATE TABLE device_setup_state (
+  device_id TEXT NOT NULL,
+  server_id TEXT NOT NULL,
+  runtime_detection_results TEXT NOT NULL DEFAULT '{}',
+  logs TEXT NOT NULL DEFAULT '[]',
+  install_status TEXT NOT NULL DEFAULT 'pending',
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  PRIMARY KEY (device_id, server_id)
+);
+`
+
+/**
+ * Migration 006 — Creates the `sync_install_intent` table for syncing
+ * installation intent metadata across devices. Contains recipe information
+ * and normalized launch config (no secret values).
+ */
+export const MIGRATION_006 = /* sql */ `
+CREATE TABLE sync_install_intent (
+  server_id TEXT NOT NULL UNIQUE,
+  recipe_id TEXT NOT NULL,
+  recipe_version TEXT NOT NULL,
+  install_policy TEXT NOT NULL DEFAULT 'manual',
+  normalized_launch_config TEXT NOT NULL DEFAULT '{}',
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  PRIMARY KEY (server_id)
+);
 `

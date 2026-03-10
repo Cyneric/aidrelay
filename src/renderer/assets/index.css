@@ -243,3 +243,173 @@
     background: color-mix(in oklab, var(--color-foreground) 66%, transparent);
   }
 }
+
+/*
+ * Aidrelay styling for @uiw/react-md-editor so the split Markdown editor
+ * matches our navy/teal application surfaces in both light and dark mode.
+ */
+.aidrelay-md-editor .w-md-editor {
+  background-color: var(--color-surface-1);
+  color: var(--color-text-primary);
+  --color-fg-default: var(--color-text-primary);
+  --color-canvas-default: var(--color-surface-1);
+  --color-border-default: color-mix(in oklab, var(--color-border) 80%, transparent);
+  --color-prettylights-syntax-comment: #5e7395;
+  --color-prettylights-syntax-constant: #1e6bb8;
+  --color-prettylights-syntax-entity: #0c8b80;
+  --color-prettylights-syntax-markup-bold: #11213d;
+  --color-prettylights-syntax-markup-deleted-text: #b4233b;
+}
+
+.aidrelay-md-editor .w-md-editor-toolbar {
+  background-color: color-mix(in oklab, var(--color-surface-2) 92%, var(--color-border));
+  border-bottom: 1px solid color-mix(in oklab, var(--color-border) 80%, transparent);
+}
+
+.aidrelay-md-editor .w-md-editor-toolbar li > button {
+  color: var(--color-text-secondary);
+}
+
+.aidrelay-md-editor .w-md-editor-toolbar li > button:hover,
+.aidrelay-md-editor .w-md-editor-toolbar li > button:focus-visible {
+  color: var(--color-text-primary);
+  background-color: color-mix(in oklab, var(--color-primary) 20%, transparent);
+}
+
+.aidrelay-md-editor .w-md-editor-toolbar li.active > button {
+  background-color: color-mix(in oklab, var(--color-primary) 26%, transparent);
+  color: var(--color-text-primary);
+}
+
+.aidrelay-md-editor .w-md-editor-content,
+.aidrelay-md-editor .w-md-editor-input,
+.aidrelay-md-editor .w-md-editor-text-input,
+.aidrelay-md-editor .w-md-editor-text,
+.aidrelay-md-editor .w-md-editor-preview {
+  background-color: var(--color-surface-1);
+  color: var(--color-text-primary);
+}
+
+.aidrelay-md-editor .w-md-editor-text-pre,
+.aidrelay-md-editor .w-md-editor-text-input {
+  font-family:
+    'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    'Liberation Mono', 'Courier New', monospace;
+}
+
+.aidrelay-md-editor .w-md-editor-input {
+  overflow-x: auto;
+  overflow-y: auto;
+}
+
+.aidrelay-md-editor .w-md-editor-text,
+.aidrelay-md-editor .w-md-editor-text-pre,
+.aidrelay-md-editor .w-md-editor-text-pre > code,
+.aidrelay-md-editor .w-md-editor-text-input {
+  white-space: pre !important;
+  word-break: normal !important;
+  overflow-wrap: normal !important;
+}
+
+.aidrelay-md-editor .w-md-editor-text-input {
+  overflow: auto;
+  color: var(--color-text-primary) !important;
+  -webkit-text-fill-color: var(--color-text-primary) !important;
+  caret-color: var(--color-text-primary) !important;
+}
+
+.aidrelay-md-editor .w-md-editor-preview {
+  box-shadow: inset 1px 0 0 color-mix(in oklab, var(--color-border) 70%, transparent);
+}
+
+.aidrelay-md-editor .w-md-editor-bar {
+  background-color: color-mix(in oklab, var(--color-surface-2) 94%, var(--color-border));
+}
+
+.aidrelay-md-editor .w-md-editor-preview .wmde-markdown {
+  background-color: transparent;
+  color: var(--color-text-primary);
+}
+
+.aidrelay-md-editor .w-md-editor-preview .wmde-markdown hr {
+  border-color: color-mix(in oklab, var(--color-border) 80%, transparent);
+}
+
+.aidrelay-md-editor .w-md-editor-preview .wmde-markdown code,
+.aidrelay-md-editor .w-md-editor-preview .wmde-markdown pre {
+  background-color: color-mix(in oklab, var(--color-surface-2) 88%, black 8%);
+  color: color-mix(in oklab, var(--color-primary) 80%, var(--color-text-primary));
+}
+
+.aidrelay-md-editor .w-md-editor-preview .wmde-markdown a {
+  color: color-mix(in oklab, var(--color-primary) 86%, #5eead4);
+}
+
+.dark .aidrelay-md-editor .w-md-editor {
+  background-color: #0b1424;
+  --color-fg-default: #e4ecfb;
+  --color-canvas-default: #0b1424;
+  --color-border-default: #1c3352;
+  --color-prettylights-syntax-comment: #7f98ba;
+  --color-prettylights-syntax-constant: #7bdff2;
+  --color-prettylights-syntax-entity: #6edcd0;
+  --color-prettylights-syntax-markup-bold: #e4ecfb;
+  --color-prettylights-syntax-markup-deleted-text: #ff8a9b;
+}
+
+.dark .aidrelay-md-editor .w-md-editor-toolbar {
+  background-color: #101b2d;
+  border-bottom-color: #1c3352;
+}
+
+.dark .aidrelay-md-editor .w-md-editor-content,
+.dark .aidrelay-md-editor .w-md-editor-input,
+.dark .aidrelay-md-editor .w-md-editor-text-input,
+.dark .aidrelay-md-editor .w-md-editor-text,
+.dark .aidrelay-md-editor .w-md-editor-preview {
+  background-color: #0b1424;
+  color: #e4ecfb;
+}
+
+.dark .aidrelay-md-editor .w-md-editor-text-input {
+  color: #e4ecfb !important;
+  -webkit-text-fill-color: #e4ecfb !important;
+  caret-color: #e4ecfb !important;
+}
+
+.dark .aidrelay-md-editor .w-md-editor-toolbar li > button {
+  color: #9db2ce;
+}
+
+.dark .aidrelay-md-editor .w-md-editor-toolbar li > button:hover,
+.dark .aidrelay-md-editor .w-md-editor-toolbar li > button:focus-visible {
+  color: #e4ecfb;
+  background-color: #153357;
+}
+
+.dark .aidrelay-md-editor .w-md-editor-toolbar li.active > button {
+  background-color: #1a3f67;
+  color: #e4ecfb;
+}
+
+.dark .aidrelay-md-editor .w-md-editor-preview {
+  box-shadow: inset 1px 0 0 #1c3352;
+}
+
+.dark .aidrelay-md-editor .w-md-editor-bar {
+  background-color: #101b2d;
+}
+
+.dark .aidrelay-md-editor .w-md-editor-preview .wmde-markdown hr {
+  border-color: #1c3352;
+}
+
+.dark .aidrelay-md-editor .w-md-editor-preview .wmde-markdown code,
+.dark .aidrelay-md-editor .w-md-editor-preview .wmde-markdown pre {
+  background-color: #0f1c31;
+  color: #7bdff2;
+}
+
+.dark .aidrelay-md-editor .w-md-editor-preview .wmde-markdown a {
+  color: #6edcd0;
+}

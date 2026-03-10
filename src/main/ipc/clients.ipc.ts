@@ -18,6 +18,8 @@ import type {
   McpServerMap,
   SyncClientOptions,
   SyncResult,
+  SyncPreviewResult,
+  SyncAllPreviewResult,
   ValidationResult,
 } from '@shared/types'
 import type { ClientInstallProgressPayload } from '@shared/channels'
@@ -110,6 +112,10 @@ const resolveFallbackConfigPath = (clientId: ClientId): string | null => {
       const userProfile = process.env['USERPROFILE'] ?? ''
       return userProfile ? join(userProfile, '.codex', 'config.json') : null
     }
+    case 'gemini-cli': {
+      const userProfile = process.env['USERPROFILE'] ?? ''
+      return userProfile ? join(userProfile, '.gemini', 'settings.json') : null
+    }
     case 'codex-gui': {
       const appData = process.env['APPDATA'] ?? ''
       return appData ? join(appData, 'Codex', 'config.json') : null
@@ -117,6 +123,19 @@ const resolveFallbackConfigPath = (clientId: ClientId): string | null => {
     case 'opencode': {
       const userProfile = process.env['USERPROFILE'] ?? ''
       return userProfile ? join(userProfile, '.config', 'opencode', 'opencode.json') : null
+    }
+    case 'visual-studio': {
+      const appData = process.env['APPDATA'] ?? ''
+      const userProfile = process.env['USERPROFILE'] ?? ''
+      const candidates = [
+        appData ? join(appData, 'VisualStudio', 'mcp.json') : null,
+        appData ? join(appData, 'Microsoft', 'VisualStudio', 'mcp.json') : null,
+        userProfile ? join(userProfile, 'Documents', 'Visual Studio 2022', 'mcp.json') : null,
+      ]
+      return (
+        candidates.find((path): path is string => typeof path === 'string' && path.length > 0) ??
+        null
+      )
     }
     default:
       return null
@@ -359,6 +378,67 @@ export const registerClientsIpc = (): void => {
       return syncService.sync(adapter, configPath)
     },
   )
+
+  ipcMain.handle(
+    'clients:preview-sync',
+    async (_event, clientId: ClientId, options?: SyncClientOptions): Promise<SyncPreviewResult> => {
+      log.debug(`[ipc] clients:preview-sync ${clientId}`)
+
+      const adapter = ADAPTERS.get(clientId)
+      if (!adapter) {
+        throw new Error(`No adapter registered for client: ${clientId}`)
+      }
+
+      const { detection, manualConfigPath } = await resolveClientDetection(clientId, adapter)
+      const { configPath, requiresConfigCreationConfirm } = resolveConfigPathForSync(
+        clientId,
+        detection,
+        manualConfigPath,
+        options,
+      )
+
+      if (requiresConfigCreationConfirm) {
+        throw Object.assign(
+          new Error(`${adapter.displayName} has no config file yet. Confirm to create one.`),
+          { errorCode: 'config_creation_required' as const },
+        )
+      }
+      if (!configPath) {
+        throw new Error(`${adapter.displayName} is not installed or has no config file`)
+      }
+
+      const syncService = createSyncService()
+      return syncService.previewSync(adapter, configPath)
+    },
+  )
+
+  ipcMain.handle('clients:preview-sync-all', async (): Promise<SyncAllPreviewResult> => {
+    log.debug('[ipc] clients:preview-sync-all')
+
+    const syncService = createSyncService()
+    const previews: Partial<Record<ClientId, SyncPreviewResult>> = {}
+
+    for (const id of ADAPTER_IDS) {
+      const adapter = ADAPTERS.get(id)!
+      const { detection, manualConfigPath } = await resolveClientDetection(id, adapter)
+      const { configPath } = resolveConfigPathForSync(id, detection, manualConfigPath, {
+        allowCreateConfigIfMissing: true,
+      })
+      if (!configPath) {
+        continue
+      }
+
+      try {
+        const preview = await syncService.previewSync(adapter, configPath)
+        previews[id] = preview
+      } catch (error) {
+        log.error(`[ipc] preview sync failed for ${id}:`, error)
+        // skip failing client
+      }
+    }
+
+    return { previews }
+  })
 
   ipcMain.handle('clients:sync-all', async (): Promise<SyncResult[]> => {
     log.debug('[ipc] clients:sync-all')

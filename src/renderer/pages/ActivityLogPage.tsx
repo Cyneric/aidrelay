@@ -78,6 +78,7 @@ const ActivityLogPage = () => {
     'windsurf',
     'zed',
     'jetbrains',
+    'gemini-cli',
     'codex-cli',
     'codex-gui',
     'opencode',

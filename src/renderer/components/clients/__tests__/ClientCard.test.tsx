@@ -5,6 +5,15 @@ import { renderWithProviders } from '@/test-utils'
 import { ClientCard } from '../ClientCard'
 import type { ClientStatus } from '@shared/types'
 
+// Mock ClientIcon to simplify testing
+vi.mock('@/components/common/icons/ClientIcon', () => ({
+  ClientIcon: ({ clientId, ariaLabel }: { clientId: string; ariaLabel: string }) => (
+    <span data-testid={`mock-client-icon-${clientId}`} aria-label={ariaLabel}>
+      {clientId} icon
+    </span>
+  ),
+}))
+
 const toastSuccessMock = vi.fn<(message?: unknown) => void>()
 const toastErrorMock = vi.fn<(message?: unknown) => void>()
 const clipboardWriteTextMock = vi.fn<(text: string) => Promise<void>>()

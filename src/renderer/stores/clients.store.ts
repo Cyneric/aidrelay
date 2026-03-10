@@ -13,7 +13,13 @@
  */
 
 import { create } from 'zustand'
-import type { ClientStatus, SyncClientOptions, SyncResult } from '@shared/types'
+import type {
+  ClientStatus,
+  SyncClientOptions,
+  SyncResult,
+  SyncPreviewResult,
+  SyncAllPreviewResult,
+} from '@shared/types'
 import { clientsService } from '@/services/clients.service'
 import '../lib/ipc'
 
@@ -44,6 +50,11 @@ interface ClientsState {
    * @param clientId - The client to sync.
    */
   syncClient: (clientId: ClientStatus['id'], options?: SyncClientOptions) => Promise<SyncResult>
+  previewSyncClient: (
+    clientId: ClientStatus['id'],
+    options?: SyncClientOptions,
+  ) => Promise<SyncPreviewResult>
+  previewSyncAll: () => Promise<SyncAllPreviewResult>
 }
 
 export class ClientSyncError extends Error {
@@ -87,5 +98,13 @@ export const useClientsStore = create<ClientsState>((set) => ({
       throw new ClientSyncError(result.error ?? `Sync failed for ${clientId}`, result.errorCode)
     }
     return result
+  },
+
+  previewSyncClient: async (clientId, options) => {
+    return await clientsService.previewSync(clientId, options)
+  },
+
+  previewSyncAll: async () => {
+    return await clientsService.previewSyncAll()
   },
 }))

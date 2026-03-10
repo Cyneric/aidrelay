@@ -2,7 +2,7 @@
  * @file src/shared/types.ts
  *
  * @created 07.03.2026
- * @modified 07.03.2026
+ * @modified 09.03.2026
  *
  * @author Christian Blank <christianblank91@protonmail.com>
  * @copyright 2026
@@ -27,6 +27,7 @@ export type ClientId =
   | 'windsurf'
   | 'zed'
   | 'jetbrains'
+  | 'gemini-cli'
   | 'codex-cli'
   | 'codex-gui'
   | 'opencode'
@@ -148,6 +149,19 @@ export interface McpServer {
   readonly notes: string
   readonly createdAt: string
   readonly updatedAt: string
+  /** Install metadata for local servers */
+  readonly recipeId: string
+  readonly recipeVersion: string
+  readonly setupStatus:
+    | 'ready'
+    | 'needs_setup'
+    | 'missing_secrets'
+    | 'install_failed'
+    | 'outdated_recipe'
+  readonly lastInstallResult: Readonly<Record<string, unknown>>
+  readonly lastInstallTimestamp: string
+  readonly installPolicy: 'auto' | 'manual' | 'disabled'
+  readonly normalizedLaunchConfig: Readonly<Record<string, unknown>>
 }
 
 // ─── AI Rules Types ───────────────────────────────────────────────────────────
@@ -292,6 +306,40 @@ export interface ConfigImportResult {
   readonly skipped: number
   readonly errors: readonly string[]
 }
+// ─── Sync Preview Types ───────────────────────────────────────────────────────
+
+/**
+ * Extended action set for sync preview (includes preserved unmanaged servers).
+ */
+export type SyncPreviewAction = 'create' | 'overwrite' | 'no-op' | 'preserved_unmanaged' | 'removed'
+
+/**
+ * Diff preview row for one server name during sync.
+ * `before` is the current client config; `after` is the merged config that will be written.
+ */
+export interface SyncPreviewItem {
+  readonly name: string
+  readonly source: 'added' | 'removed' | 'modified'
+  readonly action: SyncPreviewAction
+  readonly before: McpServerConfig | null
+  readonly after: McpServerConfig | null
+}
+
+/**
+ * Preview payload returned before syncing a client config.
+ */
+export interface SyncPreviewResult {
+  readonly clientId: ClientId
+  readonly configPath: string
+  readonly items: readonly SyncPreviewItem[]
+}
+
+/**
+ * Multi‑client preview payload for "Sync All".
+ */
+export interface SyncAllPreviewResult {
+  readonly previews: Readonly<Partial<Record<ClientId, SyncPreviewResult>>>
+}
 
 // ─── Git Sync Types ───────────────────────────────────────────────────────────
 
@@ -384,4 +432,215 @@ export interface SyncClientOptions {
 export interface ValidationResult {
   readonly valid: boolean
   readonly errors: readonly string[]
+}
+
+// ─── Local Installation Types ──────────────────────────────────────────────────
+
+/**
+ * Setup status for a server on a specific device.
+ */
+export type SetupStatus =
+  | 'ready'
+  | 'needs_setup'
+  | 'missing_secrets'
+  | 'install_failed'
+  | 'outdated_recipe'
+
+/**
+ * Install policy for a server.
+ */
+export type InstallPolicy = 'auto' | 'manual' | 'disabled'
+
+/**
+ * Runtime detection configuration for checking prerequisites.
+ */
+export interface RuntimeDetectionConfig {
+  readonly type: 'command' | 'path' | 'registry' | 'process'
+  readonly check: string
+  readonly hint: string
+  readonly installHint?: string
+}
+
+/**
+ * Preflight check result.
+ */
+export interface PreflightResult {
+  readonly id: string
+  readonly description: string
+  readonly success: boolean
+  readonly message: string
+  readonly hint?: string
+}
+
+/**
+ * Install adapter type for package managers.
+ */
+export type InstallAdapterType = 'winget' | 'npm' | 'pip' | 'cargo' | 'docker' | 'executable'
+
+/**
+ * Device-specific setup state (never synced).
+ */
+export interface DeviceSetupState {
+  readonly deviceId: string
+  readonly serverId: string
+  readonly runtimeDetectionResults: Readonly<Record<string, boolean>>
+  readonly logs: readonly LogEntry[]
+  readonly installStatus: 'pending' | 'running' | 'success' | 'failed' | 'rolled_back'
+  readonly createdAt: string
+  readonly updatedAt: string
+}
+
+/**
+ * Log entry for installation progress.
+ */
+export interface LogEntry {
+  readonly timestamp: string
+  readonly level: 'info' | 'warn' | 'error' | 'debug'
+  readonly message: string
+  readonly details?: unknown
+}
+
+/**
+ * Synced install intent metadata (synced across devices).
+ */
+export interface SyncedInstallIntent {
+  readonly serverId: string
+  readonly recipeId: string
+  readonly recipeVersion: string
+  readonly installPolicy: InstallPolicy
+  readonly normalizedLaunchConfig: Readonly<Record<string, unknown>>
+  readonly createdAt: string
+  readonly updatedAt: string
+}
+
+/**
+ * Install progress payload for push events.
+ */
+export interface InstallProgressPayload {
+  readonly serverId: string
+  readonly step: string
+  readonly progress: number
+  readonly totalSteps: number
+  readonly message: string
+  readonly details?: string
+}
+
+/**
+ * Pending setup item after sync.
+ */
+export interface PendingSetup {
+  readonly serverId: string
+  readonly serverName: string
+  readonly reason:
+    | 'missing_secrets'
+    | 'missing_runtime'
+    | 'install_required'
+    | 'verification_failed'
+  readonly actions: readonly string[]
+}
+
+/**
+ * Conflict resolution for sync.
+ */
+export interface SyncConflict {
+  readonly id: string
+  readonly serverId: string
+  readonly serverName: string
+  readonly field: string
+  readonly localValue: unknown
+  readonly remoteValue: unknown
+  readonly resolved?: boolean
+}
+
+/**
+ * Install recipe for local MCP servers.
+ * Combines runtime detection, package manager installation, and launch config.
+ */
+export interface InstallRecipe {
+  readonly id: string
+  readonly version: string
+  readonly displayName: string
+  readonly description?: string
+  readonly runtimeDetection: readonly RuntimeDetectionConfig[]
+  readonly adapters: readonly InstallAdapterConfig[]
+  readonly preflight?: readonly PreflightCheck[]
+  readonly launchConfig: LaunchConfig
+}
+
+/**
+ * Single install adapter configuration (e.g., winget, npm, pip, cargo).
+ */
+export interface InstallAdapterConfig {
+  readonly type: InstallAdapterType
+  readonly package: string
+  readonly version?: string
+  readonly command?: string
+  readonly args?: readonly string[]
+  readonly env?: Readonly<Record<string, string>>
+  readonly priority: number
+}
+
+/**
+ * Preflight check definition.
+ */
+export interface PreflightCheck {
+  readonly id: string
+  readonly description: string
+  readonly check: 'runtime' | 'path' | 'command' | 'registry' | 'process'
+  readonly target: string
+  readonly hint: string
+  readonly installHint?: string
+}
+
+/**
+ * Launch configuration after installation.
+ */
+export interface LaunchConfig {
+  readonly command: string
+  readonly args: readonly string[]
+  readonly env: Readonly<Record<string, string>>
+  readonly type: McpServerType
+  readonly url?: string
+  readonly headers?: Readonly<Record<string, string>>
+  readonly secretEnvKeys?: readonly string[]
+  readonly secretHeaderKeys?: readonly string[]
+}
+
+/**
+ * Preflight report with results of all checks.
+ */
+export interface PreflightReport {
+  readonly serverId: string
+  readonly recipeId: string
+  readonly recipeVersion: string
+  readonly checks: readonly PreflightResult[]
+  readonly success: boolean
+  readonly missingRuntimes: readonly RuntimeDetectionConfig[]
+  readonly suggestions: readonly string[]
+}
+
+/**
+ * Install plan generated from a recipe and user choices.
+ */
+export interface InstallPlan {
+  readonly serverId: string
+  readonly recipeId: string
+  readonly recipeVersion: string
+  readonly steps: readonly InstallStep[]
+  readonly estimatedDuration: number
+  readonly requiresElevation: boolean
+  readonly rollbackSteps?: readonly InstallStep[]
+}
+
+/**
+ * Single step in an installation plan.
+ */
+export interface InstallStep {
+  readonly id: string
+  readonly description: string
+  readonly action: 'detect' | 'install' | 'configure' | 'verify' | 'rollback'
+  readonly adapterType?: InstallAdapterType
+  readonly command?: string
+  readonly args?: readonly string[]
+  readonly env?: Readonly<Record<string, string>>
 }

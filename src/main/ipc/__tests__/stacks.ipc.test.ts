@@ -69,6 +69,13 @@ const makeStack = (overrides: Partial<McpStack> = {}): string =>
         notes: '',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
+        recipeId: '',
+        recipeVersion: '',
+        setupStatus: 'ready',
+        lastInstallResult: {},
+        lastInstallTimestamp: '',
+        installPolicy: 'manual',
+        normalizedLaunchConfig: {},
       },
     ],
     rules: [

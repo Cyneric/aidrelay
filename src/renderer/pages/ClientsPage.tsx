@@ -30,8 +30,8 @@ import {
   FileX2,
   FilePlus2,
   Download,
-  FolderOpen,
   Trash2,
+  FolderInput,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -44,7 +44,10 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { ClientIcon } from '@/components/common/icons/ClientIcon'
 import { CreateConfigConfirmDialog } from '@/components/clients/CreateConfigConfirmDialog'
+import { SyncDiffDialog } from '@/components/clients/SyncDiffDialog'
+import { SyncAllDiffDialog } from '@/components/clients/SyncAllDiffDialog'
 import {
   InstallClientDialog,
   type InstallDialogPhase,
@@ -52,6 +55,7 @@ import {
   type InstallTimelineStatus,
 } from '@/components/clients/InstallClientDialog'
 import { PathWithActions } from '@/components/common/PathWithActions'
+import { isConfigCreationRequiredError } from '@/lib/sync-errors'
 import { useClientsStore } from '@/stores/clients.store'
 import { clientsService } from '@/services/clients.service'
 import { dialogService } from '@/services/dialog.service'
@@ -62,6 +66,8 @@ import type {
   InstallManager,
   SyncClientOptions,
   SyncResult,
+  SyncPreviewResult,
+  SyncAllPreviewResult,
 } from '@shared/types'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -143,18 +149,23 @@ const ClientRow = ({
     >
       {/* Name + install badge */}
       <TableCell className="px-2 py-2.5">
-        <div className="flex flex-col gap-0.5">
-          <span className="text-sm font-medium">{client.displayName}</span>
-          <div className="flex items-center gap-2">
-            <span
-              className={cn(
-                'text-xs',
-                client.installed ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground',
-              )}
-              data-testid={`client-install-${client.id}`}
-            >
-              {client.installed ? t('clients.installed') : t('clients.notInstalled')}
-            </span>
+        <div className="flex items-start gap-2.5">
+          <div className="mt-0.5">
+            <ClientIcon clientId={client.id} size={20} className="text-muted-foreground" />
+          </div>
+          <div className="flex flex-col gap-0.5">
+            <span className="text-sm font-medium">{client.displayName}</span>
+            <div className="flex items-center gap-2">
+              <span
+                className={cn(
+                  'text-xs',
+                  client.installed ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground',
+                )}
+                data-testid={`client-install-${client.id}`}
+              >
+                {client.installed ? t('clients.installed') : t('clients.notInstalled')}
+              </span>
+            </div>
           </div>
         </div>
       </TableCell>
@@ -196,6 +207,7 @@ const ClientRow = ({
                 type="button"
                 variant="outline"
                 size="xs"
+                className="pull-right"
                 onClick={() => onCreateConfig(client.id)}
                 disabled={syncing}
                 aria-label={t('clients.createConfigAria', { name: client.displayName })}
@@ -306,7 +318,7 @@ const ClientRow = ({
                   aria-label={t('clients.discoverAria', { name: client.displayName })}
                   data-testid={`btn-discover-${client.id}`}
                 >
-                  <FolderOpen size={11} aria-hidden="true" />
+                  <FolderInput size={11} aria-hidden="true" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>{t('clients.discoverTooltip')}</TooltipContent>
@@ -410,6 +422,7 @@ const OFFICIAL_INSTALL_URLS: Readonly<Record<ClientStatus['id'], string>> = {
   windsurf: 'https://codeium.com/windsurf',
   zed: 'https://zed.dev/download',
   jetbrains: 'https://www.jetbrains.com/toolbox-app/',
+  'gemini-cli': 'https://github.com/google-gemini/gemini-cli',
   'codex-cli': 'https://github.com/openai/codex',
   'codex-gui': 'https://apps.microsoft.com/detail/9PLM9XGG6VKS',
   opencode: 'https://opencode.ai/',
@@ -468,6 +481,17 @@ const ClientsPage = () => {
   const { t } = useTranslation()
   const { clients, loading, detectAll, syncClient } = useClientsStore()
   const [syncingId, setSyncingId] = useState<ClientStatus['id'] | null>(null)
+  const [syncPreviewClientId, setSyncPreviewClientId] = useState<ClientStatus['id'] | null>(null)
+  const [syncPreviewResult, setSyncPreviewResult] = useState<SyncPreviewResult | null>(null)
+  const [syncPreviewOptions, setSyncPreviewOptions] = useState<SyncClientOptions | undefined>(
+    undefined,
+  )
+  const [syncPreviewLoading, setSyncPreviewLoading] = useState(false)
+  const [syncAllPreviewResult, setSyncAllPreviewResult] = useState<SyncAllPreviewResult | null>(
+    null,
+  )
+  const [syncAllPreviewLoading, setSyncAllPreviewLoading] = useState(false)
+  const [syncingAll, setSyncingAll] = useState(false)
   const [installingId, setInstallingId] = useState<ClientStatus['id'] | null>(null)
   const [discoveringId, setDiscoveringId] = useState<ClientStatus['id'] | null>(null)
   const [clearingManualPathId, setClearingManualPathId] = useState<ClientStatus['id'] | null>(null)
@@ -488,7 +512,7 @@ const ClientsPage = () => {
     void detectAll()
   }, [detectAll])
 
-  const handleSync = useCallback(
+  const performSync = useCallback(
     async (clientId: ClientStatus['id'], options?: SyncClientOptions): Promise<SyncResult> => {
       setSyncingId(clientId)
       try {
@@ -503,6 +527,76 @@ const ClientsPage = () => {
     },
     [syncClient, t],
   )
+
+  const handleSync = useCallback(
+    async (clientId: ClientStatus['id'], options?: SyncClientOptions) => {
+      setSyncPreviewClientId(clientId)
+      setSyncPreviewOptions(options)
+      setSyncPreviewLoading(true)
+      try {
+        const preview = await clientsService.previewSync(clientId, options)
+        setSyncPreviewResult(preview)
+      } catch (err) {
+        const message = err instanceof Error ? err.message : t('common.error')
+        // If config is missing, show the create config dialog (same as before)
+        if (isConfigCreationRequiredError(err)) {
+          setCreateConfigClientId(clientId)
+        } else {
+          toast.error(message)
+        }
+        setSyncPreviewClientId(null)
+        setSyncPreviewResult(null)
+      } finally {
+        setSyncPreviewLoading(false)
+      }
+    },
+    [t],
+  )
+
+  const handleConfirmSync = useCallback(async () => {
+    if (!syncPreviewClientId) return
+    try {
+      await performSync(syncPreviewClientId, syncPreviewOptions)
+      // Sync succeeded, close the preview dialog
+      setSyncPreviewClientId(null)
+      setSyncPreviewResult(null)
+      setSyncPreviewOptions(undefined)
+    } catch {
+      // Error toast is already handled in performSync.
+      // Keep the preview dialog open so user can retry
+    }
+  }, [syncPreviewClientId, syncPreviewOptions, performSync])
+
+  const handleSyncAll = useCallback(async () => {
+    setSyncAllPreviewLoading(true)
+    try {
+      const preview = await clientsService.previewSyncAll()
+      setSyncAllPreviewResult(preview)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : t('common.error')
+      toast.error(message)
+      setSyncAllPreviewResult(null)
+    } finally {
+      setSyncAllPreviewLoading(false)
+    }
+  }, [t])
+
+  const handleConfirmSyncAll = useCallback(async () => {
+    setSyncingAll(true)
+    try {
+      await clientsService.syncAll()
+      // Sync succeeded, close the preview dialog
+      setSyncAllPreviewResult(null)
+      // Refresh client list
+      await detectAll()
+    } catch (err) {
+      const message = err instanceof Error ? err.message : t('common.error')
+      toast.error(message)
+      // Keep the preview dialog open so user can retry
+    } finally {
+      setSyncingAll(false)
+    }
+  }, [detectAll, t])
 
   const getClientDisplayName = useCallback(
     (clientId: ClientStatus['id']): string =>
@@ -646,40 +740,6 @@ const ClientsPage = () => {
     [t],
   )
 
-  const handleSyncAll = useCallback(async () => {
-    const installed = clients.filter((c) => c.installed)
-    const results: SyncResult[] = []
-    for (const client of installed) {
-      try {
-        const result = await handleSync(client.id)
-        results.push(result)
-      } catch {
-        results.push({
-          clientId: client.id,
-          success: false,
-          serversWritten: 0,
-          syncedAt: new Date().toISOString(),
-        })
-      }
-    }
-    const succeeded = results.filter((r) => r.success).length
-    const failed = results.length - succeeded
-
-    if (failed === 0) {
-      toast.success(t('clients.allClientsSynced'))
-      return
-    }
-
-    toast.warning(
-      t('clients.syncSummary', {
-        succeeded,
-        total: results.length,
-        failed,
-        count: results.length,
-      }),
-    )
-  }, [clients, handleSync, t])
-
   const installedCount = clients.filter((c) => c.installed).length
   const createConfigClient = clients.find((client) => client.id === createConfigClientId) ?? null
   const installClient = clients.find((client) => client.id === installClientId) ?? null
@@ -688,13 +748,13 @@ const ClientsPage = () => {
   const handleConfirmCreateConfig = useCallback(async () => {
     if (!createConfigClient) return
     try {
-      await handleSync(createConfigClient.id, { allowCreateConfigIfMissing: true })
+      await performSync(createConfigClient.id, { allowCreateConfigIfMissing: true })
     } catch {
       // Error toast is already handled in handleSync.
     } finally {
       setCreateConfigClientId(null)
     }
-  }, [createConfigClient, handleSync])
+  }, [createConfigClient, performSync])
 
   const handleConfirmInstall = useCallback(async () => {
     if (!installClient) return
@@ -810,6 +870,28 @@ const ClientsPage = () => {
         {...(officialInstallUrl ? { officialUrl: officialInstallUrl } : {})}
         {...(installResult ? { result: installResult } : {})}
         {...(installErrorMessage ? { errorMessage: installErrorMessage } : {})}
+      />
+      <SyncDiffDialog
+        open={syncPreviewClientId !== null}
+        preview={syncPreviewResult}
+        loading={syncPreviewLoading}
+        syncing={syncingId === syncPreviewClientId}
+        onCancel={() => {
+          setSyncPreviewClientId(null)
+          setSyncPreviewResult(null)
+          setSyncPreviewOptions(undefined)
+        }}
+        onConfirm={() => void handleConfirmSync()}
+      />
+      <SyncAllDiffDialog
+        open={syncAllPreviewResult !== null}
+        preview={syncAllPreviewResult}
+        loading={syncAllPreviewLoading}
+        syncing={syncingAll}
+        onCancel={() => {
+          setSyncAllPreviewResult(null)
+        }}
+        onConfirm={() => void handleConfirmSyncAll()}
       />
 
       <div className="flex items-start justify-between">

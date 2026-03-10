@@ -17,6 +17,8 @@ import { useState, useCallback } from 'react'
 import Editor from '@monaco-editor/react'
 import { AlertCircle } from 'lucide-react'
 import type { McpServer } from '@shared/types'
+import { useTheme } from '@/lib/useTheme'
+import { ensureAidrelayMonacoThemes, getAidrelayMonacoTheme } from '@/lib/monacoTheme'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -51,6 +53,7 @@ interface ServerJsonEditorProps {
  */
 const ServerJsonEditor = ({ server, onChange }: ServerJsonEditorProps) => {
   const [parseError, setParseError] = useState<string | null>(null)
+  const { effectiveTheme } = useTheme()
 
   const initialJson = JSON.stringify(
     {
@@ -97,6 +100,7 @@ const ServerJsonEditor = ({ server, onChange }: ServerJsonEditorProps) => {
         <Editor
           defaultValue={initialJson}
           language="json"
+          beforeMount={ensureAidrelayMonacoThemes}
           onChange={handleChange}
           options={{
             minimap: { enabled: false },
@@ -106,7 +110,7 @@ const ServerJsonEditor = ({ server, onChange }: ServerJsonEditorProps) => {
             wordWrap: 'on',
             automaticLayout: true,
           }}
-          theme="vs-dark"
+          theme={getAidrelayMonacoTheme(effectiveTheme)}
         />
       </div>
 

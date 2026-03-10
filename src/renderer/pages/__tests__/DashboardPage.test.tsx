@@ -4,9 +4,12 @@ import userEvent from '@testing-library/user-event'
 import { renderWithProviders } from '@/test-utils'
 import { DashboardPage } from '../DashboardPage'
 import type * as ClientsStoreModule from '@/stores/clients.store'
-import type { ClientStatus } from '@shared/types'
+import type * as ServersStoreModule from '@/stores/servers.store'
+import type { ClientStatus, McpServer } from '@shared/types'
 
 const detectAllMock = vi.fn<() => Promise<void>>()
+const loadServersMock = vi.fn<() => Promise<void>>()
+const clientsReadConfigMock = vi.fn()
 const syncClientMock =
   vi.fn<(id: string, options?: { allowCreateConfigIfMissing?: boolean }) => Promise<unknown>>()
 const previewConfigImportMock = vi.fn()
@@ -17,6 +20,7 @@ const toastInfoMock = vi.fn<(message?: unknown, options?: unknown) => void>()
 const toastSuccessMock = vi.fn<(message?: unknown) => void>()
 
 let mockClients: ClientStatus[] = []
+let mockServers: McpServer[] = []
 
 vi.mock('sonner', () => ({
   toast: {
@@ -38,6 +42,58 @@ vi.mock('@/stores/clients.store', async (importOriginal) => {
       syncClient: syncClientMock,
     }),
   }
+})
+
+vi.mock('@/stores/servers.store', async (importOriginal) => {
+  const actual: typeof ServersStoreModule = await importOriginal()
+  return {
+    ...actual,
+    useServersStore: () => ({
+      servers: mockServers,
+      loading: false,
+      error: null,
+      load: loadServersMock,
+    }),
+  }
+})
+
+const createServer = (id: string, name: string): McpServer => ({
+  id,
+  name,
+  type: 'stdio',
+  command: 'npx',
+  args: [],
+  env: {},
+  secretEnvKeys: [],
+  headers: {},
+  secretHeaderKeys: [],
+  enabled: true,
+  clientOverrides: {
+    'claude-desktop': { enabled: true },
+    'claude-code': { enabled: true },
+    cursor: { enabled: true },
+    'gemini-cli': { enabled: true },
+    vscode: { enabled: true },
+    'vscode-insiders': { enabled: true },
+    windsurf: { enabled: true },
+    zed: { enabled: true },
+    jetbrains: { enabled: true },
+    'codex-cli': { enabled: true },
+    'codex-gui': { enabled: true },
+    opencode: { enabled: true },
+    'visual-studio': { enabled: true },
+  },
+  tags: [],
+  notes: '',
+  createdAt: '2026-03-10T00:00:00.000Z',
+  updatedAt: '2026-03-10T00:00:00.000Z',
+  recipeId: '',
+  recipeVersion: '',
+  setupStatus: 'ready',
+  lastInstallResult: {},
+  lastInstallTimestamp: '',
+  installPolicy: 'manual',
+  normalizedLaunchConfig: {},
 })
 
 const baseClients = (): ClientStatus[] => [
@@ -87,7 +143,14 @@ describe('DashboardPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockClients = baseClients()
+    mockServers = [
+      createServer('srv-1', 'alpha'),
+      createServer('srv-2', 'beta'),
+      createServer('srv-3', 'gamma'),
+    ]
     detectAllMock.mockResolvedValue()
+    loadServersMock.mockResolvedValue()
+    clientsReadConfigMock.mockResolvedValue({})
     syncClientMock.mockResolvedValue({})
     previewConfigImportMock.mockResolvedValue({
       clientId: 'codex-cli',
@@ -107,6 +170,7 @@ describe('DashboardPage', () => {
     Object.defineProperty(window, 'api', {
       value: {
         ...window.api,
+        clientsReadConfig: clientsReadConfigMock,
         clientsPreviewConfigImport: previewConfigImportMock,
         clientsImportConfigChanges: importConfigChangesMock,
         onConfigChanged: () => () => {},
@@ -122,7 +186,70 @@ describe('DashboardPage', () => {
     expect(screen.getByTestId('dashboard-kpi-installed')).toHaveTextContent('4')
     expect(screen.getByTestId('dashboard-kpi-out-of-sync')).toHaveTextContent('3')
     expect(screen.getByTestId('dashboard-kpi-missing-config')).toHaveTextContent('1')
-    expect(screen.getByTestId('dashboard-kpi-total-servers')).toHaveTextContent('7')
+    expect(screen.getByTestId('dashboard-kpi-total-servers')).toHaveTextContent('3')
+  })
+
+  it('keeps per-client server counts unchanged on cards', () => {
+    renderWithProviders(<DashboardPage />)
+
+    const claudeDesktopCard = screen.getByTestId('client-card-claude-desktop')
+    expect(within(claudeDesktopCard).getByText('3 MCP Servers')).toBeInTheDocument()
+  })
+
+  it('falls back to deduplicated detected config servers when registry is empty', async () => {
+    mockServers = []
+    mockClients = [
+      {
+        id: 'cursor',
+        displayName: 'Cursor',
+        installed: true,
+        configPaths: ['C:\\Users\\tester\\.cursor\\mcp.json'],
+        serverCount: 2,
+        syncStatus: 'synced',
+      },
+      {
+        id: 'codex-cli',
+        displayName: 'Codex CLI',
+        installed: true,
+        configPaths: ['C:\\Users\\tester\\.codex\\config.json'],
+        serverCount: 2,
+        syncStatus: 'synced',
+      },
+    ]
+
+    clientsReadConfigMock.mockImplementation((clientId: string) => {
+      if (clientId === 'cursor') {
+        return {
+          github: { command: 'npx', args: ['-y', '@modelcontextprotocol/server-github'] },
+          filesystem: { command: 'npx', args: ['-y', '@modelcontextprotocol/server-filesystem'] },
+        }
+      }
+      if (clientId === 'codex-cli') {
+        return {
+          github: { command: 'npx', args: ['-y', '@modelcontextprotocol/server-github'] },
+          filesystem: { command: 'npx', args: ['-y', '@modelcontextprotocol/server-filesystem'] },
+        }
+      }
+      return {}
+    })
+
+    renderWithProviders(<DashboardPage />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('dashboard-kpi-total-servers')).toHaveTextContent('2')
+    })
+  })
+
+  it('refreshes both client detection and servers registry', async () => {
+    renderWithProviders(<DashboardPage />)
+
+    await waitFor(() => expect(detectAllMock).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(loadServersMock).toHaveBeenCalledTimes(1))
+
+    fireEvent.click(screen.getByTestId('detect-all-button'))
+
+    await waitFor(() => expect(detectAllMock).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(loadServersMock).toHaveBeenCalledTimes(2))
   })
 
   it('renders a two-row toolbar layout', () => {
@@ -131,8 +258,7 @@ describe('DashboardPage', () => {
     const stickyToolbar = screen.getByTestId('dashboard-sticky-toolbar')
     expect(stickyToolbar).toHaveClass(
       'sticky',
-      'top-0',
-      '-mt-6',
+      'top-[calc(var(--spacing)*-6)]',
       'pt-8',
       'bg-background/95',
       'backdrop-blur',

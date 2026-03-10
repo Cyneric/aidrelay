@@ -8,6 +8,8 @@ import type {
   McpServerMap,
   SyncClientOptions,
   SyncResult,
+  SyncPreviewResult,
+  SyncAllPreviewResult,
   ValidationResult,
 } from '../../shared/types'
 import type { IpcRendererLike } from './types'
@@ -23,6 +25,12 @@ export const createClientsApi = (ipcRenderer: IpcRendererLike) => ({
   clientsSyncAll: (): Promise<SyncResult[]> => ipcRenderer.invoke('clients:sync-all'),
   clientsPreviewConfigImport: (payload: ConfigChangedPayload): Promise<ConfigImportPreviewResult> =>
     ipcRenderer.invoke('clients:preview-config-import', payload),
+  clientsPreviewSync: (
+    clientId: ClientId,
+    options?: SyncClientOptions,
+  ): Promise<SyncPreviewResult> => ipcRenderer.invoke('clients:preview-sync', clientId, options),
+  clientsPreviewSyncAll: (): Promise<SyncAllPreviewResult> =>
+    ipcRenderer.invoke('clients:preview-sync-all'),
   clientsImportConfigChanges: (payload: ConfigChangedPayload): Promise<ConfigImportResult> =>
     ipcRenderer.invoke('clients:import-config-changes', payload),
   clientsSetManualConfigPath: (clientId: ClientId, path: string): Promise<ValidationResult> =>

@@ -2,7 +2,7 @@
  * @file src/shared/channels.ts
  *
  * @created 07.03.2026
- * @modified 08.03.2026
+ * @modified 09.03.2026
  *
  * @author Christian Blank <christianblank91@protonmail.com>
  * @copyright 2026
@@ -28,6 +28,8 @@ import type {
   AiRule,
   Profile,
   SyncResult,
+  SyncPreviewResult,
+  SyncAllPreviewResult,
   LicenseStatus,
   ValidationResult,
   GitSyncStatus,
@@ -35,6 +37,11 @@ import type {
   GitPullResult,
   ManualGitConfig,
   SyncClientOptions,
+  InstallPlan,
+  PreflightReport,
+  DeviceSetupState,
+  PendingSetup,
+  SyncConflict,
 } from './types'
 
 // ─── Push-event Payload Types ─────────────────────────────────────────────────
@@ -423,6 +430,11 @@ export interface IpcChannels {
   'clients:read-config': (clientId: ClientId) => Promise<McpServerMap>
   'clients:sync': (clientId: ClientId, options?: SyncClientOptions) => Promise<SyncResult>
   'clients:sync-all': () => Promise<SyncResult[]>
+  'clients:preview-sync': (
+    clientId: ClientId,
+    options?: SyncClientOptions,
+  ) => Promise<SyncPreviewResult>
+  'clients:preview-sync-all': () => Promise<SyncAllPreviewResult>
   'clients:preview-config-import': (
     payload: ConfigChangedPayload,
   ) => Promise<ConfigImportPreviewResult>
@@ -465,6 +477,21 @@ export interface IpcChannels {
     serverId: string,
   ) => Promise<RegistryInstallPlan>
   'registry:install': (request: RegistryInstallRequest) => Promise<McpServer>
+
+  // Installer
+  'installer:prepare': (serverId: string) => Promise<InstallPlan>
+  'installer:preflight': (serverId: string) => Promise<PreflightReport>
+  'installer:run': (serverId: string) => Promise<void>
+  'installer:cancel': (serverId: string) => Promise<void>
+  'installer:status': (serverId: string) => Promise<DeviceSetupState | null>
+  'installer:repair': (serverId: string) => Promise<InstallPlan>
+
+  // Sync (assisted cross‑device)
+  'sync:list-pending': () => Promise<PendingSetup[]>
+  'sync:apply-pending': (serverId: string) => Promise<void>
+  'sync:auto-pull': () => Promise<void>
+  'sync:resolve-conflict': (conflictId: string, resolution: 'local' | 'remote') => Promise<void>
+  'sync:push-review': () => Promise<SyncConflict[]>
 
   // Stacks
   'stacks:export': (serverIds: string[], ruleIds: string[], name: string) => Promise<string>

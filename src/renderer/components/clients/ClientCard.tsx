@@ -29,6 +29,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card'
 import { PathWithActions } from '@/components/common/PathWithActions'
+import { ClientIcon } from '@/components/common/icons/ClientIcon'
 import { filesService } from '@/services/files.service'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
@@ -154,16 +155,24 @@ const ClientCard = ({ client, onSync, onCreateConfig, syncing = false }: ClientC
       data-testid={`client-card-${client.id}`}
     >
       <CardHeader className="flex flex-row items-start justify-between gap-2 space-y-0 pb-0">
-        <div className="space-y-1">
-          <h3 className="text-sm font-semibold leading-none text-text-primary">
-            {client.displayName}
-          </h3>
-          <p
-            className="text-xs text-text-secondary"
-            data-testid={`client-install-status-${client.id}`}
-          >
-            {client.installed ? t('clients.installed') : t('clients.notInstalled')}
-          </p>
+        <div className="flex items-start gap-2 min-w-0">
+          <ClientIcon
+            clientId={client.id}
+            size={18}
+            className="shrink-0 mt-0.5"
+            ariaLabel={`${client.displayName} icon`}
+          />
+          <div className="space-y-1 min-w-0">
+            <h3 className="text-sm font-semibold leading-none text-text-primary truncate">
+              {client.displayName}
+            </h3>
+            <p
+              className="text-xs text-text-secondary"
+              data-testid={`client-install-status-${client.id}`}
+            >
+              {client.installed ? t('clients.installed') : t('clients.notInstalled')}
+            </p>
+          </div>
         </div>
 
         <Badge

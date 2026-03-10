@@ -61,11 +61,17 @@ const RuleMarkdownEditor = ({ value, onChange }: RuleMarkdownEditorProps) => {
       )}
 
       {/* MDEditor with split preview */}
-      <div data-color-mode={colorMode} className="rounded-md overflow-hidden border border-input">
+      <div
+        data-color-mode={colorMode}
+        className="aidrelay-md-editor rounded-md overflow-hidden border border-input"
+      >
         <MDEditor
           value={value}
           onChange={(val) => onChange(val ?? '')}
           preview="live"
+          textareaProps={{
+            wrap: 'off',
+          }}
           height={400}
           data-testid="md-editor-input"
         />

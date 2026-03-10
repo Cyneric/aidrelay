@@ -75,6 +75,7 @@ const makeServer = (id = 'srv-1'): McpServer => ({
     'claude-desktop': { enabled: true },
     'claude-code': { enabled: true },
     cursor: { enabled: true },
+    'gemini-cli': { enabled: true },
     vscode: { enabled: true },
     'vscode-insiders': { enabled: true },
     windsurf: { enabled: true },
@@ -89,6 +90,13 @@ const makeServer = (id = 'srv-1'): McpServer => ({
   notes: '',
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
+  recipeId: '',
+  recipeVersion: '',
+  setupStatus: 'ready',
+  lastInstallResult: {},
+  lastInstallTimestamp: new Date().toISOString(),
+  installPolicy: 'manual',
+  normalizedLaunchConfig: {},
 })
 
 describe('useServersActions', () => {

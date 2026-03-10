@@ -220,6 +220,16 @@ const INSTALL_DEFINITIONS: Readonly<Record<ClientId, ClientInstallDefinition>> =
     attempts: [],
     manualOnly: true,
   },
+  'gemini-cli': {
+    docsUrl: 'https://github.com/google-gemini/gemini-cli',
+    attempts: [
+      {
+        manager: 'npm',
+        command: 'npm',
+        args: ['install', '--global', '@google/gemini-cli', '--yes', '--silent'],
+      },
+    ],
+  },
   'codex-cli': {
     docsUrl: 'https://github.com/openai/codex',
     attempts: [

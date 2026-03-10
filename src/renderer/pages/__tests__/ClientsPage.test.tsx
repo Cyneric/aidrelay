@@ -1,8 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, fireEvent, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { renderWithProviders } from '@/test-utils'
 import { ClientsPage } from '../ClientsPage'
-import type { ClientInstallResult, ClientStatus, SyncResult } from '@shared/types'
+import type {
+  ClientInstallResult,
+  ClientStatus,
+  SyncAllPreviewResult,
+  SyncResult,
+} from '@shared/types'
 import type { ClientInstallProgressPayload } from '@shared/channels'
 import type * as ClientsStoreModule from '@/stores/clients.store'
 
@@ -11,6 +16,8 @@ const syncClientMock =
   vi.fn<(id: string, options?: { allowCreateConfigIfMissing?: boolean }) => Promise<SyncResult>>()
 const validateConfigMock = vi.fn<() => Promise<{ valid: boolean; errors: string[] }>>()
 const installClientMock = vi.fn<(id: string) => Promise<ClientInstallResult>>()
+const previewSyncAllMock = vi.fn<() => Promise<SyncAllPreviewResult>>()
+const syncAllMock = vi.fn<() => Promise<SyncResult[]>>()
 const showOpenDialogMock = vi.fn<() => Promise<{ canceled: boolean; filePaths: string[] }>>()
 const setManualPathMock =
   vi.fn<(id: string, path: string) => Promise<{ valid: boolean; errors: string[] }>>()
@@ -109,6 +116,8 @@ describe('ClientsPage sync-all reporting', () => {
         ...window.api,
         clientsValidateConfig: validateConfigMock,
         clientsInstall: installClientMock,
+        clientsPreviewSyncAll: previewSyncAllMock,
+        clientsSyncAll: syncAllMock,
         showOpenDialog: showOpenDialogMock,
         clientsSetManualConfigPath: setManualPathMock,
         clientsClearManualConfigPath: clearManualPathMock,
@@ -124,18 +133,68 @@ describe('ClientsPage sync-all reporting', () => {
     vi.restoreAllMocks()
   })
 
-  it('shows mixed-result summary when sync-all has failures', async () => {
+  it('opens the sync-all preview dialog and runs sync after confirmation', async () => {
+    previewSyncAllMock.mockResolvedValue({
+      previews: {
+        cursor: {
+          clientId: 'cursor',
+          configPath: 'C:\\Users\\tester\\.cursor\\mcp.json',
+          items: [
+            {
+              name: 'server-a',
+              source: 'added',
+              action: 'create',
+              before: null,
+              after: null,
+            },
+          ],
+        },
+        vscode: {
+          clientId: 'vscode',
+          configPath: 'C:\\Users\\tester\\AppData\\Roaming\\Code\\User\\mcp.json',
+          items: [
+            {
+              name: 'server-b',
+              source: 'modified',
+              action: 'overwrite',
+              before: null,
+              after: null,
+            },
+          ],
+        },
+      },
+    })
+    syncAllMock.mockResolvedValue([
+      {
+        clientId: 'cursor',
+        success: true,
+        serversWritten: 1,
+        syncedAt: '2026-03-08T12:00:00.000Z',
+      },
+      {
+        clientId: 'vscode',
+        success: false,
+        serversWritten: 0,
+        syncedAt: '2026-03-08T12:00:00.000Z',
+      },
+    ])
+
     renderWithProviders(<ClientsPage />)
 
     fireEvent.click(screen.getByTestId('btn-sync-all'))
 
     await waitFor(() => {
-      expect(syncClientMock).toHaveBeenCalledTimes(2)
-      expect(toastWarningMock).toHaveBeenCalled()
+      expect(previewSyncAllMock).toHaveBeenCalled()
+      expect(screen.getByTestId('sync-all-diff-dialog')).toBeInTheDocument()
     })
 
-    expect(toastWarningMock.mock.calls[0]?.[0]).toContain('Synced 1 of 2 clients (1 failed).')
-    expect(toastSuccessMock).not.toHaveBeenCalledWith('All clients synced.')
+    const dialog = screen.getByTestId('sync-all-diff-dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Sync all' }))
+
+    await waitFor(() => {
+      expect(syncAllMock).toHaveBeenCalledTimes(1)
+      expect(detectAllMock).toHaveBeenCalledTimes(2)
+    })
   })
 
   it('renders only one folder icon for config paths in table rows', () => {
@@ -188,6 +247,39 @@ describe('ClientsPage sync-all reporting', () => {
         allowCreateConfigIfMissing: true,
       }),
     )
+  })
+
+  it('shows create-config dialog when preview sync rejects with errorCode', async () => {
+    clientsFixture = [
+      {
+        id: 'cursor',
+        displayName: 'Cursor',
+        installed: true,
+        configPaths: ['C:\\Users\\tester\\.cursor\\mcp.json'],
+        serverCount: 1,
+        syncStatus: 'out-of-sync',
+      },
+    ]
+
+    const previewError = Object.assign(new Error('needs config'), {
+      errorCode: 'config_creation_required' as const,
+    })
+
+    Object.defineProperty(window, 'api', {
+      value: {
+        ...window.api,
+        clientsPreviewSync: vi.fn().mockRejectedValue(previewError),
+      },
+      writable: true,
+      configurable: true,
+    })
+
+    renderWithProviders(<ClientsPage />)
+
+    fireEvent.click(screen.getByTestId('btn-sync-cursor'))
+
+    expect(await screen.findByText('Create new configuration?')).toBeInTheDocument()
+    expect(toastErrorMock).not.toHaveBeenCalledWith('needs config')
   })
 
   it('shows green check indicator when validation succeeds', async () => {
