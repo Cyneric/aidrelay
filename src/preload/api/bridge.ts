@@ -6,8 +6,10 @@ import { createDialogApi } from './dialog.api'
 import { createEventsApi } from './events.api'
 import { createFilesApi } from './files.api'
 import { createGitSyncApi } from './git-sync.api'
+import { createInstallerApi } from './installer.api'
 import { createLicenseApi } from './license.api'
 import { createLogApi } from './log.api'
+import { createSyncApi } from './sync.api'
 import { createProfilesApi } from './profiles.api'
 import { createRegistryApi } from './registry.api'
 import { createRulesApi } from './rules.api'
@@ -28,6 +30,8 @@ export const createApi = (ipcRenderer: IpcRendererLike) => ({
   ...createLogApi(ipcRenderer),
   ...createGitSyncApi(ipcRenderer),
   ...createRegistryApi(ipcRenderer),
+  ...createInstallerApi(ipcRenderer),
+  ...createSyncApi(ipcRenderer),
   ...createStacksApi(ipcRenderer),
   ...createBackupsApi(ipcRenderer),
   ...createDialogApi(ipcRenderer),

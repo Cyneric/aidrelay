@@ -240,6 +240,52 @@ describe('RulesSyncService.sync — codex clients', () => {
   )
 })
 
+describe('RulesSyncService.sync — gemini-cli', () => {
+  it('writes global rules to %USERPROFILE%/.gemini/GEMINI.md', () => {
+    storedRules.push(makeRule({ name: 'gem-global', scope: 'global', content: 'Global body.' }))
+
+    const result = service.sync('gemini-cli')
+    expect(result.success).toBe(true)
+    expect(result.serversWritten).toBe(1)
+
+    const filePath = join(tmpDir, '.gemini', 'GEMINI.md')
+    expect(existsSync(filePath)).toBe(true)
+    expect(readFileSync(filePath, 'utf-8')).toContain('Global body.')
+  })
+
+  it('writes project rules to {project}/.gemini/GEMINI.md and respects client overrides', () => {
+    const projectPath = join(tmpDir, 'gemini-proj')
+    mkdirSync(projectPath, { recursive: true })
+
+    storedRules.push(
+      makeRule({
+        name: 'gem-project',
+        scope: 'project',
+        projectPath,
+        content: 'Project body.',
+      }),
+      makeRule({
+        id: 'r2',
+        name: 'gem-disabled',
+        scope: 'project',
+        projectPath,
+        content: 'Should not appear.',
+        clientOverrides: { 'gemini-cli': { enabled: false } } as AiRule['clientOverrides'],
+      }),
+    )
+
+    const result = service.sync('gemini-cli')
+    expect(result.success).toBe(true)
+    expect(result.serversWritten).toBe(1)
+
+    const filePath = join(projectPath, '.gemini', 'GEMINI.md')
+    expect(existsSync(filePath)).toBe(true)
+    const fileContent = readFileSync(filePath, 'utf-8')
+    expect(fileContent).toContain('Project body.')
+    expect(fileContent).not.toContain('Should not appear.')
+  })
+})
+
 describe('RulesSyncService.sync — opencode', () => {
   it('writes concatenated instructions to opencode.json', () => {
     const projectPath = join(tmpDir, 'opencode-proj')

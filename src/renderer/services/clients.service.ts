@@ -5,8 +5,11 @@ import type {
   ConfigChangedPayload,
   ConfigImportPreviewResult,
   ConfigImportResult,
+  McpServerMap,
   SyncClientOptions,
   SyncResult,
+  SyncPreviewResult,
+  SyncAllPreviewResult,
   ValidationResult,
 } from '@shared/types'
 import type { ClientInstallProgressPayload } from '@shared/channels'
@@ -15,9 +18,13 @@ export const clientsService = {
   detectAll: (): Promise<ClientStatus[]> => window.api.clientsDetectAll(),
   install: (clientId: ClientId): Promise<ClientInstallResult> =>
     window.api.clientsInstall(clientId),
+  readConfig: (clientId: ClientId): Promise<McpServerMap> => window.api.clientsReadConfig(clientId),
   sync: (clientId: ClientId, options?: SyncClientOptions): Promise<SyncResult> =>
     window.api.clientsSync(clientId, options),
   syncAll: (): Promise<SyncResult[]> => window.api.clientsSyncAll(),
+  previewSync: (clientId: ClientId, options?: SyncClientOptions): Promise<SyncPreviewResult> =>
+    window.api.clientsPreviewSync(clientId, options),
+  previewSyncAll: (): Promise<SyncAllPreviewResult> => window.api.clientsPreviewSyncAll(),
   previewConfigImport: (payload: ConfigChangedPayload): Promise<ConfigImportPreviewResult> =>
     window.api.clientsPreviewConfigImport(payload),
   importConfigChanges: (payload: ConfigChangedPayload): Promise<ConfigImportResult> =>

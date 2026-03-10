@@ -17,6 +17,8 @@
  *   - windsurf     → single concatenated file: `{project}\.windsurfrules`
  *   - codex-cli    → single concatenated file: `{project}\.codex\AGENTS.md`
  *   - codex-gui    → single concatenated file: `{project}\.codex\AGENTS.md`
+ *   - gemini-cli   → concatenated file: global `%USERPROFILE%\.gemini\GEMINI.md`
+ *                    and project `{project}\.gemini\GEMINI.md`
  *   - opencode     → project `opencode.json` top-level `instructions` field
  *   - visual-studio → single concatenated file: `{project}\.github\copilot-instructions.md`
  *
@@ -183,6 +185,8 @@ export class RulesSyncService {
       case 'codex-cli':
       case 'codex-gui':
         return this.writeConcat(rules, (projectPath) => join(projectPath, '.codex', 'AGENTS.md'))
+      case 'gemini-cli':
+        return this.writeGemini(rules)
       case 'opencode':
         return this.writeOpenCode(rules)
       default:
@@ -291,6 +295,43 @@ export class RulesSyncService {
       atomicWrite(filePath, JSON.stringify(merged, null, 2))
       written += projectRules.length
     }
+    return written
+  }
+
+  /**
+   * Writes Gemini rules to `.gemini/GEMINI.md`.
+   * - Global-scope rules go to `%USERPROFILE%\.gemini\GEMINI.md`.
+   * - Project-scope rules go to `{projectPath}\.gemini\GEMINI.md`.
+   */
+  private writeGemini(rules: readonly AiRule[]): number {
+    const globalRules = rules.filter((rule) => rule.scope === 'global')
+    const projectRules = rules.filter((rule) => rule.scope === 'project')
+    const byProject = new Map<string, AiRule[]>()
+
+    for (const rule of projectRules) {
+      if (!rule.projectPath) {
+        log.warn(`[rules-sync] Rule "${rule.name}" has no projectPath — skipping for gemini-cli`)
+        continue
+      }
+      const existing = byProject.get(rule.projectPath) ?? []
+      existing.push(rule)
+      byProject.set(rule.projectPath, existing)
+    }
+
+    let written = 0
+
+    if (globalRules.length > 0) {
+      const globalPath = join(this.userProfile, '.gemini', 'GEMINI.md')
+      atomicWrite(globalPath, toConcat(globalRules))
+      written += globalRules.length
+    }
+
+    for (const [projectPath, rulesForProject] of byProject) {
+      const filePath = join(projectPath, '.gemini', 'GEMINI.md')
+      atomicWrite(filePath, toConcat(rulesForProject))
+      written += rulesForProject.length
+    }
+
     return written
   }
 }

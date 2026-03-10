@@ -80,6 +80,7 @@ const server: McpServer = {
     'claude-desktop': { enabled: true },
     'claude-code': { enabled: true },
     cursor: { enabled: true },
+    'gemini-cli': { enabled: true },
     vscode: { enabled: true },
     'vscode-insiders': { enabled: true },
     windsurf: { enabled: true },
@@ -94,6 +95,13 @@ const server: McpServer = {
   notes: '',
   createdAt: '2026-03-08T10:00:00.000Z',
   updatedAt: '2026-03-08T10:00:00.000Z',
+  recipeId: '',
+  recipeVersion: '',
+  setupStatus: 'ready',
+  lastInstallResult: {},
+  lastInstallTimestamp: '2026-03-08T10:00:00.000Z',
+  installPolicy: 'manual',
+  normalizedLaunchConfig: {},
 }
 const secondServer: McpServer = {
   ...server,

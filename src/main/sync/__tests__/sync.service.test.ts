@@ -175,7 +175,7 @@ describe('SyncService', () => {
     const result = await syncService.sync(makeAdapter(), configPath)
 
     expect(result.success).toBe(false)
-    expect(result.error).toMatch(/parse failed/i)
+    expect(result.error).toMatch(/Config file contains invalid JSON/i)
 
     const log = activityLogRepo.query({ action: 'sync.failed' })
     expect(log).toHaveLength(1)

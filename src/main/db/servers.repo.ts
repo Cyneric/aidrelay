@@ -40,6 +40,13 @@ interface ServerRow {
   notes: string
   created_at: string
   updated_at: string
+  recipe_id?: string
+  recipe_version?: string
+  setup_status?: string
+  last_install_result?: string
+  last_install_timestamp?: string
+  install_policy?: string
+  normalized_launch_config?: string
 }
 
 // ─── Mapper ───────────────────────────────────────────────────────────────────
@@ -67,6 +74,16 @@ const rowToServer = (row: ServerRow): McpServer => ({
   notes: row.notes,
   createdAt: row.created_at,
   updatedAt: row.updated_at,
+  recipeId: row.recipe_id ?? '',
+  recipeVersion: row.recipe_version ?? '',
+  setupStatus: (row.setup_status ?? 'ready') as McpServer['setupStatus'],
+  lastInstallResult: JSON.parse(row.last_install_result ?? '{}') as Record<string, unknown>,
+  lastInstallTimestamp: row.last_install_timestamp ?? '',
+  installPolicy: (row.install_policy ?? 'manual') as McpServer['installPolicy'],
+  normalizedLaunchConfig: JSON.parse(row.normalized_launch_config ?? '{}') as Record<
+    string,
+    unknown
+  >,
 })
 
 // ─── Repository ───────────────────────────────────────────────────────────────
@@ -116,9 +133,10 @@ export class ServersRepo {
       .prepare(
         `INSERT INTO servers
           (id, name, type, url, command, args, env, secret_env_keys, headers, secret_header_keys, enabled,
-           client_overrides, tags, notes, created_at, updated_at)
+           client_overrides, tags, notes, created_at, updated_at,
+           recipe_id, recipe_version, setup_status, last_install_result, last_install_timestamp, install_policy, normalized_launch_config)
          VALUES
-          (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         id,
@@ -137,6 +155,13 @@ export class ServersRepo {
         input.notes ?? '',
         now,
         now,
+        '',
+        '',
+        'ready',
+        '{}',
+        '',
+        'manual',
+        '{}',
       )
 
     return this.findById(id)!

@@ -43,6 +43,24 @@
     },
     "configImportResult": "Externe Konfiguration importiert: {{created}} neu, {{updated}} aktualisiert, {{skipped}} übersprungen.",
     "configImportResultWithErrors": "Import mit Fehlern: {{created}} neu, {{updated}} aktualisiert, {{skipped}} übersprungen, {{count}} Fehler.",
+    "syncPreviewDialogTitle": "Sync‑Änderungen prüfen",
+    "syncPreviewDialogDescription": "{{count}} geänderte Servereinträge vor dem Sync mit {{client}} prüfen.",
+    "syncPreviewAllDialogTitle": "Sync‑Änderungen für alle Clients prüfen",
+    "syncPreviewAllDialogDescription": "{{totalItems}} geänderte Servereinträge in {{clientCount}} Clients vor dem Sync prüfen.",
+    "syncPreviewSummaryCreate": "{{count}} neu",
+    "syncPreviewSummaryOverwrite": "{{count}} überschreiben",
+    "syncPreviewSummaryNoOp": "{{count}} unverändert",
+    "syncPreviewSummaryPreserved": "{{count}} erhalten (unverwaltet)",
+    "syncPreviewSummaryRemoved": "{{count}} entfernt",
+    "syncPreviewBefore": "Aktuell im Client",
+    "syncPreviewAfter": "Wird geschrieben",
+    "syncPreviewAction": {
+      "create": "Neu",
+      "overwrite": "Überschreiben",
+      "no-op": "Unverändert",
+      "preserved_unmanaged": "Erhalten (unverwaltet)",
+      "removed": "Entfernt"
+    },
     "dismiss": "Schließen",
     "refresh": "Aktualisieren",
     "detectionFailed": "Erkennung fehlgeschlagen: {{error}}",
@@ -592,8 +610,8 @@
     "checkingUpdates": "Wird geprüft…",
     "checkingForUpdates": "Nach Updates wird gesucht…",
     "dangerTitle": "Gefahrenbereich",
-    "dangerDescription": "Destruktive Wartungsaktionen zum Zurücksetzen lokaler Einstellungen.",
-    "resetWarning": "Setzen Sie ausgewählte Anwendungseinstellungen zurück, um einen frischen Zustand für Tests oder Wiederherstellung zu erhalten.",
+    "dangerDescription": "Destruktive Aktionen zum Zurücksetzen lokaler Einstellungen.",
+    "resetWarning": "Setzen Sie ausgewählte Anwendungseinstellungen zurück, um einen frischen Zustand zu erhalten.",
     "resetButton": "Anwendungseinstellungen zurücksetzen",
     "resetDialogTitle": "Ausgewählte Anwendungseinstellungen zurücksetzen?",
     "resetDialogDescription": "Wählen Sie aus, was gelöscht werden soll. Diese Aktion kann nicht rückgängig gemacht werden.",
@@ -658,6 +676,68 @@
   "app": {
     "trayProfileActivated": "Profil über das Tray aktiviert.",
     "trayProfileActivationFailed": "Profil konnte über das Tray nicht aktiviert werden."
+  },
+  "installer": {
+    "wizard": {
+      "step": {
+        "preflight": "Preflight-Prüfung — {{name}}",
+        "commands": "Befehlsvorschau — {{name}}",
+        "secrets": "Geheimnisbindung — {{name}}",
+        "installing": "Installation — {{name}}",
+        "complete": "Installation abgeschlossen — {{name}}"
+      },
+      "description": {
+        "preflight": "Überprüfung der Laufzeitabhängigkeiten und Voraussetzungen.",
+        "commands": "Installationsbefehle vor der Ausführung überprüfen.",
+        "secrets": "Fehlende Umgebungsvariablenwerte angeben.",
+        "installing": "Installiere den MCP-Server lokal. Dies kann einige Minuten dauern.",
+        "complete": "Installation erfolgreich abgeschlossen."
+      },
+      "loading": "Installationsdaten werden geladen…",
+      "continue": "Weiter",
+      "startInstall": "Installation starten",
+      "installing": "Installiere…",
+      "retry": "Preflight erneut versuchen"
+    },
+    "preflight": {
+      "title": "Preflight-Prüfung",
+      "issues": "Zu behebende Probleme ({{count}})",
+      "ready": "Bereit ({{count}})",
+      "missingRuntimes": "Fehlende Laufzeiten",
+      "suggestions": "Umsetzbare Vorschläge",
+      "retry": "Preflight erneut versuchen"
+    },
+    "commands": {
+      "title": "Befehlsvorschau",
+      "description": "Die folgenden Befehle werden zur Installation des MCP-Servers ausgeführt.",
+      "copy": "Befehl kopieren"
+    },
+    "secrets": {
+      "title": "Geheimnisbindung",
+      "description": "Geben Sie vor der Installation fehlende Umgebungsvariablenwerte an.",
+      "loading": "Geheimnisse werden geladen…",
+      "noMissing": "Keine fehlenden Geheimnisse gefunden.",
+      "envVar": "Umgebungsvariable",
+      "header": "HTTP-Header",
+      "savedLabel": "Gespeichert",
+      "placeholder": "Wert für {{key}}",
+      "save": "Speichern",
+      "saveAll": "Alle speichern",
+      "saving": "Speichern…",
+      "count": "{{saved}} von {{total}} gespeichert",
+      "saved": "Geheimnis {{key}} gespeichert",
+      "allSaved": "Alle Geheimnisse gespeichert"
+    },
+    "installation": {
+      "title": "Installiere",
+      "waiting": "Warte auf Installationslogs…"
+    },
+    "completion": {
+      "success": "{{name}} erfolgreich installiert",
+      "failure": "{{name}} Installation fehlgeschlagen",
+      "successDescription": "Der MCP-Server ist jetzt einsatzbereit.",
+      "failureDescription": "Bei der Installation ist etwas schiefgelaufen. Überprüfen Sie die Logs für Details."
+    }
   },
   "common": {
     "save": "Speichern",

@@ -43,6 +43,24 @@
     },
     "configImportResult": "Imported external config: {{created}} created, {{updated}} updated, {{skipped}} skipped.",
     "configImportResultWithErrors": "Imported with errors: {{created}} created, {{updated}} updated, {{skipped}} skipped, {{count}} errors.",
+    "syncPreviewDialogTitle": "Review sync changes",
+    "syncPreviewDialogDescription": "Review {{count}} changed server entries before syncing to {{client}}.",
+    "syncPreviewAllDialogTitle": "Review sync changes for all clients",
+    "syncPreviewAllDialogDescription": "Review {{totalItems}} changed server entries across {{clientCount}} clients before syncing.",
+    "syncPreviewSummaryCreate": "{{count}} create",
+    "syncPreviewSummaryOverwrite": "{{count}} overwrite",
+    "syncPreviewSummaryNoOp": "{{count}} no change",
+    "syncPreviewSummaryPreserved": "{{count}} preserved (unmanaged)",
+    "syncPreviewSummaryRemoved": "{{count}} removed",
+    "syncPreviewBefore": "Current in client",
+    "syncPreviewAfter": "Will be written",
+    "syncPreviewAction": {
+      "create": "Create",
+      "overwrite": "Overwrite",
+      "no-op": "No change",
+      "preserved_unmanaged": "Preserved (unmanaged)",
+      "removed": "Removed"
+    },
     "dismiss": "Dismiss",
     "refresh": "Refresh",
     "detectionFailed": "Detection failed: {{error}}",
@@ -592,8 +610,8 @@
     "checkingUpdates": "Checking…",
     "checkingForUpdates": "Checking for updates…",
     "dangerTitle": "Danger Zone",
-    "dangerDescription": "Destructive maintenance actions for resetting local settings state.",
-    "resetWarning": "Reset selected application settings to return to a fresh state for testing or recovery.",
+    "dangerDescription": "Destructive actions for resetting local settings state.",
+    "resetWarning": "Reset selected application settings to return to a fresh state.",
     "resetButton": "Reset application settings",
     "resetDialogTitle": "Reset selected application settings?",
     "resetDialogDescription": "Choose what to clear. This action cannot be undone.",
@@ -658,6 +676,68 @@
   "app": {
     "trayProfileActivated": "Profile activated from tray.",
     "trayProfileActivationFailed": "Failed to activate profile from tray."
+  },
+  "installer": {
+    "wizard": {
+      "step": {
+        "preflight": "Preflight check — {{name}}",
+        "commands": "Command preview — {{name}}",
+        "secrets": "Secret binding — {{name}}",
+        "installing": "Installing — {{name}}",
+        "complete": "Installation complete — {{name}}"
+      },
+      "description": {
+        "preflight": "Checking runtime dependencies and prerequisites.",
+        "commands": "Review the installation commands before they run.",
+        "secrets": "Provide missing environment variable values.",
+        "installing": "Installing the MCP server locally. This may take a few minutes.",
+        "complete": "Installation finished successfully."
+      },
+      "loading": "Loading installation data…",
+      "continue": "Continue",
+      "startInstall": "Start installation",
+      "installing": "Installing…",
+      "retry": "Retry preflight"
+    },
+    "preflight": {
+      "title": "Preflight check",
+      "issues": "Issues to fix ({{count}})",
+      "ready": "Ready ({{count}})",
+      "missingRuntimes": "Missing runtimes",
+      "suggestions": "Actionable suggestions",
+      "retry": "Retry preflight"
+    },
+    "commands": {
+      "title": "Command preview",
+      "description": "The following commands will be executed to install the MCP server.",
+      "copy": "Copy command"
+    },
+    "secrets": {
+      "title": "Secret binding",
+      "description": "Provide missing environment variable values before installation.",
+      "loading": "Loading secrets…",
+      "noMissing": "No missing secrets found.",
+      "envVar": "Environment variable",
+      "header": "HTTP header",
+      "savedLabel": "Saved",
+      "placeholder": "Value for {{key}}",
+      "save": "Save",
+      "saveAll": "Save all",
+      "saving": "Saving…",
+      "count": "{{saved}} of {{total}} saved",
+      "saved": "Saved secret {{key}}",
+      "allSaved": "All secrets saved"
+    },
+    "installation": {
+      "title": "Installing",
+      "waiting": "Waiting for installation logs…"
+    },
+    "completion": {
+      "success": "{{name}} installed successfully",
+      "failure": "{{name}} installation failed",
+      "successDescription": "The MCP server is now ready to use.",
+      "failureDescription": "Something went wrong during installation. Check the logs for details."
+    }
   },
   "common": {
     "save": "Save",

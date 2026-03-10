@@ -20,6 +20,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { filesService } from '@/services/files.service'
+import { useTheme } from '@/lib/useTheme'
+import { ensureAidrelayMonacoThemes, getAidrelayMonacoTheme } from '@/lib/monacoTheme'
 
 type FileErrorCode =
   | 'file_not_found'
@@ -65,6 +67,7 @@ interface FileEditModalProps {
 
 const FileEditModal = ({ path, open, onOpenChange }: FileEditModalProps) => {
   const { t } = useTranslation()
+  const { effectiveTheme } = useTheme()
   const [content, setContent] = useState('')
   const [initialContent, setInitialContent] = useState('')
   const [mtimeMs, setMtimeMs] = useState<number | null>(null)
@@ -174,6 +177,7 @@ const FileEditModal = ({ path, open, onOpenChange }: FileEditModalProps) => {
               <Editor
                 value={content}
                 language={language}
+                beforeMount={ensureAidrelayMonacoThemes}
                 onChange={(val) => setContent(val ?? '')}
                 options={{
                   minimap: { enabled: false },
@@ -183,7 +187,7 @@ const FileEditModal = ({ path, open, onOpenChange }: FileEditModalProps) => {
                   wordWrap: 'on',
                   automaticLayout: true,
                 }}
-                theme="vs-dark"
+                theme={getAidrelayMonacoTheme(effectiveTheme)}
               />
             )}
           </div>

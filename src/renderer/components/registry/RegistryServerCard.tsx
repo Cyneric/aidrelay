@@ -16,6 +16,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { BadgeCheck, Download } from 'lucide-react'
 import { toast } from 'sonner'
+import { InstallLocalWizard } from '@/components/installer/InstallLocalWizard'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -41,6 +42,8 @@ const RegistryServerCard = ({ server, canInstall }: RegistryServerCardProps) => 
   const { t } = useTranslation()
   const { load } = useServersStore()
   const [installing, setInstalling] = useState(false)
+  const [wizardOpen, setWizardOpen] = useState(false)
+  const [installedServerId, setInstalledServerId] = useState<string | null>(null)
 
   const handleInstall = async () => {
     setInstalling(true)
@@ -52,14 +55,21 @@ const RegistryServerCard = ({ server, canInstall }: RegistryServerCardProps) => 
           ? plan.options.find((o) => o.id === plan.defaultOptionId)
           : undefined) ?? plan.options[0]
       if (!option) throw new Error('No install option available')
-      await window.api.registryInstall({
+      const installedServer = await window.api.registryInstall({
         provider,
         serverId: server.id,
         optionId: option.id,
         confirmed: true,
       })
       await load()
-      toast.success(`"${server.displayName}" installed`)
+      // For remote (hosted) servers, installation is complete
+      if (server.remote) {
+        toast.success(`"${server.displayName}" installed`)
+      } else {
+        // Deployable local server: open installation wizard
+        setInstalledServerId(installedServer.id)
+        setWizardOpen(true)
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Installation failed'
       toast.error(message)
@@ -78,73 +88,90 @@ const RegistryServerCard = ({ server, canInstall }: RegistryServerCardProps) => 
   }
 
   return (
-    <article
-      className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4"
-      data-testid={`registry-card-${server.id}`}
-    >
-      {/* Header row */}
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex items-center gap-1.5 min-w-0">
-          <span className="font-semibold text-sm truncate">{server.displayName}</span>
-          {server.verified && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <BadgeCheck
-                  size={14}
-                  className="shrink-0 text-primary"
-                  aria-label="Verified"
-                  data-testid={`registry-verified-${server.id}`}
-                />
-              </TooltipTrigger>
-              <TooltipContent>Verified by Smithery</TooltipContent>
-            </Tooltip>
-          )}
-        </div>
+    <>
+      <article
+        className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4"
+        data-testid={`registry-card-${server.id}`}
+      >
+        {/* Header row */}
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="font-semibold text-sm truncate">{server.displayName}</span>
+            {server.verified && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <BadgeCheck
+                    size={14}
+                    className="shrink-0 text-primary"
+                    aria-label="Verified"
+                    data-testid={`registry-verified-${server.id}`}
+                  />
+                </TooltipTrigger>
+                <TooltipContent>Verified by Smithery</TooltipContent>
+              </Tooltip>
+            )}
+          </div>
 
-        <div className="flex items-center gap-1.5 shrink-0">
-          <Badge
-            variant="secondary"
-            className="font-mono text-[11px]"
-            data-testid={`registry-availability-badge-${server.id}`}
-          >
-            {server.remote ? t('registry.badges.hosted') : t('registry.badges.deployable')}
-          </Badge>
-          <Badge variant="secondary" className="font-mono text-[11px] capitalize">
-            {server.source}
-          </Badge>
-        </div>
-      </div>
-
-      {/* Description */}
-      <p className="text-xs text-muted-foreground line-clamp-3 flex-1">{server.description}</p>
-
-      {/* Footer */}
-      <div className="flex items-center justify-between gap-2 mt-auto pt-1">
-        {server.useCount !== undefined && (
-          <span className="text-xs text-muted-foreground">
-            {server.useCount.toLocaleString()} installs
-          </span>
-        )}
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              type="button"
-              size="sm"
-              onClick={() => void handleInstall()}
-              disabled={installDisabled}
-              className="ml-auto gap-1.5"
-              aria-label={installTooltip}
-              data-testid={`registry-install-${server.id}`}
+          <div className="flex items-center gap-1.5 shrink-0">
+            <Badge
+              variant="secondary"
+              className="font-mono text-[11px]"
+              data-testid={`registry-availability-badge-${server.id}`}
             >
-              <Download size={12} aria-hidden="true" />
-              {installing ? 'Installing…' : 'Install'}
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>{installTooltip}</TooltipContent>
-        </Tooltip>
-      </div>
-    </article>
+              {server.remote ? t('registry.badges.hosted') : t('registry.badges.deployable')}
+            </Badge>
+            <Badge variant="secondary" className="font-mono text-[11px] capitalize">
+              {server.source}
+            </Badge>
+          </div>
+        </div>
+
+        {/* Description */}
+        <p className="text-xs text-muted-foreground line-clamp-3 flex-1">{server.description}</p>
+
+        {/* Footer */}
+        <div className="flex items-center justify-between gap-2 mt-auto pt-1">
+          {server.useCount !== undefined && (
+            <span className="text-xs text-muted-foreground">
+              {server.useCount.toLocaleString()} installs
+            </span>
+          )}
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => void handleInstall()}
+                disabled={installDisabled}
+                className="ml-auto gap-1.5"
+                aria-label={installTooltip}
+                data-testid={`registry-install-${server.id}`}
+              >
+                <Download size={12} aria-hidden="true" />
+                {installing ? 'Installing…' : 'Install'}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{installTooltip}</TooltipContent>
+          </Tooltip>
+        </div>
+      </article>
+
+      {installedServerId && (
+        <InstallLocalWizard
+          open={wizardOpen}
+          serverId={installedServerId}
+          serverName={server.displayName}
+          onClose={() => {
+            setWizardOpen(false)
+            setInstalledServerId(null)
+          }}
+          onSuccess={() => {
+            toast.success(`"${server.displayName}" installed and configured`)
+          }}
+        />
+      )}
+    </>
   )
 }
 

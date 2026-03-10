@@ -21,6 +21,7 @@ import { vscodeInsidersAdapter } from './vscode-insiders.adapter'
 import { windsurfAdapter } from './windsurf.adapter'
 import { zedAdapter } from './zed.adapter'
 import { jetbrainsAdapter } from './jetbrains.adapter'
+import { geminiCliAdapter } from './gemini-cli.adapter'
 import { codexCliAdapter } from './codex-cli.adapter'
 import { codexGuiAdapter } from './codex-gui.adapter'
 import { opencodeAdapter } from './opencode.adapter'
@@ -39,6 +40,7 @@ export const ADAPTERS: Readonly<Map<ClientId, ClientAdapter>> = new Map<ClientId
   ['windsurf', windsurfAdapter],
   ['zed', zedAdapter],
   ['jetbrains', jetbrainsAdapter],
+  ['gemini-cli', geminiCliAdapter],
   ['codex-cli', codexCliAdapter],
   ['codex-gui', codexGuiAdapter],
   ['opencode', opencodeAdapter],
@@ -58,6 +60,7 @@ export const ADAPTER_IDS: readonly ClientId[] = [
   'windsurf',
   'zed',
   'jetbrains',
+  'gemini-cli',
   'codex-cli',
   'codex-gui',
   'opencode',

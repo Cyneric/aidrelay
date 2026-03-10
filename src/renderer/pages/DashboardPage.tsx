@@ -2,7 +2,7 @@
  * @file src/renderer/pages/DashboardPage.tsx
  *
  * @created 07.03.2026
- * @modified 08.03.2026
+ * @modified 10.03.2026
  *
  * @author Christian Blank <aidrelay@proton.me>
  * @copyright 2026
@@ -32,10 +32,12 @@ import { ClientCard } from '@/components/clients/ClientCard'
 import { CreateConfigConfirmDialog } from '@/components/clients/CreateConfigConfirmDialog'
 import { ConfigImportDiffDialog } from '@/components/clients/ConfigImportDiffDialog'
 import { useClientsStore } from '@/stores/clients.store'
+import { useServersStore } from '@/stores/servers.store'
 import { clientsService } from '@/services/clients.service'
 import { cn } from '@/lib/utils'
 import type {
   ClientStatus,
+  McpServerMap,
   ConfigChangedPayload,
   ConfigImportPreviewResult,
   SyncClientOptions,
@@ -67,8 +69,22 @@ const getPriorityScore = (client: ClientStatus, missingConfig: boolean): number 
 const positiveServerCount = (serverCount: number): number =>
   Number.isFinite(serverCount) && serverCount > 0 ? Math.trunc(serverCount) : 0
 
+const stableSerialize = (value: unknown): string => {
+  if (value === null) return 'null'
+  if (Array.isArray(value)) return `[${value.map((entry) => stableSerialize(entry)).join(',')}]`
+  if (typeof value === 'object') {
+    const entries = Object.entries(value as Record<string, unknown>).sort(([a], [b]) =>
+      a.localeCompare(b),
+    )
+    return `{${entries.map(([key, entry]) => `${key}:${stableSerialize(entry)}`).join(',')}}`
+  }
+  const primitive = JSON.stringify(value)
+  return primitive ?? 'undefined'
+}
+
 const DashboardPage = () => {
   const { clients, loading, error, detectAll, syncClient } = useClientsStore()
+  const { servers, load: loadServers, loading: serversLoading } = useServersStore()
   const { t } = useTranslation()
   const [query, setQuery] = useState('')
   const [activeFilter, setActiveFilter] = useState<DashboardFilter>('all')
@@ -84,10 +100,15 @@ const DashboardPage = () => {
   const [configImportDialogOpen, setConfigImportDialogOpen] = useState(false)
   const [configImportLoading, setConfigImportLoading] = useState(false)
   const [configImporting, setConfigImporting] = useState(false)
+  const [detectedUniqueServerCount, setDetectedUniqueServerCount] = useState(0)
+
+  const reloadDashboardData = useCallback(async () => {
+    await Promise.all([detectAll(), loadServers()])
+  }, [detectAll, loadServers])
 
   useEffect(() => {
-    void detectAll()
-  }, [detectAll])
+    void reloadDashboardData()
+  }, [reloadDashboardData])
 
   const openConfigImportDialog = useCallback(
     async (payload: ConfigChangedPayload) => {
@@ -126,6 +147,49 @@ const DashboardPage = () => {
     return unsubscribe
   }, [openConfigImportDialog, t])
 
+  useEffect(() => {
+    let cancelled = false
+
+    const loadDetectedUniqueServerCount = async () => {
+      const installedClients = clients.filter(
+        (client) => client.installed && client.configPaths.length > 0,
+      )
+
+      if (installedClients.length === 0) {
+        if (!cancelled) setDetectedUniqueServerCount(0)
+        return
+      }
+
+      const uniqueSignatures = new Set<string>()
+      const maps = await Promise.all(
+        installedClients.map(async (client) => {
+          try {
+            return await clientsService.readConfig(client.id)
+          } catch {
+            // Ignore read errors and treat as empty config
+            return {} as McpServerMap
+          }
+        }),
+      )
+
+      for (const map of maps) {
+        for (const [name, config] of Object.entries(map)) {
+          uniqueSignatures.add(`${name}|${stableSerialize(config)}`)
+        }
+      }
+
+      if (!cancelled) {
+        setDetectedUniqueServerCount(uniqueSignatures.size)
+      }
+    }
+
+    void loadDetectedUniqueServerCount()
+
+    return () => {
+      cancelled = true
+    }
+  }, [clients])
+
   const closeConfigImportDialog = () => {
     if (configImporting) return
     setConfigImportDialogOpen(false)
@@ -139,7 +203,7 @@ const DashboardPage = () => {
     setConfigImporting(true)
     try {
       const result = await clientsService.importConfigChanges(configImportPayload)
-      await detectAll()
+      await reloadDashboardData()
       if (result.errors.length > 0) {
         toast.info(
           t('dashboard.configImportResultWithErrors', {
@@ -203,13 +267,10 @@ const DashboardPage = () => {
     const installedTools = clientView.filter((item) => item.client.installed).length
     const outOfSyncTools = clientView.filter((item) => item.needsAttention).length
     const missingConfigTools = clientView.filter((item) => item.missingConfig).length
-    const totalServers = clientView.reduce(
-      (acc, item) => acc + positiveServerCount(item.client.serverCount),
-      0,
-    )
+    const totalServers = servers.length > 0 ? servers.length : detectedUniqueServerCount
 
     return { installedTools, outOfSyncTools, missingConfigTools, totalServers }
-  }, [clientView])
+  }, [clientView, detectedUniqueServerCount, servers.length])
 
   const filterCounts = useMemo(
     () => ({
@@ -337,7 +398,7 @@ const DashboardPage = () => {
         else failed += 1
       }
 
-      await detectAll()
+      await reloadDashboardData()
     } catch {
       failed = actionableTargets.length - succeeded
     } finally {
@@ -389,7 +450,7 @@ const DashboardPage = () => {
       />
 
       <div
-        className="sticky top-0 z-20 -mx-6 -mt-6 mb-6 border-b border-border/70 bg-background/95 px-6 pb-4 pt-8 backdrop-blur"
+        className="sticky top-[calc(var(--spacing)*-6)] z-20 -mx-6 -mt-6 mb-6 border-b border-border/70 bg-background/95 px-6 pb-4 pt-8 backdrop-blur"
         data-testid="dashboard-sticky-toolbar"
       >
         <header className="mb-4 flex flex-wrap items-center justify-between gap-4">
@@ -501,14 +562,18 @@ const DashboardPage = () => {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => void detectAll()}
-                disabled={loading}
+                onClick={() => void reloadDashboardData()}
+                disabled={loading || serversLoading}
                 className="gap-1.5"
                 aria-label={t('dashboard.refresh')}
                 data-testid="detect-all-button"
               >
-                <RefreshCw size={14} className={loading ? 'animate-spin' : ''} aria-hidden="true" />
-                {loading ? t('common.loading') : t('dashboard.refresh')}
+                <RefreshCw
+                  size={14}
+                  className={loading || serversLoading ? 'animate-spin' : ''}
+                  aria-hidden="true"
+                />
+                {loading || serversLoading ? t('common.loading') : t('dashboard.refresh')}
               </Button>
               <Button
                 type="button"

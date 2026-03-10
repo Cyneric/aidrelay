@@ -106,8 +106,14 @@ export const vscodeAdapter: ClientAdapter = {
   read(configPath: string): Promise<McpServerMap> {
     if (!existsSync(configPath)) return Promise.resolve({})
 
-    const raw = JSON.parse(readFileSync(configPath, 'utf-8')) as VsCodeConfig
-    return Promise.resolve((raw.servers ?? {}) as McpServerMap)
+    try {
+      const raw = JSON.parse(readFileSync(configPath, 'utf-8')) as VsCodeConfig
+      return Promise.resolve((raw.servers ?? {}) as McpServerMap)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      log.warn(`[vscode] failed to parse config ${configPath}: ${message}`)
+      return Promise.resolve({})
+    }
   },
 
   write(configPath: string, servers: McpServerMap): Promise<void> {

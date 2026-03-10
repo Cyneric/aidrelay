@@ -62,6 +62,13 @@ const stripServer = (
   notes: s.notes,
   createdAt: s.createdAt,
   updatedAt: s.updatedAt,
+  recipeId: s.recipeId,
+  recipeVersion: s.recipeVersion,
+  setupStatus: s.setupStatus,
+  lastInstallResult: s.lastInstallResult,
+  lastInstallTimestamp: s.lastInstallTimestamp,
+  installPolicy: s.installPolicy,
+  normalizedLaunchConfig: s.normalizedLaunchConfig,
 })
 
 /**

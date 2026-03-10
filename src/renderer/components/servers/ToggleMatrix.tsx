@@ -25,6 +25,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { ClientIcon } from '@/components/common/icons/ClientIcon'
 import { useServersStore } from '@/stores/servers.store'
 import { useClientsStore } from '@/stores/clients.store'
 import type { ClientId } from '@shared/types'
@@ -94,7 +95,10 @@ const ToggleMatrix = () => {
                 scope="col"
                 className="text-center font-medium text-muted-foreground py-2 px-3 min-w-[100px]"
               >
-                {client.displayName}
+                <div className="flex flex-col items-center gap-1">
+                  <ClientIcon clientId={client.id} size={16} className="text-muted-foreground" />
+                  <span className="text-xs">{client.displayName}</span>
+                </div>
               </TableHead>
             ))}
           </TableRow>

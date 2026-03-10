@@ -52,6 +52,7 @@ const detectionById: Record<
   windsurf: { installed: false, configPaths: [], serverCount: 0 },
   zed: { installed: false, configPaths: [], serverCount: 0 },
   jetbrains: { installed: false, configPaths: [], serverCount: 0 },
+  'gemini-cli': { installed: false, configPaths: [], serverCount: 0 },
   'codex-cli': { installed: false, configPaths: [], serverCount: 0 },
   'codex-gui': { installed: false, configPaths: [], serverCount: 0 },
   opencode: { installed: false, configPaths: [], serverCount: 0 },
@@ -80,6 +81,7 @@ const makeAdapter = (id: ClientId, displayName: string): ClientAdapter => ({
 const ADAPTER_IDS: readonly ClientId[] = [
   'vscode',
   'vscode-insiders',
+  'gemini-cli',
   'codex-cli',
   'codex-gui',
   'opencode',
@@ -90,6 +92,7 @@ const ADAPTER_IDS: readonly ClientId[] = [
 const ADAPTERS = new Map<ClientId, ClientAdapter>([
   ['vscode', makeAdapter('vscode', 'VS Code')],
   ['vscode-insiders', makeAdapter('vscode-insiders', 'VS Code Insiders')],
+  ['gemini-cli', makeAdapter('gemini-cli', 'Gemini CLI')],
   ['codex-cli', makeAdapter('codex-cli', 'Codex CLI')],
   ['codex-gui', makeAdapter('codex-gui', 'Codex GUI')],
   ['opencode', makeAdapter('opencode', 'OpenCode')],
@@ -256,10 +259,24 @@ describe('clients IPC handlers', () => {
     })
   })
 
-  it('clients:sync requires confirmation before creating missing config', async () => {
-    detectionById['codex-cli'] = { installed: true, configPaths: [], serverCount: 0 }
+  it('clients:sync resolves fallback path for installed visual studio with no config file', async () => {
+    detectionById['visual-studio'] = { installed: true, configPaths: [], serverCount: 0 }
 
-    const result = await call<SyncResult>('clients:sync', 'codex-cli')
+    const result = await call<SyncResult>('clients:sync', 'visual-studio', {
+      allowCreateConfigIfMissing: true,
+    })
+
+    expect(result.success).toBe(true)
+    expect(syncCalls).toContainEqual({
+      clientId: 'visual-studio',
+      configPath: 'C:\\Users\\tester\\AppData\\Roaming\\VisualStudio\\mcp.json',
+    })
+  })
+
+  it('clients:sync requires confirmation before creating missing config', async () => {
+    detectionById['gemini-cli'] = { installed: true, configPaths: [], serverCount: 0 }
+
+    const result = await call<SyncResult>('clients:sync', 'gemini-cli')
 
     expect(result.success).toBe(false)
     expect(result.errorCode).toBe('config_creation_required')
@@ -355,6 +372,7 @@ describe('clients IPC handlers', () => {
   it('clients:sync-all includes fallback-capable installed clients without config paths', async () => {
     detectionById['vscode'] = { installed: true, configPaths: [], serverCount: 0 }
     detectionById['vscode-insiders'] = { installed: true, configPaths: [], serverCount: 0 }
+    detectionById['gemini-cli'] = { installed: true, configPaths: [], serverCount: 0 }
     detectionById['codex-cli'] = { installed: true, configPaths: [], serverCount: 0 }
     detectionById['codex-gui'] = { installed: true, configPaths: [], serverCount: 0 }
     detectionById['opencode'] = { installed: true, configPaths: [], serverCount: 0 }
@@ -371,7 +389,7 @@ describe('clients IPC handlers', () => {
 
     const results = await call<SyncResult[]>('clients:sync-all')
 
-    expect(results).toHaveLength(7)
+    expect(results).toHaveLength(8)
     expect(syncCalls).toEqual([
       {
         clientId: 'vscode',
@@ -380,6 +398,10 @@ describe('clients IPC handlers', () => {
       {
         clientId: 'vscode-insiders',
         configPath: 'C:\\Users\\tester\\AppData\\Roaming\\Code - Insiders\\User\\mcp.json',
+      },
+      {
+        clientId: 'gemini-cli',
+        configPath: 'C:\\Users\\tester\\.gemini\\settings.json',
       },
       { clientId: 'codex-cli', configPath: 'C:\\Users\\tester\\.codex\\config.json' },
       {
@@ -410,6 +432,7 @@ describe('clients IPC handlers', () => {
       serverCount: 2,
     }
     detectionById['codex-cli'] = { installed: true, configPaths: [], serverCount: 0 }
+    detectionById['gemini-cli'] = { installed: true, configPaths: [], serverCount: 0 }
 
     testDb
       .prepare(
@@ -431,6 +454,7 @@ describe('clients IPC handlers', () => {
     expect(byId.get('cursor')?.lastSyncedAt).toBe('2026-03-08T10:00:00.000Z')
     expect(byId.get('vscode')?.syncStatus).toBe('error')
     expect(byId.get('codex-cli')?.syncStatus).toBe('never-synced')
+    expect(byId.get('gemini-cli')?.syncStatus).toBe('never-synced')
   })
 
   it('clients:preview-config-import classifies create/overwrite/removed items', async () => {
