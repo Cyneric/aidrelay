@@ -25,18 +25,24 @@ import opencodeIconDark from '@/assets/client-icons/opencode_dark.png'
 import opencodeIconLight from '@/assets/client-icons/opencode_light.png'
 import claudeIconDark from '@/assets/client-icons/claude_dark.png'
 import claudeIconLight from '@/assets/client-icons/claude_light.png'
+import clineIconDark from '@/assets/client-icons/cline_dark.png'
+import clineIconLight from '@/assets/client-icons/cline_light.png'
 import cursorIconDark from '@/assets/client-icons/cursor_dark.png'
 import cursorIconLight from '@/assets/client-icons/cursor_light.png'
 import windsurfIconDark from '@/assets/client-icons/windsurf_dark.png'
 import windsurfIconLight from '@/assets/client-icons/windsurf_light.png'
 import zedIconDark from '@/assets/client-icons/zed_dark.png'
 import zedIconLight from '@/assets/client-icons/zed_light.png'
+import rooCodeIconDark from '@/assets/client-icons/roocode_dark.png'
+import rooCodeIconLight from '@/assets/client-icons/roocode_light.png'
 import jetbrainsIconDark from '@/assets/client-icons/jetbrains_dark.png'
 import jetbrainsIconLight from '@/assets/client-icons/jetbrains_light.png'
 import codexIconDark from '@/assets/client-icons/codex_dark.png'
 import codexIconLight from '@/assets/client-icons/codex_light.png'
 import geminiIconDark from '@/assets/client-icons/gemini_dark.png'
 import geminiIconLight from '@/assets/client-icons/gemini_light.png'
+import kiloCodeIconDark from '@/assets/client-icons/kilocode_dark.png'
+import kiloCodeIconLight from '@/assets/client-icons/kilocode_light.png'
 
 // ─── Icon Source Types ──────────────────────────────────────────────────────────
 
@@ -74,6 +80,18 @@ export const CLIENT_ICON_MAP: Record<ClientId, IconSource> = {
     name: 'claude',
     pathDark: claudeIconDark,
     pathLight: claudeIconLight,
+  },
+  cline: {
+    type: 'custom',
+    name: 'cline',
+    pathDark: clineIconDark,
+    pathLight: clineIconLight,
+  },
+  'roo-code': {
+    type: 'custom',
+    name: 'roo-code',
+    pathDark: rooCodeIconDark,
+    pathLight: rooCodeIconLight,
   },
 
   // Cursor — cursor icon
@@ -130,6 +148,12 @@ export const CLIENT_ICON_MAP: Record<ClientId, IconSource> = {
     name: 'gemini-cli',
     pathDark: geminiIconDark,
     pathLight: geminiIconLight,
+  },
+  'kilo-cli': {
+    type: 'custom',
+    name: 'kilo-cli',
+    pathDark: kiloCodeIconDark,
+    pathLight: kiloCodeIconLight,
   },
 
   // Codex CLI & GUI — GitHub icon (for Copilot)

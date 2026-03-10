@@ -119,6 +119,16 @@ const INSTALL_DEFINITIONS: Readonly<Record<ClientId, ClientInstallDefinition>> =
       },
     ],
   },
+  cline: {
+    docsUrl: 'https://marketplace.visualstudio.com/items?itemName=saoudrizwan.claude-dev',
+    attempts: [],
+    manualOnly: true,
+  },
+  'roo-code': {
+    docsUrl: 'https://marketplace.visualstudio.com/items?itemName=RooVeterinaryInc.roo-cline',
+    attempts: [],
+    manualOnly: true,
+  },
   vscode: {
     docsUrl: 'https://code.visualstudio.com/download',
     attempts: [
@@ -227,6 +237,16 @@ const INSTALL_DEFINITIONS: Readonly<Record<ClientId, ClientInstallDefinition>> =
         manager: 'npm',
         command: 'npm',
         args: ['install', '--global', '@google/gemini-cli', '--yes', '--silent'],
+      },
+    ],
+  },
+  'kilo-cli': {
+    docsUrl: 'https://kilocode.ai/docs/getting-started/installation',
+    attempts: [
+      {
+        manager: 'npm',
+        command: 'npm',
+        args: ['install', '--global', '@kilocode/cli', '--yes', '--silent'],
       },
     ],
   },

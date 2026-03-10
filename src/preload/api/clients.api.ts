@@ -11,6 +11,7 @@ import type {
   SyncPreviewResult,
   SyncAllPreviewResult,
   ValidationResult,
+  ValidationResultByClientId,
 } from '../../shared/types'
 import type { IpcRendererLike } from './types'
 
@@ -39,4 +40,6 @@ export const createClientsApi = (ipcRenderer: IpcRendererLike) => ({
     ipcRenderer.invoke('clients:clear-manual-config-path', clientId),
   clientsValidateConfig: (clientId: ClientId): Promise<ValidationResult> =>
     ipcRenderer.invoke('clients:validate-config', clientId),
+  clientsValidateAllConfigs: (): Promise<ValidationResultByClientId> =>
+    ipcRenderer.invoke('clients:validate-all-configs'),
 })

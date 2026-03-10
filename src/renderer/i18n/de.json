@@ -14,6 +14,12 @@
     "sectionOperations": "Betrieb",
     "sectionSettings": "Einstellungen"
   },
+  "profilesIndicator": {
+    "label": "Aktives Profil",
+    "loading": "Profil wird geladen...",
+    "none": "Kein aktives Profil",
+    "aria": "Aktives Profil: {{name}}"
+  },
   "dashboard": {
     "title": "Dashboard",
     "subtitle": "Erkannte KI-Entwicklungstools",
@@ -125,6 +131,7 @@
     "name": "Name",
     "type": "Typ",
     "status": "Status",
+    "setupStatus": "Einrichtung",
     "command": "Befehl",
     "tags": "Etiketten",
     "enabled": "Aktiv",
@@ -172,6 +179,13 @@
       "passed": "Erfolgreich",
       "failed": "Fehlgeschlagen"
     },
+    "setupStatusLabels": {
+      "not_installed": "Nicht installiert",
+      "installing": "Wird installiert",
+      "installed": "Installiert",
+      "failed": "Fehlgeschlagen",
+      "rolled_back": "Zurückgesetzt"
+    },
     "copyCommand": "Befehl für {{name}} kopieren",
     "copyCommandTooltip": "Vollständigen Befehl kopieren",
     "copyCommandSuccess": "Befehl in die Zwischenablage kopiert",
@@ -179,6 +193,10 @@
     "enableDisable": "{{name}} {{action}}",
     "enable": "aktivieren",
     "disable": "deaktivieren",
+    "installAria": "{{name}} installieren",
+    "repairAria": "{{name}} reparieren",
+    "installTooltip": "MCP-Server lokal installieren",
+    "repairTooltip": "Installation reparieren (fehlende Schritte erneut ausführen)",
     "or": "oder"
   },
   "serverForm": {
@@ -376,6 +394,12 @@
     "syncAll": "Alle synchronisieren",
     "allClientsSynced": "Alle Clients synchronisiert.",
     "syncSummary": "Mit {{succeeded}} von {{total}} Clients synchronisiert ({{failed}} fehlgeschlagen).",
+    "validateAll": "Alle validieren",
+    "validateAllRunning": "Validiere...",
+    "validateAllTooltip": "Alle installierten Konfigurationen auf Schemafehler pruefen",
+    "validateAllSuccess": "{{count}} Clients validiert.",
+    "validateAllSummary": "{{succeeded}} von {{total}} Clients validiert ({{failed}} fehlgeschlagen).",
+    "validateAllNone": "Keine Clients zum Validieren.",
     "installed": "Installiert",
     "notInstalled": "Nicht installiert",
     "colClient": "Client",

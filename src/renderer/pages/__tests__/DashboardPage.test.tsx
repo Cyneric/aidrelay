@@ -71,8 +71,11 @@ const createServer = (id: string, name: string): McpServer => ({
   clientOverrides: {
     'claude-desktop': { enabled: true },
     'claude-code': { enabled: true },
+    cline: { enabled: true },
+    'roo-code': { enabled: true },
     cursor: { enabled: true },
     'gemini-cli': { enabled: true },
+    'kilo-cli': { enabled: true },
     vscode: { enabled: true },
     'vscode-insiders': { enabled: true },
     windsurf: { enabled: true },

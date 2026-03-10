@@ -12,6 +12,10 @@
  *
  *   - claude-code  → individual `.md` files in `%USERPROFILE%\.claude\rules\`
  *   - cursor       → individual `.mdc` files in `%USERPROFILE%\.cursor\rules\`
+ *   - cline        → single concatenated file: `{project}\.clinerules\aidrelay.md`
+ *   - roo-code     → concatenated files:
+ *                    `{project}\.roo\rules\aidrelay.md` (primary)
+ *                    `{project}\.clinerules\aidrelay.md` (compatibility)
  *   - vscode       → single concatenated file: `{project}\.github\copilot-instructions.md`
  *   - vscode-insiders → single concatenated file: `{project}\.github\copilot-instructions.md`
  *   - windsurf     → single concatenated file: `{project}\.windsurfrules`
@@ -174,6 +178,12 @@ export class RulesSyncService {
           '.mdc',
           toCursorMdc,
         )
+      case 'cline':
+        return this.writeConcat(rules, (projectPath) =>
+          join(projectPath, '.clinerules', 'aidrelay.md'),
+        )
+      case 'roo-code':
+        return this.writeRoo(rules)
       case 'vscode':
       case 'vscode-insiders':
       case 'visual-studio':
@@ -329,6 +339,33 @@ export class RulesSyncService {
     for (const [projectPath, rulesForProject] of byProject) {
       const filePath = join(projectPath, '.gemini', 'GEMINI.md')
       atomicWrite(filePath, toConcat(rulesForProject))
+      written += rulesForProject.length
+    }
+
+    return written
+  }
+
+  /**
+   * Writes Roo Code project rules to both Roo-native and Cline-compatible
+   * rule file locations for best compatibility.
+   */
+  private writeRoo(rules: readonly AiRule[]): number {
+    const byProject = new Map<string, AiRule[]>()
+
+    for (const rule of rules) {
+      if (!rule.projectPath) {
+        log.warn(`[rules-sync] Rule "${rule.name}" has no projectPath — skipping for roo-code`)
+        continue
+      }
+      const existing = byProject.get(rule.projectPath) ?? []
+      existing.push(rule)
+      byProject.set(rule.projectPath, existing)
+    }
+
+    let written = 0
+    for (const [projectPath, rulesForProject] of byProject) {
+      atomicWrite(join(projectPath, '.roo', 'rules', 'aidrelay.md'), toConcat(rulesForProject))
+      atomicWrite(join(projectPath, '.clinerules', 'aidrelay.md'), toConcat(rulesForProject))
       written += rulesForProject.length
     }
 

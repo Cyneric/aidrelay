@@ -46,6 +46,8 @@ const detectionById: Record<
 > = {
   'claude-desktop': { installed: false, configPaths: [], serverCount: 0 },
   'claude-code': { installed: false, configPaths: [], serverCount: 0 },
+  cline: { installed: false, configPaths: [], serverCount: 0 },
+  'roo-code': { installed: false, configPaths: [], serverCount: 0 },
   cursor: { installed: false, configPaths: [], serverCount: 0 },
   vscode: { installed: false, configPaths: [], serverCount: 0 },
   'vscode-insiders': { installed: false, configPaths: [], serverCount: 0 },
@@ -53,6 +55,7 @@ const detectionById: Record<
   zed: { installed: false, configPaths: [], serverCount: 0 },
   jetbrains: { installed: false, configPaths: [], serverCount: 0 },
   'gemini-cli': { installed: false, configPaths: [], serverCount: 0 },
+  'kilo-cli': { installed: false, configPaths: [], serverCount: 0 },
   'codex-cli': { installed: false, configPaths: [], serverCount: 0 },
   'codex-gui': { installed: false, configPaths: [], serverCount: 0 },
   opencode: { installed: false, configPaths: [], serverCount: 0 },
@@ -81,7 +84,10 @@ const makeAdapter = (id: ClientId, displayName: string): ClientAdapter => ({
 const ADAPTER_IDS: readonly ClientId[] = [
   'vscode',
   'vscode-insiders',
+  'cline',
+  'roo-code',
   'gemini-cli',
+  'kilo-cli',
   'codex-cli',
   'codex-gui',
   'opencode',
@@ -92,7 +98,10 @@ const ADAPTER_IDS: readonly ClientId[] = [
 const ADAPTERS = new Map<ClientId, ClientAdapter>([
   ['vscode', makeAdapter('vscode', 'VS Code')],
   ['vscode-insiders', makeAdapter('vscode-insiders', 'VS Code Insiders')],
+  ['cline', makeAdapter('cline', 'Cline')],
+  ['roo-code', makeAdapter('roo-code', 'Roo Code')],
   ['gemini-cli', makeAdapter('gemini-cli', 'Gemini CLI')],
+  ['kilo-cli', makeAdapter('kilo-cli', 'Kilo CLI')],
   ['codex-cli', makeAdapter('codex-cli', 'Codex CLI')],
   ['codex-gui', makeAdapter('codex-gui', 'Codex GUI')],
   ['opencode', makeAdapter('opencode', 'OpenCode')],
@@ -350,6 +359,27 @@ describe('clients IPC handlers', () => {
     expect(validateCalls).toContainEqual({ clientId: 'cursor', configPath: manualPath })
   })
 
+  it('clients:validate-config persists validation result', async () => {
+    const configPath = 'C:\\tmp\\vscode.json'
+    detectionById['vscode'] = { installed: true, configPaths: [configPath], serverCount: 0 }
+    validationByPath.set(configPath, { valid: false, errors: ['bad schema'] })
+
+    const result = await call<ValidationResult>('clients:validate-config', 'vscode')
+    expect(result).toEqual({ valid: false, errors: ['bad schema'] })
+
+    const stored = testDb
+      .prepare('SELECT value FROM settings WHERE key = ?')
+      .get('clients.validationResult.vscode') as { value: string }
+    const parsed = JSON.parse(stored.value) as {
+      valid: boolean
+      errors: string[]
+      validatedAt: string
+    }
+    expect(parsed.valid).toBe(false)
+    expect(parsed.errors).toEqual(['bad schema'])
+    expect(typeof parsed.validatedAt).toBe('string')
+  })
+
   it('clients:clear-manual-config-path removes override and falls back to adapter detection', async () => {
     const autoPath = 'C:\\auto\\cursor.json'
     const manualPath = join(process.cwd(), 'package.json')
@@ -372,7 +402,10 @@ describe('clients IPC handlers', () => {
   it('clients:sync-all includes fallback-capable installed clients without config paths', async () => {
     detectionById['vscode'] = { installed: true, configPaths: [], serverCount: 0 }
     detectionById['vscode-insiders'] = { installed: true, configPaths: [], serverCount: 0 }
+    detectionById['cline'] = { installed: true, configPaths: [], serverCount: 0 }
+    detectionById['roo-code'] = { installed: true, configPaths: [], serverCount: 0 }
     detectionById['gemini-cli'] = { installed: true, configPaths: [], serverCount: 0 }
+    detectionById['kilo-cli'] = { installed: true, configPaths: [], serverCount: 0 }
     detectionById['codex-cli'] = { installed: true, configPaths: [], serverCount: 0 }
     detectionById['codex-gui'] = { installed: true, configPaths: [], serverCount: 0 }
     detectionById['opencode'] = { installed: true, configPaths: [], serverCount: 0 }
@@ -389,7 +422,7 @@ describe('clients IPC handlers', () => {
 
     const results = await call<SyncResult[]>('clients:sync-all')
 
-    expect(results).toHaveLength(8)
+    expect(results).toHaveLength(11)
     expect(syncCalls).toEqual([
       {
         clientId: 'vscode',
@@ -400,8 +433,22 @@ describe('clients IPC handlers', () => {
         configPath: 'C:\\Users\\tester\\AppData\\Roaming\\Code - Insiders\\User\\mcp.json',
       },
       {
+        clientId: 'cline',
+        configPath:
+          'C:\\Users\\tester\\AppData\\Roaming\\Code\\User\\globalStorage\\saoudrizwan.claude-dev\\settings\\cline_mcp_settings.json',
+      },
+      {
+        clientId: 'roo-code',
+        configPath:
+          'C:\\Users\\tester\\AppData\\Roaming\\Code\\User\\globalStorage\\rooveterinaryinc.roo-cline\\settings\\mcp_settings.json',
+      },
+      {
         clientId: 'gemini-cli',
         configPath: 'C:\\Users\\tester\\.gemini\\settings.json',
+      },
+      {
+        clientId: 'kilo-cli',
+        configPath: 'C:\\Users\\tester\\.config\\kilocode\\kilocode.json',
       },
       { clientId: 'codex-cli', configPath: 'C:\\Users\\tester\\.codex\\config.json' },
       {
@@ -418,6 +465,41 @@ describe('clients IPC handlers', () => {
       },
       { clientId: 'cursor', configPath: 'C:\\Users\\tester\\.cursor\\mcp.json' },
     ])
+  })
+
+  it('clients:validate-all-configs validates only installed clients with configs', async () => {
+    detectionById['vscode'] = {
+      installed: true,
+      configPaths: ['C:\\tmp\\vscode.json'],
+      serverCount: 1,
+    }
+    detectionById['cursor'] = {
+      installed: true,
+      configPaths: ['C:\\tmp\\cursor.json'],
+      serverCount: 1,
+    }
+    detectionById['codex-cli'] = { installed: true, configPaths: [], serverCount: 0 }
+    validationByPath.set('C:\\tmp\\vscode.json', { valid: true, errors: [] })
+    validationByPath.set('C:\\tmp\\cursor.json', { valid: false, errors: ['invalid'] })
+
+    const results = await call<Record<string, { valid: boolean; errors: string[] }>>(
+      'clients:validate-all-configs',
+    )
+
+    expect(Object.keys(results)).toHaveLength(2)
+    expect(results['vscode']?.valid).toBe(true)
+    expect(results['cursor']?.valid).toBe(false)
+    expect(validateCalls).toContainEqual({ clientId: 'vscode', configPath: 'C:\\tmp\\vscode.json' })
+    expect(validateCalls).toContainEqual({ clientId: 'cursor', configPath: 'C:\\tmp\\cursor.json' })
+
+    const storedVscode = testDb
+      .prepare('SELECT value FROM settings WHERE key = ?')
+      .get('clients.validationResult.vscode') as { value: string }
+    const storedCursor = testDb
+      .prepare('SELECT value FROM settings WHERE key = ?')
+      .get('clients.validationResult.cursor') as { value: string }
+    expect((JSON.parse(storedVscode.value) as { valid: boolean }).valid).toBe(true)
+    expect((JSON.parse(storedCursor.value) as { valid: boolean }).valid).toBe(false)
   })
 
   it('clients:detect-all derives syncStatus from latest sync event', async () => {
@@ -447,6 +529,15 @@ describe('clients IPC handlers', () => {
       )
       .run('2026-03-08T10:01:00.000Z', 'sync.failed', '{"error":"boom"}', 'vscode')
 
+    testDb.prepare('INSERT INTO settings (key, value) VALUES (?, ?)').run(
+      'clients.validationResult.cursor',
+      JSON.stringify({
+        valid: true,
+        errors: [],
+        validatedAt: '2026-03-09T10:00:00.000Z',
+      }),
+    )
+
     const results = await call<ClientStatus[]>('clients:detect-all')
     const byId = new Map(results.map((r) => [r.id, r]))
 
@@ -455,6 +546,7 @@ describe('clients IPC handlers', () => {
     expect(byId.get('vscode')?.syncStatus).toBe('error')
     expect(byId.get('codex-cli')?.syncStatus).toBe('never-synced')
     expect(byId.get('gemini-cli')?.syncStatus).toBe('never-synced')
+    expect(byId.get('cursor')?.lastValidation?.valid).toBe(true)
   })
 
   it('clients:preview-config-import classifies create/overwrite/removed items', async () => {

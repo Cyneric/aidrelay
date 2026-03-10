@@ -15,7 +15,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import type React from 'react'
-import type { LicenseStatus } from '@shared/types'
+import type { LicenseStatus, Profile } from '@shared/types'
 
 // ─── Router Mock ──────────────────────────────────────────────────────────────
 
@@ -49,6 +49,11 @@ vi.mock('react-i18next', () => ({
       if (key === 'nav.sectionCore') return 'Core'
       if (key === 'nav.sectionOperations') return 'Operations'
       if (key === 'nav.sectionSettings') return 'Settings'
+      if (key === 'profilesIndicator.label') return 'Active profile'
+      if (key === 'profilesIndicator.loading') return 'Loading profile...'
+      if (key === 'profilesIndicator.none') return 'No active profile'
+      if (key === 'profilesIndicator.aria') return 'Active profile: {{name}}'
+      if (key === 'profiles.active') return 'Active'
       return key
     },
   }),
@@ -86,6 +91,36 @@ vi.mock('@/lib/useLicense', () => ({
   useLicense: () => mockLicenseState,
 }))
 
+// ─── Profiles Store Mock ─────────────────────────────────────────────────────
+
+const baseProfile: Profile = {
+  id: 'p1',
+  name: 'Work',
+  description: '',
+  icon: '🧠',
+  color: '#22c55e',
+  isActive: true,
+  serverOverrides: {},
+  ruleOverrides: {},
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+}
+
+const mockProfilesState = {
+  profiles: [] as Profile[],
+  loading: false,
+  error: null as string | null,
+  load: vi.fn(),
+  create: vi.fn(),
+  update: vi.fn(),
+  delete: vi.fn(),
+  activate: vi.fn(),
+}
+
+vi.mock('@/stores/profiles.store', () => ({
+  useProfilesStore: () => mockProfilesState,
+}))
+
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 import { Sidebar } from '../Sidebar'
@@ -99,6 +134,9 @@ beforeEach(() => {
     lastValidatedAt: new Date().toISOString(),
   }
   mockLicenseState.loading = false
+  mockProfilesState.profiles = []
+  mockProfilesState.loading = false
+  mockProfilesState.load = vi.fn()
 })
 
 describe('Sidebar', () => {
@@ -213,6 +251,27 @@ describe('Sidebar', () => {
       expect(screen.getByText('Core')).toBeInTheDocument()
       expect(screen.getByText('Operations')).toBeInTheDocument()
       expect(screen.getByText('Settings')).toBeInTheDocument()
+    })
+  })
+
+  describe('active profile indicator', () => {
+    it('renders the active profile name', () => {
+      mockProfilesState.profiles = [baseProfile]
+      render(<Sidebar />)
+      expect(screen.getByText('Active profile')).toBeInTheDocument()
+      expect(screen.getByTestId('active-profile-indicator')).toHaveTextContent('Work')
+    })
+
+    it('shows loading text when profiles are loading', () => {
+      mockProfilesState.loading = true
+      render(<Sidebar />)
+      expect(screen.getByTestId('active-profile-loading')).toHaveTextContent('Loading profile...')
+    })
+
+    it('shows fallback when no active profile is set', () => {
+      mockProfilesState.profiles = [{ ...baseProfile, id: 'p2', isActive: false }]
+      render(<Sidebar />)
+      expect(screen.getByTestId('active-profile-empty')).toHaveTextContent('No active profile')
     })
   })
 })

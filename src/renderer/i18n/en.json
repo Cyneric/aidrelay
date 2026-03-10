@@ -14,6 +14,12 @@
     "sectionOperations": "Operations",
     "sectionSettings": "Settings"
   },
+  "profilesIndicator": {
+    "label": "Active profile",
+    "loading": "Loading profile...",
+    "none": "No active profile",
+    "aria": "Active profile: {{name}}"
+  },
   "dashboard": {
     "title": "Dashboard",
     "subtitle": "Detected AI development tools",
@@ -125,6 +131,7 @@
     "name": "Name",
     "type": "Type",
     "status": "Status",
+    "setupStatus": "Setup",
     "command": "Command",
     "tags": "Tags",
     "enabled": "Enabled",
@@ -172,6 +179,13 @@
       "passed": "Passed",
       "failed": "Failed"
     },
+    "setupStatusLabels": {
+      "not_installed": "Not installed",
+      "installing": "Installing",
+      "installed": "Installed",
+      "failed": "Failed",
+      "rolled_back": "Rolled back"
+    },
     "copyCommand": "Copy command for {{name}}",
     "copyCommandTooltip": "Copy full command",
     "copyCommandSuccess": "Command copied to clipboard",
@@ -179,6 +193,10 @@
     "enableDisable": "{{action}} {{name}}",
     "enable": "Enable",
     "disable": "Disable",
+    "installAria": "Install {{name}}",
+    "repairAria": "Repair {{name}}",
+    "installTooltip": "Install MCP server locally",
+    "repairTooltip": "Repair installation (rerun missing steps)",
     "or": "or"
   },
   "serverForm": {
@@ -376,6 +394,12 @@
     "syncAll": "Sync all",
     "allClientsSynced": "All clients synced.",
     "syncSummary": "Synced {{succeeded}} of {{total}} clients ({{failed}} failed).",
+    "validateAll": "Validate all",
+    "validateAllRunning": "Validating...",
+    "validateAllTooltip": "Check all installed configs for schema errors",
+    "validateAllSuccess": "Validated {{count}} clients.",
+    "validateAllSummary": "Validated {{succeeded}} of {{total}} clients ({{failed}} failed).",
+    "validateAllNone": "No clients to validate.",
     "installed": "Installed",
     "notInstalled": "Not installed",
     "colClient": "Client",

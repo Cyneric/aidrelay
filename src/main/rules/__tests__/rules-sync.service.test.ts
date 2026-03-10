@@ -146,6 +146,57 @@ describe('RulesSyncService.sync — cursor', () => {
   })
 })
 
+describe('RulesSyncService.sync — cline', () => {
+  it('writes concatenated file to .clinerules/aidrelay.md', () => {
+    const projectPath = join(tmpDir, 'cline-proj')
+    mkdirSync(projectPath, { recursive: true })
+
+    storedRules.push(
+      makeRule({
+        name: 'cline-rule',
+        scope: 'project',
+        projectPath,
+        content: 'Cline body.',
+      }),
+    )
+
+    const result = service.sync('cline')
+    expect(result.success).toBe(true)
+    expect(result.serversWritten).toBe(1)
+
+    const filePath = join(projectPath, '.clinerules', 'aidrelay.md')
+    expect(existsSync(filePath)).toBe(true)
+    expect(readFileSync(filePath, 'utf-8')).toContain('Cline body.')
+  })
+})
+
+describe('RulesSyncService.sync — roo-code', () => {
+  it('writes project rules to both .roo/rules/aidrelay.md and .clinerules/aidrelay.md', () => {
+    const projectPath = join(tmpDir, 'roo-proj')
+    mkdirSync(projectPath, { recursive: true })
+
+    storedRules.push(
+      makeRule({
+        name: 'roo-rule',
+        scope: 'project',
+        projectPath,
+        content: 'Roo body.',
+      }),
+    )
+
+    const result = service.sync('roo-code')
+    expect(result.success).toBe(true)
+    expect(result.serversWritten).toBe(1)
+
+    const rooPath = join(projectPath, '.roo', 'rules', 'aidrelay.md')
+    const compatPath = join(projectPath, '.clinerules', 'aidrelay.md')
+    expect(existsSync(rooPath)).toBe(true)
+    expect(existsSync(compatPath)).toBe(true)
+    expect(readFileSync(rooPath, 'utf-8')).toContain('Roo body.')
+    expect(readFileSync(compatPath, 'utf-8')).toContain('Roo body.')
+  })
+})
+
 describe('RulesSyncService.sync — vscode', () => {
   it('skips global-scope rules (no global path for vscode)', () => {
     storedRules.push(makeRule({ name: 'global-rule', scope: 'global' }))
