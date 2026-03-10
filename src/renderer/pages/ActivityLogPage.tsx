@@ -2,7 +2,7 @@
  * @file src/renderer/pages/ActivityLogPage.tsx
  *
  * @created 07.03.2026
- * @modified 07.03.2026
+ * @modified 10.03.2026
  *
  * @author Christian Blank <christianblank91@protonmail.com>
  * @copyright 2026

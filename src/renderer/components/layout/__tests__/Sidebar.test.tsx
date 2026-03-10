@@ -15,7 +15,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import type React from 'react'
-import type { LicenseStatus, Profile } from '@shared/types'
+import type { Profile } from '@shared/types'
 
 // ─── Router Mock ──────────────────────────────────────────────────────────────
 
@@ -71,26 +71,6 @@ vi.mock('@/lib/useTheme', () => ({
   }),
 }))
 
-// ─── License Hook Mock ────────────────────────────────────────────────────────
-
-const mockLicenseState: {
-  status: LicenseStatus
-  loading: boolean
-  activating: boolean
-  activate: () => Promise<void>
-  deactivate: () => Promise<void>
-} = {
-  status: { tier: 'free', valid: false, lastValidatedAt: new Date().toISOString() },
-  loading: false,
-  activating: false,
-  activate: vi.fn(),
-  deactivate: vi.fn(),
-}
-
-vi.mock('@/lib/useLicense', () => ({
-  useLicense: () => mockLicenseState,
-}))
-
 // ─── Profiles Store Mock ─────────────────────────────────────────────────────
 
 const baseProfile: Profile = {
@@ -128,82 +108,12 @@ import { Sidebar } from '../Sidebar'
 beforeEach(() => {
   // Reset to free tier before each test
   mockEffectiveTheme = 'light'
-  mockLicenseState.status = {
-    tier: 'free',
-    valid: false,
-    lastValidatedAt: new Date().toISOString(),
-  }
-  mockLicenseState.loading = false
   mockProfilesState.profiles = []
   mockProfilesState.loading = false
   mockProfilesState.load = vi.fn()
 })
 
 describe('Sidebar', () => {
-  describe('plan badge — Free tier', () => {
-    it('renders the plan badge', () => {
-      render(<Sidebar />)
-      expect(screen.getByTestId('plan-badge')).toBeInTheDocument()
-    })
-
-    it('shows "Free" label on free tier', () => {
-      render(<Sidebar />)
-      expect(screen.getByTestId('plan-badge')).toHaveTextContent('Free')
-    })
-
-    it('has correct aria-label for free tier', () => {
-      render(<Sidebar />)
-      expect(screen.getByTestId('plan-badge')).toHaveAttribute('aria-label', 'Current plan: Free')
-    })
-  })
-
-  describe('plan badge — Pro tier', () => {
-    beforeEach(() => {
-      mockLicenseState.status = {
-        tier: 'pro',
-        valid: true,
-        lastValidatedAt: new Date().toISOString(),
-      }
-    })
-
-    it('shows "Pro" label on pro tier', () => {
-      render(<Sidebar />)
-      expect(screen.getByTestId('plan-badge')).toHaveTextContent('Pro')
-    })
-
-    it('has correct aria-label for pro tier', () => {
-      render(<Sidebar />)
-      expect(screen.getByTestId('plan-badge')).toHaveAttribute('aria-label', 'Current plan: Pro')
-    })
-  })
-
-  describe('plan badge — invalid pro license', () => {
-    beforeEach(() => {
-      // A pro tier entry that is no longer valid should show Free
-      mockLicenseState.status = {
-        tier: 'pro',
-        valid: false,
-        lastValidatedAt: new Date().toISOString(),
-      }
-    })
-
-    it('shows "Free" when pro license is invalid', () => {
-      render(<Sidebar />)
-      expect(screen.getByTestId('plan-badge')).toHaveTextContent('Free')
-    })
-  })
-
-  describe('plan badge — loading state', () => {
-    beforeEach(() => {
-      mockLicenseState.loading = true
-    })
-
-    it('hides the badge while loading', () => {
-      render(<Sidebar />)
-      expect(screen.queryByTestId('plan-badge')).not.toBeInTheDocument()
-    })
-  })
-
   describe('navigation', () => {
     it('renders the sidebar element', () => {
       render(<Sidebar />)
@@ -251,6 +161,11 @@ describe('Sidebar', () => {
       expect(screen.getByText('Core')).toBeInTheDocument()
       expect(screen.getByText('Operations')).toBeInTheDocument()
       expect(screen.getByText('Settings')).toBeInTheDocument()
+    })
+
+    it('does not render plan badge in sidebar', () => {
+      render(<Sidebar />)
+      expect(screen.queryByTestId('plan-badge')).not.toBeInTheDocument()
     })
   })
 

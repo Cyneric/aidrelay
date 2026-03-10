@@ -2,7 +2,7 @@
  * @file src/renderer/App.tsx
  *
  * @created 07.03.2026
- * @modified 08.03.2026
+ * @modified 10.03.2026
  *
  * @author Christian Blank <christianblank91@protonmail.com>
  * @copyright 2026
@@ -31,6 +31,7 @@ import { StacksPage } from '@/pages/StacksPage'
 import { SettingsPage } from '@/pages/SettingsPage'
 import { HistoryPage } from '@/pages/HistoryPage'
 import { ClientsPage } from '@/pages/ClientsPage'
+import { SyncCenterPage } from '@/pages/SyncCenterPage'
 import { StartupSplash } from '@/components/layout/StartupSplash'
 import { useStartupSplash } from '@/hooks/useStartupSplash'
 import { clientsService } from '@/services/clients.service'
@@ -100,6 +101,12 @@ const historyRoute = createRoute({
   component: HistoryPage,
 })
 
+const syncCenterRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/sync-center',
+  component: SyncCenterPage,
+})
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   serversRoute,
@@ -111,6 +118,7 @@ const routeTree = rootRoute.addChildren([
   stacksRoute,
   settingsRoute,
   historyRoute,
+  syncCenterRoute,
 ])
 
 // ─── Router ───────────────────────────────────────────────────────────────────

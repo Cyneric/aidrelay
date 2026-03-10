@@ -2,7 +2,7 @@
  * @file src/renderer/components/layout/Sidebar.tsx
  *
  * @created 07.03.2026
- * @modified 08.03.2026
+ * @modified 10.03.2026
  *
  * @author Christian Blank <christianblank91@protonmail.com>
  * @copyright 2026
@@ -23,11 +23,11 @@ import {
   Store,
   Package,
   History,
+  GitPullRequest,
 } from 'lucide-react'
 import { Link, useRouterState } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
-import { useLicense } from '@/lib/useLicense'
 import { useTheme } from '@/lib/useTheme'
 import { useProfilesStore } from '@/stores/profiles.store'
 import sidebarLogoDark from '../../assets/branding/aidrelay_logo_with_slogan_for_darkmode.png'
@@ -52,6 +52,7 @@ const OPERATIONS_NAV_ITEMS = [
   { to: '/stacks', labelKey: 'nav.stacks', icon: Package },
   { to: '/activity', labelKey: 'nav.activityLog', icon: Activity },
   { to: '/history', labelKey: 'nav.history', icon: History },
+  { to: '/sync-center', labelKey: 'nav.syncCenter', icon: GitPullRequest },
 ] as const
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -63,14 +64,12 @@ const OPERATIONS_NAV_ITEMS = [
 const Sidebar = () => {
   const { location } = useRouterState()
   const { t } = useTranslation()
-  const { status, loading } = useLicense()
   const { effectiveTheme } = useTheme()
   const { profiles, loading: profilesLoading, load: loadProfiles } = useProfilesStore()
   const currentPath = location.pathname
   const sidebarLogo = effectiveTheme === 'dark' ? sidebarLogoDark : sidebarLogoLight
   const profilesLoadedRef = useRef(false)
 
-  const isPro = status.tier === 'pro' && status.valid
   const activeProfile = profiles.find((profile) => profile.isActive)
   const linkClasses = (isActive: boolean) =>
     cn(
@@ -128,24 +127,6 @@ const Sidebar = () => {
           data-testid="sidebar-logo"
         />
       </div>
-
-      {/* Plan tier badge */}
-      {!loading && (
-        <div className="px-5 pt-3 pb-1">
-          <span
-            className={cn(
-              'inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold',
-              isPro
-                ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300'
-                : 'bg-muted text-muted-foreground',
-            )}
-            aria-label={`Current plan: ${isPro ? 'Pro' : 'Free'}`}
-            data-testid="plan-badge"
-          >
-            {isPro ? 'Pro' : 'Free'}
-          </span>
-        </div>
-      )}
 
       {/* Primary links */}
       <nav className="flex-1 overflow-y-auto px-2 py-3">

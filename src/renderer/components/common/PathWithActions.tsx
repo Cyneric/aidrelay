@@ -12,6 +12,7 @@ interface PathWithActionsProps {
   readonly className?: string
   readonly textClassName?: string
   readonly showFolderIcon?: boolean
+  readonly allowEdit?: boolean
   readonly testIdPrefix?: string
 }
 
@@ -20,6 +21,7 @@ const PathWithActions = ({
   className,
   textClassName,
   showFolderIcon = false,
+  allowEdit = true,
   testIdPrefix = 'path-action',
 }: PathWithActionsProps) => {
   const { t } = useTranslation()
@@ -61,23 +63,25 @@ const PathWithActions = ({
           </TooltipTrigger>
           <TooltipContent>{t('files.reveal')}</TooltipContent>
         </Tooltip>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-xs"
-              onClick={() => setEditOpen(true)}
-              aria-label={t('files.edit')}
-              data-testid={`${testIdPrefix}-edit`}
-            >
-              <Edit3 size={12} aria-hidden="true" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>{t('files.edit')}</TooltipContent>
-        </Tooltip>
+        {allowEdit ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-xs"
+                onClick={() => setEditOpen(true)}
+                aria-label={t('files.edit')}
+                data-testid={`${testIdPrefix}-edit`}
+              >
+                <Edit3 size={12} aria-hidden="true" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{t('files.edit')}</TooltipContent>
+          </Tooltip>
+        ) : null}
       </div>
-      <FileEditModal path={path} open={editOpen} onOpenChange={setEditOpen} />
+      {allowEdit ? <FileEditModal path={path} open={editOpen} onOpenChange={setEditOpen} /> : null}
     </>
   )
 }

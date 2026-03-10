@@ -234,6 +234,55 @@ export interface BackupEntry {
 }
 
 /**
+ * Filters for querying backup history entries.
+ */
+export interface BackupQueryFilters {
+  readonly clientId?: ClientId
+  readonly search?: string
+  readonly types?: readonly BackupEntry['backupType'][]
+  readonly from?: string
+  readonly to?: string
+  readonly sort?: 'newest' | 'oldest'
+  readonly limit?: number
+  readonly offset?: number
+}
+
+/**
+ * Paged backup query result.
+ */
+export interface BackupQueryResult {
+  readonly items: readonly BackupEntry[]
+  readonly total: number
+}
+
+/**
+ * One changed field previewed before a restore operation.
+ */
+export interface RestorePreviewBlock {
+  readonly path: string
+  readonly kind: 'added' | 'removed' | 'changed'
+  readonly before: string | null
+  readonly after: string | null
+}
+
+/**
+ * Restore preview summary used by the renderer to show impact before confirm.
+ */
+export interface RestorePreviewResult {
+  readonly clientId: ClientId
+  readonly backupPath: string
+  readonly liveConfigPath: string
+  readonly hasLiveConfig: boolean
+  readonly mode: 'json' | 'text'
+  readonly added: number
+  readonly removed: number
+  readonly changed: number
+  readonly totalChanges: number
+  readonly blocks: readonly RestorePreviewBlock[]
+  readonly truncated: boolean
+}
+
+/**
  * Result of importing servers or rules from an external source.
  */
 export interface ImportResult {
@@ -463,6 +512,11 @@ export interface IpcChannels {
 
   // Backups
   'backups:list': (clientId: ClientId) => Promise<BackupEntry[]>
+  'backups:query': (filters: BackupQueryFilters) => Promise<BackupQueryResult>
+  'backups:preview-restore': (
+    backupPath: string,
+    clientId: ClientId,
+  ) => Promise<RestorePreviewResult>
   'backups:restore': (backupPath: string, clientId: ClientId) => Promise<void>
 
   // Activity Log

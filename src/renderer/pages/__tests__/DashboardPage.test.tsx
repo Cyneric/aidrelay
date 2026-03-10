@@ -261,7 +261,14 @@ describe('DashboardPage', () => {
     const stickyToolbar = screen.getByTestId('dashboard-sticky-toolbar')
     expect(stickyToolbar).toHaveClass(
       'sticky',
-      'top-[calc(var(--spacing)*-6)]',
+      '-top-6',
+      '-mx-6',
+      '-mt-6',
+      'mb-6',
+      'border-b',
+      'border-border/70',
+      'px-6',
+      'pb-4',
       'pt-8',
       'bg-background/95',
       'backdrop-blur',

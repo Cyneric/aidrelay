@@ -94,6 +94,9 @@ function SelectItem({
   children,
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Item>) {
+  if (props.value === '') {
+    console.error('SelectItem received empty string value', new Error().stack)
+  }
   return (
     <SelectPrimitive.Item
       data-slot="select-item"

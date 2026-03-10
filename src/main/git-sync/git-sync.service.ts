@@ -2,7 +2,7 @@
  * @file src/main/git-sync/git-sync.service.ts
  *
  * @created 07.03.2026
- * @modified 07.03.2026
+ * @modified 10.03.2026
  *
  * @author Christian Blank <christianblank91@protonmail.com>
  * @copyright 2026
@@ -40,11 +40,13 @@ import { RulesRepo } from '@main/db/rules.repo'
 import { ProfilesRepo } from '@main/db/profiles.repo'
 import { SettingsRepo } from '@main/db/settings.repo'
 import { ActivityLogRepo } from '@main/db/activity-log.repo'
+import { SyncInstallIntentRepo } from '@main/db/sync-install-intent.repo'
 import { storeSecret, getSecret, deleteAllSecrets } from '@main/secrets/keytar.service'
 import type {
   McpServer,
   AiRule,
   Profile,
+  SyncedInstallIntent,
   GitSyncConfig,
   GitSyncStatus,
   GitPushResult,
@@ -109,6 +111,7 @@ interface SyncSnapshot {
   servers: McpServer[]
   rules: AiRule[]
   profiles: Profile[]
+  installIntents: SyncedInstallIntent[]
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -325,6 +328,7 @@ class GitSyncService {
     profiles: ProfilesRepo
     settings: SettingsRepo
     log: ActivityLogRepo
+    installIntents: SyncInstallIntentRepo
   } {
     const db = getDatabase()
     return {
@@ -333,6 +337,7 @@ class GitSyncService {
       profiles: new ProfilesRepo(db),
       settings: new SettingsRepo(db),
       log: new ActivityLogRepo(db),
+      installIntents: new SyncInstallIntentRepo(db),
     }
   }
 
@@ -411,10 +416,16 @@ class GitSyncService {
     const servers = repos.servers.findAll()
     const rules = repos.rules.findAll()
     const profiles = repos.profiles.findAll()
+    const installIntents = repos.installIntents.listAll()
 
     await writeFile(join(dir, 'servers.json'), JSON.stringify(servers, null, 2), 'utf-8')
     await writeFile(join(dir, 'rules.json'), JSON.stringify(rules, null, 2), 'utf-8')
     await writeFile(join(dir, 'profiles.json'), JSON.stringify(profiles, null, 2), 'utf-8')
+    await writeFile(
+      join(dir, 'install-intents.json'),
+      JSON.stringify(installIntents, null, 2),
+      'utf-8',
+    )
   }
 
   /**
@@ -432,20 +443,31 @@ class GitSyncService {
     serversImported: number
     rulesImported: number
     profilesImported: number
+    installIntentsImported: number
     conflicts: number
   }> {
     const dir = this.gitDir
+
+    const installIntentsPath = join(dir, 'install-intents.json')
+    let installIntents: SyncedInstallIntent[] = []
+    if (existsSync(installIntentsPath)) {
+      installIntents = JSON.parse(
+        await readFile(installIntentsPath, 'utf-8'),
+      ) as SyncedInstallIntent[]
+    }
 
     const snapshot: SyncSnapshot = {
       servers: JSON.parse(await readFile(join(dir, 'servers.json'), 'utf-8')) as McpServer[],
       rules: JSON.parse(await readFile(join(dir, 'rules.json'), 'utf-8')) as AiRule[],
       profiles: JSON.parse(await readFile(join(dir, 'profiles.json'), 'utf-8')) as Profile[],
+      installIntents,
     }
 
     let conflicts = 0
     let serversImported = 0
     let rulesImported = 0
     let profilesImported = 0
+    let installIntentsImported = 0
 
     // ── Servers ───────────────────────────────────────────────────────────
     const localServers = repos.servers.findAll()
@@ -548,7 +570,22 @@ class GitSyncService {
       profilesImported++
     }
 
-    return { serversImported, rulesImported, profilesImported, conflicts }
+    // ── Install Intents ─────────────────────────────────────────────────────
+    const localIntents = repos.installIntents.listAll()
+    const localIntentByServerId = new Map(localIntents.map((i) => [i.serverId, i]))
+
+    for (const pulled of snapshot.installIntents) {
+      const local = localIntentByServerId.get(pulled.serverId)
+      if (local) {
+        if (local.updatedAt > pulled.updatedAt) conflicts++
+        repos.installIntents.upsert(pulled)
+      } else {
+        repos.installIntents.insert(pulled)
+      }
+      installIntentsImported++
+    }
+
+    return { serversImported, rulesImported, profilesImported, installIntentsImported, conflicts }
   }
 
   /**
@@ -864,8 +901,13 @@ class GitSyncService {
 
       log.info('[git-sync] Remote fetched and working tree updated, importing registry from files')
 
-      const { serversImported, rulesImported, profilesImported, conflicts } =
-        await this.importFromFiles(repos)
+      const {
+        serversImported,
+        rulesImported,
+        profilesImported,
+        installIntentsImported,
+        conflicts,
+      } = await this.importFromFiles(repos)
 
       // Update lastPullAt in persisted config.
       this.setStoredConfig({ ...config, lastPullAt: new Date().toISOString() })
@@ -876,6 +918,7 @@ class GitSyncService {
           serversImported,
           rulesImported,
           profilesImported,
+          installIntentsImported,
           conflicts,
           remoteUrl: config.remoteUrl,
         },
@@ -883,10 +926,17 @@ class GitSyncService {
 
       log.info(
         `[git-sync] Import complete: ${serversImported} servers, ${rulesImported} rules, ` +
-          `${profilesImported} profiles, ${conflicts} conflict(s)`,
+          `${profilesImported} profiles, ${installIntentsImported} install intents, ${conflicts} conflict(s)`,
       )
 
-      return { success: true, serversImported, rulesImported, profilesImported, conflicts }
+      return {
+        success: true,
+        serversImported,
+        rulesImported,
+        profilesImported,
+        installIntentsImported,
+        conflicts,
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
       const userMessage = message
@@ -897,6 +947,7 @@ class GitSyncService {
         serversImported: 0,
         rulesImported: 0,
         profilesImported: 0,
+        installIntentsImported: 0,
         conflicts: 0,
         error: userMessage,
       }
