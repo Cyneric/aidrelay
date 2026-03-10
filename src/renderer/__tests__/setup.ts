@@ -54,6 +54,64 @@ Object.defineProperty(window, 'api', {
     filesReadText: () =>
       Promise.resolve({ content: '', mtimeMs: Date.now(), size: 0, encoding: 'utf-8' as const }),
     filesWriteText: () => Promise.resolve({ mtimeMs: Date.now() }),
+    skillsListInstalled: () => Promise.resolve([]),
+    skillsListCurated: () => Promise.resolve([]),
+    skillsDetectWorkspaces: () => Promise.resolve([]),
+    skillsPrepareInstall: () =>
+      Promise.resolve({
+        skillName: 'test-skill',
+        scope: 'user' as const,
+        targetPath: '',
+        exists: false,
+        conflict: false,
+        files: [],
+      }),
+    skillsInstallCurated: () =>
+      Promise.resolve({
+        scope: 'user' as const,
+        skillName: 'test-skill',
+        skillPath: '',
+        skillMdPath: '',
+        enabled: true,
+        source: 'curated' as const,
+        updatedAt: new Date().toISOString(),
+      }),
+    skillsCreate: () =>
+      Promise.resolve({
+        scope: 'user' as const,
+        skillName: 'test-skill',
+        skillPath: '',
+        skillMdPath: '',
+        enabled: true,
+        source: 'manual' as const,
+        updatedAt: new Date().toISOString(),
+      }),
+    skillsDelete: () => Promise.resolve(),
+    skillsSetEnabled: () => Promise.resolve(),
+    skillsMigrateLegacyPreview: () => Promise.resolve({ hasLegacy: false, items: [] }),
+    skillsMigrateLegacyApply: () =>
+      Promise.resolve({ hasLegacy: false, items: [], migrated: 0, skipped: 0 }),
+    skillsSyncListConflicts: () => Promise.resolve([]),
+    skillsSyncResolveConflict: () => Promise.resolve(),
+    gitSyncStatus: () => Promise.resolve({ connected: false }),
+    gitSyncConnectManual: () => Promise.resolve({ connected: true }),
+    gitSyncTestRemote: () => Promise.resolve({ success: true }),
+    gitSyncPull: () =>
+      Promise.resolve({
+        success: true,
+        serversImported: 0,
+        rulesImported: 0,
+        profilesImported: 0,
+        installIntentsImported: 0,
+        skillsImported: 0,
+        userSkillsImported: 0,
+        projectSkillsImported: 0,
+        conflicts: 0,
+        skillConflicts: 0,
+        skillMappingsRequired: 0,
+        skillConflictItems: [],
+        projectSkillMappings: [],
+      }),
     settingsReset: () =>
       Promise.resolve({
         resetKeys: [],

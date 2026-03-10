@@ -24,6 +24,7 @@ import {
   MIGRATION_004,
   MIGRATION_005,
   MIGRATION_006,
+  MIGRATION_007,
 } from './migrations/index'
 
 /** All migration scripts in order. Index = version - 1. */
@@ -34,6 +35,7 @@ const MIGRATIONS: readonly string[] = [
   MIGRATION_004,
   MIGRATION_005,
   MIGRATION_006,
+  MIGRATION_007,
 ]
 
 /** Lazily-created singleton instance. */

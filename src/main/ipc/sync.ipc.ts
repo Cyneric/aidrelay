@@ -78,9 +78,7 @@ export const registerSyncIpc = (): void => {
   ipcMain.handle('sync:push-review', async (): Promise<SyncConflict[]> => {
     log.debug('[ipc] sync:push-review')
     requireGitSyncGate()
-    // TODO: Implement push review detection
-    await Promise.resolve()
-    return []
+    return crossDeviceSyncService.pushReview()
   })
 
   log.info('[ipc] sync handlers registered')

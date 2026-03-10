@@ -18,6 +18,7 @@
  *   004 — Add install metadata columns to servers (recipe, setup status, install policy)
  *   005 — Create device_setup_state table for per-device installation state
  *   006 — Create sync_install_intent table for syncing install intent across devices
+ *   007 — Create sync_conflicts table for storing merge conflicts
  */
 
 /**
@@ -196,4 +197,27 @@ CREATE TABLE sync_install_intent (
   updated_at TEXT NOT NULL,
   PRIMARY KEY (server_id)
 );
+`
+
+/**
+ * Migration 007 — Creates the `sync_conflicts` table for storing merge conflicts
+ * between local and remote versions of registry entities.
+ */
+export const MIGRATION_007 = /* sql */ `
+CREATE TABLE sync_conflicts (
+  id TEXT PRIMARY KEY,
+  entity_type TEXT NOT NULL,
+  entity_id TEXT NOT NULL,
+  server_id TEXT,
+  server_name TEXT NOT NULL,
+  field TEXT NOT NULL,
+  local_value TEXT NOT NULL DEFAULT 'null',
+  remote_value TEXT NOT NULL DEFAULT 'null',
+  resolved INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE INDEX idx_sync_conflicts_resolved ON sync_conflicts(resolved);
+CREATE INDEX idx_sync_conflicts_entity_type ON sync_conflicts(entity_type);
 `

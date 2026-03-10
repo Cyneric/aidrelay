@@ -64,7 +64,7 @@ const createSyncService = (): SyncService => {
 
 const settingsRepo = (): SettingsRepo => new SettingsRepo(getDatabase())
 
-const supportsManualConfigPath = (clientId: ClientId): boolean => clientId !== 'jetbrains'
+export const supportsManualConfigPath = (clientId: ClientId): boolean => clientId !== 'jetbrains'
 
 const manualConfigPathSettingKey = (clientId: ClientId): string =>
   `${MANUAL_CONFIG_PATH_PREFIX}${clientId}`
@@ -78,7 +78,7 @@ const asNonEmptyString = (value: unknown): string | undefined => {
   return trimmed.length > 0 ? trimmed : undefined
 }
 
-const getStoredManualConfigPath = (clientId: ClientId): string | undefined => {
+export const getStoredManualConfigPath = (clientId: ClientId): string | undefined => {
   if (!supportsManualConfigPath(clientId)) return undefined
 
   const repo = settingsRepo()
@@ -220,7 +220,7 @@ const resolveFallbackConfigPath = (clientId: ClientId): string | null => {
   }
 }
 
-const resolveClientDetection = async (
+export const resolveClientDetection = async (
   clientId: ClientId,
   adapter: ClientAdapter,
 ): Promise<{
@@ -264,7 +264,7 @@ const resolveClientDetection = async (
   }
 }
 
-const resolveConfigPathForSync = (
+export const resolveConfigPathForSync = (
   clientId: ClientId,
   detection: { installed: boolean; configPaths: readonly string[] },
   manualConfigPath: string | undefined,

@@ -24,6 +24,7 @@ import {
   Package,
   History,
   GitPullRequest,
+  Sparkles,
 } from 'lucide-react'
 import { Link, useRouterState } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
@@ -44,6 +45,7 @@ const CORE_NAV_ITEMS = [
   { to: '/servers', labelKey: 'nav.servers', icon: Server },
   { to: '/rules', labelKey: 'nav.rules', icon: BookOpen },
   { to: '/clients', labelKey: 'nav.clients', icon: Monitor },
+  { to: '/skills', labelKey: 'nav.skills', icon: Sparkles },
 ]
 
 const OPERATIONS_NAV_ITEMS = [

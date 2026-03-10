@@ -13,6 +13,27 @@ import { SettingsPage } from '../SettingsPage'
 
 const settingsGetMock = vi.fn<(key: string) => Promise<unknown>>()
 const settingsSetMock = vi.fn<(key: string, value: unknown) => Promise<void>>()
+const gitSyncStatusMock = vi.fn<() => Promise<{ connected: boolean }>>()
+const gitSyncConnectManualMock = vi.fn<(input: unknown) => Promise<{ connected: boolean }>>()
+const gitSyncTestRemoteMock = vi.fn<() => Promise<{ success: boolean; error?: string }>>()
+const gitSyncPullMock = vi.fn<
+  () => Promise<{
+    success: boolean
+    serversImported: number
+    rulesImported: number
+    profilesImported: number
+    installIntentsImported: number
+    skillsImported: number
+    userSkillsImported: number
+    projectSkillsImported: number
+    conflicts: number
+    skillConflicts: number
+    skillMappingsRequired: number
+    skillConflictItems: []
+    projectSkillMappings: []
+    error?: string
+  }>
+>()
 const appOssAttributionsMock = vi.fn<
   () => Promise<
     Array<{
@@ -77,6 +98,24 @@ beforeEach(async () => {
 
   settingsGetMock.mockResolvedValue(undefined)
   settingsSetMock.mockResolvedValue()
+  gitSyncStatusMock.mockResolvedValue({ connected: false })
+  gitSyncConnectManualMock.mockResolvedValue({ connected: true })
+  gitSyncTestRemoteMock.mockResolvedValue({ success: true })
+  gitSyncPullMock.mockResolvedValue({
+    success: true,
+    serversImported: 0,
+    rulesImported: 0,
+    profilesImported: 0,
+    installIntentsImported: 0,
+    skillsImported: 0,
+    userSkillsImported: 0,
+    projectSkillsImported: 0,
+    conflicts: 0,
+    skillConflicts: 0,
+    skillMappingsRequired: 0,
+    skillConflictItems: [],
+    projectSkillMappings: [],
+  })
   appOssAttributionsMock.mockResolvedValue([
     {
       packageName: 'react',
@@ -110,6 +149,10 @@ beforeEach(async () => {
       settingsGet: settingsGetMock,
       settingsSet: settingsSetMock,
       settingsReset: settingsResetMock,
+      gitSyncStatus: gitSyncStatusMock,
+      gitSyncConnectManual: gitSyncConnectManualMock,
+      gitSyncTestRemote: gitSyncTestRemoteMock,
+      gitSyncPull: gitSyncPullMock,
       appVersion: () => Promise.resolve('1.0.0'),
       appOssAttributions: appOssAttributionsMock,
       updaterCheck: () => Promise.resolve(),
@@ -329,5 +372,193 @@ describe('SettingsPage git sync guide', () => {
     expect(
       screen.getByRole('link', { name: 'GitHub personal access token documentation' }),
     ).toBeInTheDocument()
+  })
+})
+
+describe('SettingsPage git remote URL handling', () => {
+  it('normalizes SSH scp-style URLs on save and runs connect + pull', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<SettingsPage />)
+
+    const remoteInput = screen.getByTestId('input-remote-url')
+    await user.clear(remoteInput)
+    await user.type(remoteInput, '  git@github.com:owner/repo.git  ')
+    await user.click(screen.getByTestId('btn-save-git-remote'))
+
+    await waitFor(() =>
+      expect(settingsSetMock).toHaveBeenCalledWith('git-remote', {
+        remoteUrl: 'ssh://git@github.com/owner/repo.git',
+        authMethod: 'ssh',
+      }),
+    )
+    expect(gitSyncConnectManualMock).toHaveBeenCalledWith({
+      remoteUrl: 'ssh://git@github.com/owner/repo.git',
+      authMethod: 'ssh',
+    })
+    expect(gitSyncPullMock).toHaveBeenCalled()
+    const normalizedInput = screen.getByTestId('input-remote-url')
+    expect(normalizedInput).toHaveValue('ssh://git@github.com/owner/repo.git')
+    expect(await screen.findByText('Connected and synced.')).toBeInTheDocument()
+  })
+
+  it('shows a specific validation error for malformed SSH scp-style input', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<SettingsPage />)
+
+    await user.type(screen.getByTestId('input-remote-url'), 'github.com:owner/repo.git')
+    await user.click(screen.getByTestId('btn-save-git-remote'))
+
+    expect(
+      await screen.findByText(
+        'SSH scp-style URL must include the git user, for example git@github.com:owner/repo.git.',
+      ),
+    ).toBeInTheDocument()
+    expect(settingsSetMock).not.toHaveBeenCalled()
+    expect(gitSyncConnectManualMock).not.toHaveBeenCalled()
+  })
+
+  it('requires token input when HTTPS token auth is selected', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<SettingsPage />)
+
+    await user.click(screen.getByText('HTTPS Token'))
+    await user.type(screen.getByTestId('input-remote-url'), 'https://github.com/owner/repo.git')
+    await user.click(screen.getByTestId('btn-save-git-remote'))
+
+    expect(
+      await screen.findByText('Enter a personal access token to continue.'),
+    ).toBeInTheDocument()
+    expect(settingsSetMock).not.toHaveBeenCalled()
+  })
+
+  it('blocks SSH URL when HTTPS token auth is selected', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<SettingsPage />)
+
+    await user.click(screen.getByText('HTTPS Token'))
+    await user.type(screen.getByTestId('input-remote-url'), 'git@github.com:owner/repo.git')
+    await user.click(screen.getByTestId('btn-save-git-remote'))
+
+    expect(
+      await screen.findByText('Remote URL must use https:// when HTTPS Token auth is selected.'),
+    ).toBeInTheDocument()
+    expect(settingsSetMock).not.toHaveBeenCalled()
+  })
+
+  it('blocks HTTPS URL when SSH auth is selected', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<SettingsPage />)
+
+    await user.type(screen.getByTestId('input-remote-url'), 'https://github.com/owner/repo.git')
+    await user.click(screen.getByTestId('btn-save-git-remote'))
+
+    expect(
+      await screen.findByText('Remote URL must use SSH format when SSH Key auth is selected.'),
+    ).toBeInTheDocument()
+    expect(settingsSetMock).not.toHaveBeenCalled()
+  })
+
+  it('keeps canonical SSH URLs unchanged when valid', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<SettingsPage />)
+
+    await user.type(screen.getByTestId('input-remote-url'), 'ssh://git@github.com/owner/repo.git')
+    await user.click(screen.getByTestId('btn-save-git-remote'))
+
+    await waitFor(() =>
+      expect(settingsSetMock).toHaveBeenCalledWith('git-remote', {
+        remoteUrl: 'ssh://git@github.com/owner/repo.git',
+        authMethod: 'ssh',
+      }),
+    )
+    expect(gitSyncConnectManualMock).toHaveBeenCalledWith({
+      remoteUrl: 'ssh://git@github.com/owner/repo.git',
+      authMethod: 'ssh',
+    })
+  })
+
+  it('keeps HTTPS URLs unchanged when HTTPS token auth is selected', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<SettingsPage />)
+
+    await user.click(screen.getByText('HTTPS Token'))
+    await user.type(screen.getByTestId('input-remote-url'), 'https://github.com/owner/repo.git')
+    await user.type(screen.getByTestId('input-https-token'), 'ghp_secret')
+    await user.click(screen.getByTestId('btn-save-git-remote'))
+
+    await waitFor(() =>
+      expect(settingsSetMock).toHaveBeenCalledWith('git-remote', {
+        remoteUrl: 'https://github.com/owner/repo.git',
+        authMethod: 'https-token',
+        httpsToken: 'ghp_secret',
+      }),
+    )
+    expect(gitSyncConnectManualMock).toHaveBeenCalledWith({
+      remoteUrl: 'https://github.com/owner/repo.git',
+      authMethod: 'https-token',
+      authToken: 'ghp_secret',
+    })
+  })
+
+  it('keeps saved settings and allows retry when connection fails', async () => {
+    const user = userEvent.setup()
+    gitSyncConnectManualMock
+      .mockRejectedValueOnce(new Error('Host key verification failed'))
+      .mockResolvedValueOnce({ connected: true })
+
+    renderWithProviders(<SettingsPage />)
+
+    await user.type(screen.getByTestId('input-remote-url'), 'git@github.com:owner/repo.git')
+    await user.click(screen.getByTestId('btn-save-git-remote'))
+
+    await waitFor(() => expect(settingsSetMock).toHaveBeenCalledTimes(1))
+    expect(await screen.findByText('Connection or sync failed.')).toBeInTheDocument()
+    expect(await screen.findByText('Host key verification failed')).toBeInTheDocument()
+    expect(gitSyncPullMock).not.toHaveBeenCalled()
+
+    await user.click(screen.getByTestId('btn-retry-git-sync'))
+
+    await waitFor(() => expect(gitSyncConnectManualMock).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(gitSyncPullMock).toHaveBeenCalledTimes(1))
+    expect(await screen.findByText('Connected and synced.')).toBeInTheDocument()
+  })
+
+  it('runs a read-only SSH test without saving or syncing', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<SettingsPage />)
+
+    await user.type(screen.getByTestId('input-remote-url'), 'git@github.com:owner/repo.git')
+    await user.click(screen.getByTestId('btn-test-git-ssh'))
+
+    await waitFor(() =>
+      expect(gitSyncTestRemoteMock).toHaveBeenCalledWith({
+        remoteUrl: 'ssh://git@github.com/owner/repo.git',
+        authMethod: 'ssh',
+      }),
+    )
+    expect(settingsSetMock).not.toHaveBeenCalled()
+    expect(gitSyncConnectManualMock).not.toHaveBeenCalled()
+    expect(gitSyncPullMock).not.toHaveBeenCalled()
+    expect(await screen.findByText('SSH access verified.')).toBeInTheDocument()
+  })
+
+  it('shows actionable publickey guidance and guide link when SSH test fails', async () => {
+    const user = userEvent.setup()
+    gitSyncTestRemoteMock.mockResolvedValueOnce({
+      success: false,
+      error:
+        'SSH authentication failed (publickey). Ensure your SSH key is loaded in your SSH agent.',
+    })
+
+    renderWithProviders(<SettingsPage />)
+
+    await user.type(screen.getByTestId('input-remote-url'), 'git@github.com:owner/repo.git')
+    await user.click(screen.getByTestId('btn-test-git-ssh'))
+
+    expect(await screen.findByText('SSH test failed.')).toBeInTheDocument()
+    expect(await screen.findByTestId('git-sync-status-error')).toHaveTextContent('publickey')
+    expect(await screen.findByTestId('git-sync-publickey-help')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Open setup guide' }))
+    expect(await screen.findByTestId('git-sync-guide-dialog')).toBeInTheDocument()
   })
 })

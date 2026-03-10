@@ -366,6 +366,116 @@ export interface SyncAllPreviewResult {
   readonly previews: Readonly<Partial<Record<ClientId, SyncPreviewResult>>>
 }
 
+// ─── Skills Types ─────────────────────────────────────────────────────────────
+
+/**
+ * Scope for skill installation and management.
+ */
+export type SkillScope = 'user' | 'project'
+
+/**
+ * Canonical location for an installed skill.
+ */
+export interface SkillLocation {
+  readonly scope: SkillScope
+  readonly skillName: string
+  readonly skillPath: string
+  readonly skillMdPath: string
+  readonly projectPath?: string
+}
+
+/**
+ * One installed skill discovered on disk.
+ */
+export interface InstalledSkill extends SkillLocation {
+  readonly description?: string
+  readonly enabled: boolean
+  readonly source: 'curated' | 'manual' | 'legacy' | 'unknown'
+  readonly updatedAt: string
+}
+
+/**
+ * One curated skill from `openai/skills/skills/.curated`.
+ */
+export interface CuratedSkill {
+  readonly name: string
+  readonly slug: string
+  readonly description: string
+  readonly repository: string
+  readonly path: string
+}
+
+/**
+ * File-level diff entry used by install and sync previews.
+ */
+export interface SkillFileDiff {
+  readonly path: string
+  readonly change: 'added' | 'removed' | 'modified'
+  readonly before?: string
+  readonly after?: string
+}
+
+/**
+ * Preview payload returned before installing a curated skill.
+ */
+export interface SkillInstallPreview {
+  readonly skillName: string
+  readonly scope: SkillScope
+  readonly projectPath?: string
+  readonly targetPath: string
+  readonly exists: boolean
+  readonly conflict: boolean
+  readonly files: readonly SkillFileDiff[]
+}
+
+/**
+ * One candidate legacy skill that can be migrated from `.codex/skills`.
+ */
+export interface SkillMigrationItem {
+  readonly scope: SkillScope
+  readonly skillName: string
+  readonly sourcePath: string
+  readonly targetPath: string
+  readonly projectPath?: string
+  readonly conflict: boolean
+}
+
+/**
+ * Migration preview payload for legacy skills.
+ */
+export interface SkillMigrationPreview {
+  readonly hasLegacy: boolean
+  readonly items: readonly SkillMigrationItem[]
+  readonly migrated?: number
+  readonly skipped?: number
+}
+
+/**
+ * Pending skill sync conflict that requires explicit user review.
+ */
+export interface SkillSyncConflict {
+  readonly id: string
+  readonly skillName: string
+  readonly scope: SkillScope
+  readonly localPath: string
+  readonly remotePath: string
+  readonly projectPath?: string
+  readonly files: readonly SkillFileDiff[]
+  readonly createdAt: string
+  readonly resolved?: boolean
+}
+
+/**
+ * Project mapping metadata for project-scoped skill sync across machines.
+ */
+export interface ProjectSkillMapping {
+  readonly remoteProjectKey: string
+  readonly remoteProjectPath: string
+  readonly localProjectPath?: string
+  readonly skillCount: number
+  readonly status: 'pending' | 'mapped'
+}
+
 // ─── Git Sync Types ───────────────────────────────────────────────────────────
 
 /**
@@ -400,6 +510,10 @@ export interface GitSyncStatus {
 export interface GitPushResult {
   readonly success: boolean
   readonly commitHash?: string
+  readonly skillsExported?: number
+  readonly userSkillsExported?: number
+  readonly projectSkillsExported?: number
+  readonly skillFilesExported?: number
   readonly error?: string
 }
 
@@ -412,18 +526,39 @@ export interface GitPullResult {
   readonly rulesImported: number
   readonly profilesImported: number
   readonly installIntentsImported: number
+  readonly skillsImported: number
+  readonly userSkillsImported: number
+  readonly projectSkillsImported: number
   /** Count of local entries overwritten by the remote (last-write-wins). */
   readonly conflicts: number
+  /** Count of unresolved skill content conflicts pending review. */
+  readonly skillConflicts: number
+  /** Count of pending project path mappings for project-scoped skills. */
+  readonly skillMappingsRequired: number
+  /** Concrete pending skill conflicts for deterministic UI rendering. */
+  readonly skillConflictItems: readonly SkillSyncConflict[]
+  /** Concrete pending mapping prompts for deterministic UI rendering. */
+  readonly projectSkillMappings: readonly ProjectSkillMapping[]
   readonly error?: string
 }
 
 /**
- * Input for manually configuring a git remote (any HTTPS provider).
+ * Input for manually configuring a git remote.
+ * `authToken` is required only when `authMethod` is `https-token`.
  */
 export interface ManualGitConfig {
   readonly remoteUrl: string
   readonly branch?: string
-  readonly authToken: string
+  readonly authMethod: 'ssh' | 'https-token'
+  readonly authToken?: string
+}
+
+/**
+ * Result of a read-only remote connectivity check.
+ */
+export interface GitRemoteTestResult {
+  readonly success: boolean
+  readonly error?: string
 }
 
 // ─── Sync / Result Types ──────────────────────────────────────────────────────

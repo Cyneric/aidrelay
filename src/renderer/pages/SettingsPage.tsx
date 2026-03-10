@@ -19,7 +19,19 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
-import { Save, RotateCcw, Key, Globe, Info, Download, AlertTriangle, BookOpen } from 'lucide-react'
+import {
+  Save,
+  RotateCcw,
+  Key,
+  Globe,
+  Info,
+  Download,
+  AlertTriangle,
+  BookOpen,
+  Loader2,
+  CheckCircle2,
+  XCircle,
+} from 'lucide-react'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -53,13 +65,134 @@ import type { OssAttribution } from '@shared/types'
 
 // ─── Validation Schemas ───────────────────────────────────────────────────────
 
-const gitRemoteSchema = z.object({
-  remoteUrl: z.string().url('Must be a valid URL').or(z.literal('')),
-  authMethod: z.enum(['ssh', 'https-token']),
-  httpsToken: z.string().optional(),
-})
+type GitRemoteAuthMethod = 'ssh' | 'https-token'
+type ParsedRemoteUrlKind = 'empty' | 'ssh' | 'https' | 'invalid' | 'invalid-ssh-missing-user'
+type GitSyncPhase = 'idle' | 'connecting' | 'pulling' | 'connected' | 'error'
+type GitSyncStatusMode = 'sync' | 'test'
 
-type GitRemoteForm = z.infer<typeof gitRemoteSchema>
+interface GitRemoteForm {
+  remoteUrl: string
+  authMethod: GitRemoteAuthMethod
+  httpsToken?: string | undefined
+}
+
+interface ParsedRemoteUrl {
+  kind: ParsedRemoteUrlKind
+  normalized: string
+}
+
+const SSH_SCP_REMOTE_RE = /^([a-zA-Z0-9._-]+)@([a-zA-Z0-9.-]+):(.+)$/
+const SSH_SCP_MISSING_USER_RE = /^([a-zA-Z0-9.-]+):(.+)$/
+
+const parseGitRemoteUrl = (value: string): ParsedRemoteUrl => {
+  const trimmed = value.trim()
+  if (trimmed.length === 0) {
+    return { kind: 'empty', normalized: '' }
+  }
+
+  const scpMatch = trimmed.match(SSH_SCP_REMOTE_RE)
+  if (scpMatch) {
+    const user = scpMatch[1] ?? ''
+    const host = scpMatch[2] ?? ''
+    const rawPath = scpMatch[3] ?? ''
+    const path = rawPath.replace(/^\/+/, '')
+    if (path.length === 0) {
+      return { kind: 'invalid', normalized: trimmed }
+    }
+
+    return { kind: 'ssh', normalized: `ssh://${user}@${host}/${path}` }
+  }
+
+  const missingUserSshMatch = trimmed.match(SSH_SCP_MISSING_USER_RE)
+  if (missingUserSshMatch && !trimmed.includes('://')) {
+    return { kind: 'invalid-ssh-missing-user', normalized: trimmed }
+  }
+
+  try {
+    const parsed = new URL(trimmed)
+    const protocol = parsed.protocol.toLowerCase()
+
+    if (protocol === 'https:') {
+      return { kind: 'https', normalized: trimmed }
+    }
+
+    if (protocol === 'ssh:') {
+      const host = parsed.hostname
+      const path = parsed.pathname.replace(/^\/+/, '')
+      if (host.length === 0 || path.length === 0) {
+        return { kind: 'invalid', normalized: trimmed }
+      }
+
+      const usernameSegment = parsed.username.length > 0 ? `${parsed.username}@` : ''
+      const portSegment = parsed.port.length > 0 ? `:${parsed.port}` : ''
+      return { kind: 'ssh', normalized: `ssh://${usernameSegment}${host}${portSegment}/${path}` }
+    }
+  } catch {
+    return { kind: 'invalid', normalized: trimmed }
+  }
+
+  return { kind: 'invalid', normalized: trimmed }
+}
+
+const createGitRemoteSchema = (t: (key: string) => string) =>
+  z
+    .object({
+      remoteUrl: z.string(),
+      authMethod: z.enum(['ssh', 'https-token']),
+      httpsToken: z.string().optional(),
+    })
+    .superRefine((data, ctx) => {
+      const parsed = parseGitRemoteUrl(data.remoteUrl)
+
+      if (parsed.kind === 'empty') return
+
+      if (parsed.kind === 'invalid') {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['remoteUrl'],
+          message: t('settings.remoteUrlErrorInvalid'),
+        })
+        return
+      }
+
+      if (parsed.kind === 'invalid-ssh-missing-user') {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['remoteUrl'],
+          message:
+            data.authMethod === 'ssh'
+              ? t('settings.remoteUrlErrorSshMissingUser')
+              : t('settings.remoteUrlErrorInvalid'),
+        })
+        return
+      }
+
+      if (data.authMethod === 'ssh' && parsed.kind !== 'ssh') {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['remoteUrl'],
+          message: t('settings.remoteUrlErrorNeedSsh'),
+        })
+        return
+      }
+
+      if (data.authMethod === 'https-token' && parsed.kind !== 'https') {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['remoteUrl'],
+          message: t('settings.remoteUrlErrorNeedHttps'),
+        })
+        return
+      }
+
+      if (data.authMethod === 'https-token' && (data.httpsToken ?? '').trim().length === 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['httpsToken'],
+          message: t('settings.patRequired'),
+        })
+      }
+    })
 
 const licenseSchema = z.object({
   licenseKey: z.string().min(1, 'License key is required'),
@@ -192,33 +325,186 @@ const LicensingSection = () => {
 const GitRemoteSection = () => {
   const { t } = useTranslation()
   const [guideOpen, setGuideOpen] = useState(false)
+  const [syncPhase, setSyncPhase] = useState<GitSyncPhase>('idle')
+  const [syncStatusMode, setSyncStatusMode] = useState<GitSyncStatusMode>('sync')
+  const [syncError, setSyncError] = useState<string | null>(null)
+  const [lastSavedConfig, setLastSavedConfig] = useState<GitRemoteForm | null>(null)
+  const gitRemoteSchema = useMemo(() => createGitRemoteSchema(t), [t])
   const {
     control,
     register,
     handleSubmit,
     reset,
     watch,
-    formState: { errors, isDirty },
+    formState: { errors, isDirty, isSubmitting },
   } = useForm<GitRemoteForm>({
     resolver: zodResolver(gitRemoteSchema),
     defaultValues: { remoteUrl: '', authMethod: 'ssh' },
   })
 
   const authMethod = watch('authMethod')
+  const remoteUrl = watch('remoteUrl')
+  const syncInProgress = syncPhase === 'connecting' || syncPhase === 'pulling'
+  const hasRemoteUrlValue = parseGitRemoteUrl(remoteUrl ?? '').normalized.trim().length > 0
+
+  const normalizeFormData = useCallback((data: GitRemoteForm): GitRemoteForm => {
+    const remoteUrl = parseGitRemoteUrl(data.remoteUrl).normalized
+    if (data.authMethod === 'https-token') {
+      return {
+        remoteUrl,
+        authMethod: 'https-token',
+        httpsToken: (data.httpsToken ?? '').trim(),
+      }
+    }
+
+    return {
+      remoteUrl,
+      authMethod: 'ssh',
+    }
+  }, [])
+
+  const runConnectAndPull = useCallback(
+    async (config: GitRemoteForm): Promise<void> => {
+      if (config.remoteUrl.trim().length === 0) {
+        setSyncPhase('idle')
+        setSyncError(null)
+        return
+      }
+
+      setSyncError(null)
+      setSyncStatusMode('sync')
+      setSyncPhase('connecting')
+      await window.api.gitSyncConnectManual({
+        remoteUrl: config.remoteUrl,
+        authMethod: config.authMethod,
+        ...(config.authMethod === 'https-token' ? { authToken: config.httpsToken ?? '' } : {}),
+      })
+
+      setSyncPhase('pulling')
+      const pullResult = await window.api.gitSyncPull()
+      if (!pullResult.success) {
+        throw new Error(pullResult.error ?? t('settings.gitSyncStatusErrorUnknown'))
+      }
+
+      setSyncPhase('connected')
+      setSyncError(null)
+    },
+    [t],
+  )
+
+  const handleSyncFailure = useCallback((error: unknown) => {
+    const message = error instanceof Error ? error.message : String(error)
+    setSyncPhase('error')
+    setSyncError(message)
+  }, [])
 
   useEffect(() => {
-    void settingsService.get('git-remote').then((stored) => {
+    let mounted = true
+
+    void Promise.all([
+      settingsService.get('git-remote'),
+      window.api.gitSyncStatus().catch(() => null),
+    ]).then(([stored, status]) => {
+      if (!mounted) return
+
       if (stored && typeof stored === 'object') {
-        reset(stored as GitRemoteForm)
+        const typed = stored as Partial<GitRemoteForm>
+        const remoteUrl =
+          typeof typed.remoteUrl === 'string'
+            ? parseGitRemoteUrl(typed.remoteUrl).normalized || typed.remoteUrl.trim()
+            : ''
+
+        const normalized: GitRemoteForm = {
+          remoteUrl,
+          authMethod: typed.authMethod === 'https-token' ? 'https-token' : 'ssh',
+          ...(typed.authMethod === 'https-token' && typeof typed.httpsToken === 'string'
+            ? { httpsToken: typed.httpsToken }
+            : {}),
+        }
+
+        reset(normalized)
+        setLastSavedConfig(normalized)
+      }
+
+      if (status) {
+        setSyncPhase(status.connected ? 'connected' : 'idle')
       }
     })
+
+    return () => {
+      mounted = false
+    }
   }, [reset])
 
   const onSave = handleSubmit(async (data) => {
-    await settingsService.set('git-remote', data)
-    reset(data)
-    toast.success(t('settings.gitRemoteSaved'))
+    const normalized = normalizeFormData(data)
+
+    await settingsService.set('git-remote', normalized)
+    reset(normalized)
+    setLastSavedConfig(normalized)
+
+    try {
+      await runConnectAndPull(normalized)
+    } catch (error) {
+      handleSyncFailure(error)
+    }
   })
+
+  const onRetry = useCallback(() => {
+    if (!lastSavedConfig || syncInProgress) return
+
+    void runConnectAndPull(lastSavedConfig).catch((error) => {
+      handleSyncFailure(error)
+    })
+  }, [handleSyncFailure, lastSavedConfig, runConnectAndPull, syncInProgress])
+
+  const onTestSsh = handleSubmit(async (data) => {
+    const normalized = normalizeFormData(data)
+    if (normalized.authMethod !== 'ssh' || normalized.remoteUrl.trim().length === 0) return
+
+    try {
+      setSyncStatusMode('test')
+      setSyncError(null)
+      setSyncPhase('connecting')
+
+      const result = await window.api.gitSyncTestRemote({
+        remoteUrl: normalized.remoteUrl,
+        authMethod: 'ssh',
+      })
+
+      if (!result.success) {
+        throw new Error(result.error ?? t('settings.gitSyncStatusErrorUnknown'))
+      }
+
+      setSyncPhase('connected')
+    } catch (error) {
+      handleSyncFailure(error)
+    }
+  })
+
+  const syncStatusLabel = useMemo(() => {
+    switch (syncPhase) {
+      case 'connecting':
+        return syncStatusMode === 'test'
+          ? t('settings.gitSyncStatusTesting')
+          : t('settings.gitSyncStatusConnecting')
+      case 'pulling':
+        return t('settings.gitSyncStatusPulling')
+      case 'connected':
+        return syncStatusMode === 'test'
+          ? t('settings.gitSyncStatusTestPassed')
+          : t('settings.gitSyncStatusConnected')
+      case 'error':
+        return syncStatusMode === 'test'
+          ? t('settings.gitSyncStatusTestFailed')
+          : t('settings.gitSyncStatusError')
+      default:
+        return t('settings.gitSyncStatusIdle')
+    }
+  }, [syncPhase, syncStatusMode, t])
+
+  const isPublicKeyAuthError =
+    syncPhase === 'error' && syncError !== null && /publickey/i.test(syncError)
 
   return (
     <Section
@@ -297,7 +583,7 @@ const GitRemoteSection = () => {
           <Input
             id="remote-url"
             {...register('remoteUrl')}
-            type="url"
+            type="text"
             placeholder={t('settings.remoteUrlPlaceholder')}
             data-testid="input-remote-url"
           />
@@ -305,6 +591,18 @@ const GitRemoteSection = () => {
             <p className="mt-1 text-xs text-destructive" role="alert">
               {errors.remoteUrl.message}
             </p>
+          )}
+          <p className="mt-1 text-xs text-muted-foreground" data-testid="remote-url-help">
+            {authMethod === 'ssh'
+              ? t('settings.remoteUrlHelpSsh')
+              : t('settings.remoteUrlHelpHttpsToken')}
+          </p>
+          {authMethod === 'ssh' && (
+            <ul className="mt-2 list-disc space-y-1 pl-4 text-xs text-muted-foreground">
+              <li>{t('settings.sshChecklistKeyLoaded')}</li>
+              <li>{t('settings.sshChecklistKeyRegistered')}</li>
+              <li>{t('settings.sshChecklistRepoAccess')}</li>
+            </ul>
           )}
         </div>
 
@@ -344,18 +642,85 @@ const GitRemoteSection = () => {
               placeholder={t('settings.patPlaceholder')}
               data-testid="input-https-token"
             />
+            {errors.httpsToken && (
+              <p className="mt-1 text-xs text-destructive" role="alert">
+                {errors.httpsToken.message}
+              </p>
+            )}
           </div>
         )}
 
-        <Button
-          type="submit"
-          disabled={!isDirty}
-          className="gap-1.5"
-          data-testid="btn-save-git-remote"
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="submit"
+            disabled={!isDirty || isSubmitting || syncInProgress}
+            className="gap-1.5"
+            data-testid="btn-save-git-remote"
+          >
+            <Save size={14} aria-hidden="true" />
+            {t('settings.saveButton')}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={authMethod !== 'ssh' || isSubmitting || syncInProgress || !hasRemoteUrlValue}
+            onClick={() => void onTestSsh()}
+            className="gap-1.5"
+            data-testid="btn-test-git-ssh"
+          >
+            <Globe size={14} aria-hidden="true" />
+            {t('settings.testSshButton')}
+          </Button>
+        </div>
+
+        <div
+          className="rounded-md border border-border/70 bg-muted/30 px-3 py-2 text-sm"
+          data-testid="git-sync-status-row"
         >
-          <Save size={14} aria-hidden="true" />
-          {t('settings.saveButton')}
-        </Button>
+          <div className="flex items-center gap-2" data-testid="git-sync-status-text">
+            {syncPhase === 'connected' && <CheckCircle2 size={14} className="text-green-600" />}
+            {(syncPhase === 'connecting' || syncPhase === 'pulling') && (
+              <Loader2 size={14} className="animate-spin text-muted-foreground" />
+            )}
+            {syncPhase === 'error' && <XCircle size={14} className="text-destructive" />}
+            {syncPhase === 'idle' && <Info size={14} className="text-muted-foreground" />}
+            <span>{syncStatusLabel}</span>
+          </div>
+
+          {syncPhase === 'error' && syncError && (
+            <p className="mt-1 text-xs text-destructive" data-testid="git-sync-status-error">
+              {syncError}
+            </p>
+          )}
+
+          {isPublicKeyAuthError && (
+            <p className="mt-1 text-xs text-muted-foreground" data-testid="git-sync-publickey-help">
+              {t('settings.gitSyncPublicKeyHelp')}{' '}
+              <button
+                type="button"
+                className="underline hover:no-underline"
+                onClick={() => setGuideOpen(true)}
+              >
+                {t('settings.gitSyncOpenGuideLink')}
+              </button>
+            </p>
+          )}
+
+          {syncPhase === 'error' && lastSavedConfig && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="mt-2"
+              onClick={onRetry}
+              disabled={syncInProgress}
+              data-testid="btn-retry-git-sync"
+            >
+              <RotateCcw size={12} aria-hidden="true" />
+              {t('settings.gitSyncRetry')}
+            </Button>
+          )}
+        </div>
       </form>
     </Section>
   )
