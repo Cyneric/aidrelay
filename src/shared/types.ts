@@ -266,6 +266,18 @@ export interface LicenseStatus {
   readonly lastValidatedAt: string
 }
 
+/**
+ * A single OSS attribution record shown in Settings -> About.
+ */
+export interface OssAttribution {
+  readonly packageName: string
+  readonly version: string
+  readonly license: string
+  readonly repositoryUrl: string
+  readonly licenseFile: string
+  readonly licenseText: string
+}
+
 // ─── File Watcher Types ───────────────────────────────────────────────────────
 
 /**

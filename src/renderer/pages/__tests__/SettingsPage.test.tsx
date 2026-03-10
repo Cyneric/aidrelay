@@ -13,6 +13,18 @@ import { SettingsPage } from '../SettingsPage'
 
 const settingsGetMock = vi.fn<(key: string) => Promise<unknown>>()
 const settingsSetMock = vi.fn<(key: string, value: unknown) => Promise<void>>()
+const appOssAttributionsMock = vi.fn<
+  () => Promise<
+    Array<{
+      packageName: string
+      version: string
+      license: string
+      repositoryUrl: string
+      licenseFile: string
+      licenseText: string
+    }>
+  >
+>()
 const settingsResetMock =
   vi.fn<
     (input: {
@@ -65,6 +77,24 @@ beforeEach(async () => {
 
   settingsGetMock.mockResolvedValue(undefined)
   settingsSetMock.mockResolvedValue()
+  appOssAttributionsMock.mockResolvedValue([
+    {
+      packageName: 'react',
+      version: '19.1.0',
+      license: 'MIT',
+      repositoryUrl: 'https://github.com/facebook/react',
+      licenseFile: 'node_modules/react/LICENSE',
+      licenseText: 'Permission is hereby granted...',
+    },
+    {
+      packageName: 'zod',
+      version: '4.3.6',
+      license: 'MIT',
+      repositoryUrl: 'https://github.com/colinhacks/zod',
+      licenseFile: 'node_modules/zod/LICENSE',
+      licenseText: 'THE SOFTWARE IS PROVIDED "AS IS"...',
+    },
+  ])
   settingsResetMock.mockResolvedValue({
     resetKeys: ['theme', 'language'],
     disconnectedGitSync: false,
@@ -81,6 +111,7 @@ beforeEach(async () => {
       settingsSet: settingsSetMock,
       settingsReset: settingsResetMock,
       appVersion: () => Promise.resolve('1.0.0'),
+      appOssAttributions: appOssAttributionsMock,
       updaterCheck: () => Promise.resolve(),
       updaterInstall: () => Promise.resolve(),
       onUpdateAvailable: () => () => {},
@@ -130,6 +161,81 @@ describe('SettingsPage language preference', () => {
       expect(screen.getByRole('heading', { level: 1, name: 'Settings' })).toBeInTheDocument(),
     )
     expect(screen.getByTestId('select-language')).toHaveTextContent('English')
+  })
+})
+
+describe('SettingsPage OSS attributions', () => {
+  it('opens OSS modal and renders attribution entries with license text', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<SettingsPage />)
+
+    await user.click(screen.getByTestId('btn-open-oss-attributions'))
+
+    await screen.findByTestId('oss-attributions-list')
+    expect(screen.getByText('react')).toBeInTheDocument()
+    expect(screen.getByText('zod')).toBeInTheDocument()
+    expect(screen.getAllByTestId('oss-attribution-license-text').length).toBeGreaterThan(0)
+  })
+
+  it('filters OSS list by search query', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<SettingsPage />)
+
+    await user.click(screen.getByTestId('btn-open-oss-attributions'))
+    await screen.findByTestId('oss-attributions-list')
+
+    await user.type(screen.getByTestId('input-oss-search'), 'zod')
+
+    expect(screen.getByText('zod')).toBeInTheDocument()
+    expect(screen.queryByText('react')).not.toBeInTheDocument()
+  })
+
+  it('shows error state when OSS attribution loading fails', async () => {
+    appOssAttributionsMock.mockRejectedValue(new Error('boom'))
+    const user = userEvent.setup()
+    renderWithProviders(<SettingsPage />)
+
+    await user.click(screen.getByTestId('btn-open-oss-attributions'))
+
+    await screen.findByTestId('oss-attributions-error')
+    expect(screen.getByText('Failed to load open source attributions.')).toBeInTheDocument()
+  })
+
+  it('shows loading state while OSS attributions are being fetched', async () => {
+    let resolveFetch:
+      | ((
+          value: Array<{
+            packageName: string
+            version: string
+            license: string
+            repositoryUrl: string
+            licenseFile: string
+            licenseText: string
+          }>,
+        ) => void)
+      | undefined
+    const pendingPromise = new Promise<
+      Array<{
+        packageName: string
+        version: string
+        license: string
+        repositoryUrl: string
+        licenseFile: string
+        licenseText: string
+      }>
+    >((resolve) => {
+      resolveFetch = resolve
+    })
+    appOssAttributionsMock.mockImplementation(() => pendingPromise)
+
+    const user = userEvent.setup()
+    renderWithProviders(<SettingsPage />)
+
+    await user.click(screen.getByTestId('btn-open-oss-attributions'))
+    await screen.findByTestId('oss-attributions-loading')
+
+    resolveFetch?.([])
+    await screen.findByTestId('oss-attributions-empty')
   })
 })
 
@@ -208,5 +314,20 @@ describe('SettingsPage danger zone', () => {
     fireEvent.click(screen.getByTestId('btn-confirm-reset-settings'))
 
     await waitFor(() => expect(toastErrorMock).toHaveBeenCalled())
+  })
+})
+
+describe('SettingsPage git sync guide', () => {
+  it('opens the git sync setup guide modal', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<SettingsPage />)
+
+    await user.click(screen.getByTestId('btn-open-git-sync-guide'))
+
+    expect(await screen.findByTestId('git-sync-guide-dialog')).toBeInTheDocument()
+    expect(screen.getByText('How to set up Git Sync')).toBeInTheDocument()
+    expect(
+      screen.getByRole('link', { name: 'GitHub personal access token documentation' }),
+    ).toBeInTheDocument()
   })
 })

@@ -14,6 +14,8 @@
 import { ipcMain, app } from 'electron'
 import log from 'electron-log'
 import { getStartupStatus } from '@main/startup/startup-state'
+import { getOssAttributions } from '@main/app/oss-attributions.service'
+import type { OssAttribution } from '@shared/types'
 
 // ─── Handler Registration ─────────────────────────────────────────────────────
 
@@ -30,6 +32,11 @@ export const registerAppIpc = (): void => {
   ipcMain.handle('app:startup-status', () => {
     log.debug('[ipc] app:startup-status')
     return getStartupStatus()
+  })
+
+  ipcMain.handle('app:oss-attributions', (): OssAttribution[] => {
+    log.debug('[ipc] app:oss-attributions')
+    return getOssAttributions()
   })
 
   log.info('[ipc] app handlers registered')
