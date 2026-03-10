@@ -2,7 +2,7 @@
  * @file src/shared/channels.ts
  *
  * @created 07.03.2026
- * @modified 09.03.2026
+ * @modified 10.03.2026
  *
  * @author Christian Blank <aidrelay@proton.me>
  * @copyright 2026
@@ -32,6 +32,7 @@ import type {
   SyncAllPreviewResult,
   LicenseStatus,
   ValidationResult,
+  ValidationResultByClientId,
   GitSyncStatus,
   GitPushResult,
   GitPullResult,
@@ -525,6 +526,7 @@ export interface IpcChannels {
 
   // Validation
   'clients:validate-config': (clientId: ClientId) => Promise<ValidationResult>
+  'clients:validate-all-configs': () => Promise<ValidationResultByClientId>
 
   // Git Sync
   'git-sync:status': () => Promise<GitSyncStatus>

@@ -2,7 +2,7 @@
  * @file src/shared/types.ts
  *
  * @created 07.03.2026
- * @modified 09.03.2026
+ * @modified 10.03.2026
  *
  * @author Christian Blank <aidrelay@proton.me>
  * @copyright 2026
@@ -21,6 +21,8 @@
 export type ClientId =
   | 'claude-desktop'
   | 'claude-code'
+  | 'cline'
+  | 'roo-code'
   | 'cursor'
   | 'vscode'
   | 'vscode-insiders'
@@ -28,6 +30,7 @@ export type ClientId =
   | 'zed'
   | 'jetbrains'
   | 'gemini-cli'
+  | 'kilo-cli'
   | 'codex-cli'
   | 'codex-gui'
   | 'opencode'
@@ -88,6 +91,15 @@ export interface ClientDetectionResult {
 }
 
 /**
+ * Persisted validation outcome for a client config file.
+ */
+export interface StoredValidationResult {
+  readonly valid: boolean
+  readonly errors: readonly string[]
+  readonly validatedAt: string
+}
+
+/**
  * Runtime status of a detected client, used in the UI.
  */
 export interface ClientStatus {
@@ -99,6 +111,7 @@ export interface ClientStatus {
   readonly serverCount: number
   readonly lastSyncedAt?: string
   readonly syncStatus: 'synced' | 'out-of-sync' | 'never-synced' | 'error'
+  readonly lastValidation?: StoredValidationResult
 }
 
 // ─── MCP Server Types ─────────────────────────────────────────────────────────
@@ -433,6 +446,11 @@ export interface ValidationResult {
   readonly valid: boolean
   readonly errors: readonly string[]
 }
+
+/**
+ * Map of clientId -> persisted validation result.
+ */
+export type ValidationResultByClientId = Partial<Record<ClientId, StoredValidationResult>>
 
 // ─── Local Installation Types ──────────────────────────────────────────────────
 

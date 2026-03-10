@@ -2,7 +2,7 @@
  * @file src/main/installer/installer.service.ts
  *
  * @created 09.03.2026
- * @modified 09.03.2026
+ * @modified 10.03.2026
  *
  * @author Christian Blank <aidrelay@proton.me>
  * @copyright 2026
@@ -368,8 +368,13 @@ export class InstallerService extends EventEmitter {
    */
   async repair(serverId: string): Promise<InstallPlan> {
     log.debug(`[installer] repair for server ${serverId}`)
+    const existingState = await this.status(serverId)
+    if (existingState) {
+      log.debug(`[installer] existing install status: ${existingState.installStatus}`)
+    }
     const plan = await this.prepare(serverId)
-    // TODO: Determine which steps need repair based on device_setup_state
+    // TODO: Determine which steps need repair based on device_setup_state and runtime detection
+    // For now, return the full plan; the preflight step will identify missing runtimes.
     return plan
   }
 

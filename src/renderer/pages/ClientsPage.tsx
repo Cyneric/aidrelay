@@ -2,7 +2,7 @@
  * @file src/renderer/pages/ClientsPage.tsx
  *
  * @created 07.03.2026
- * @modified 08.03.2026
+ * @modified 10.03.2026
  *
  * @author Christian Blank <aidrelay@proton.me>
  * @copyright 2026
@@ -417,12 +417,15 @@ const OFFICIAL_INSTALL_URLS: Readonly<Record<ClientStatus['id'], string>> = {
   cursor: 'https://www.cursor.com/downloads',
   'claude-desktop': 'https://claude.ai/download',
   'claude-code': 'https://docs.anthropic.com/en/docs/claude-code/overview',
+  cline: 'https://marketplace.visualstudio.com/items?itemName=saoudrizwan.claude-dev',
+  'roo-code': 'https://marketplace.visualstudio.com/items?itemName=RooVeterinaryInc.roo-cline',
   vscode: 'https://code.visualstudio.com/download',
   'vscode-insiders': 'https://code.visualstudio.com/insiders',
   windsurf: 'https://codeium.com/windsurf',
   zed: 'https://zed.dev/download',
   jetbrains: 'https://www.jetbrains.com/toolbox-app/',
   'gemini-cli': 'https://github.com/google-gemini/gemini-cli',
+  'kilo-cli': 'https://kilocode.ai/docs/getting-started/installation',
   'codex-cli': 'https://github.com/openai/codex',
   'codex-gui': 'https://apps.microsoft.com/detail/9PLM9XGG6VKS',
   opencode: 'https://opencode.ai/',
@@ -496,6 +499,7 @@ const ClientsPage = () => {
   const [discoveringId, setDiscoveringId] = useState<ClientStatus['id'] | null>(null)
   const [clearingManualPathId, setClearingManualPathId] = useState<ClientStatus['id'] | null>(null)
   const [validatingId, setValidatingId] = useState<ClientStatus['id'] | null>(null)
+  const [validatingAll, setValidatingAll] = useState(false)
   const [validationStatusByClientId, setValidationStatusByClientId] = useState<
     Partial<Record<ClientStatus['id'], ValidationStatus>>
   >({})
@@ -511,6 +515,15 @@ const ClientsPage = () => {
   useEffect(() => {
     void detectAll()
   }, [detectAll])
+
+  useEffect(() => {
+    const next: Partial<Record<ClientStatus['id'], ValidationStatus>> = {}
+    clients.forEach((client) => {
+      if (!client.lastValidation) return
+      next[client.id] = client.lastValidation.valid ? 'success' : 'failure'
+    })
+    setValidationStatusByClientId(next)
+  }, [clients])
 
   const performSync = useCallback(
     async (clientId: ClientStatus['id'], options?: SyncClientOptions): Promise<SyncResult> => {
@@ -740,7 +753,44 @@ const ClientsPage = () => {
     [t],
   )
 
+  const handleValidateAll = useCallback(async () => {
+    setValidatingAll(true)
+    try {
+      const results = await clientsService.validateAllConfigs()
+      const entries = Object.entries(results) as Array<[ClientStatus['id'], { valid: boolean }]>
+
+      setValidationStatusByClientId((prev) => {
+        const next = { ...prev }
+        entries.forEach(([id, result]) => {
+          next[id] = result.valid ? 'success' : 'failure'
+        })
+        return next
+      })
+
+      const total = entries.length
+      if (total === 0) {
+        toast.warning(t('clients.validateAllNone'))
+        return
+      }
+
+      const succeeded = entries.filter(([, result]) => result.valid).length
+      const failed = total - succeeded
+
+      if (failed === 0) {
+        toast.success(t('clients.validateAllSuccess', { count: succeeded }))
+      } else {
+        toast.warning(t('clients.validateAllSummary', { succeeded, total, failed }))
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : t('common.error')
+      toast.error(message)
+    } finally {
+      setValidatingAll(false)
+    }
+  }, [t])
+
   const installedCount = clients.filter((c) => c.installed).length
+  const validateAllCount = clients.filter((c) => c.installed && c.configPaths.length > 0).length
   const createConfigClient = clients.find((client) => client.id === createConfigClientId) ?? null
   const installClient = clients.find((client) => client.id === installClientId) ?? null
   const officialInstallUrl = installClient ? OFFICIAL_INSTALL_URLS[installClient.id] : undefined
@@ -916,6 +966,27 @@ const ClientsPage = () => {
             <RefreshCw size={14} className={loading ? 'animate-spin' : ''} aria-hidden="true" />
             {loading ? t('clients.detecting_button') : t('clients.refresh')}
           </Button>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => void handleValidateAll()}
+                disabled={loading || validatingAll || validateAllCount === 0}
+                className="gap-1.5"
+                data-testid="btn-validate-all"
+              >
+                <ShieldCheck
+                  size={14}
+                  className={validatingAll ? 'animate-pulse' : ''}
+                  aria-hidden="true"
+                />
+                {validatingAll ? t('clients.validateAllRunning') : t('clients.validateAll')}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{t('clients.validateAllTooltip')}</TooltipContent>
+          </Tooltip>
 
           <Button
             type="button"

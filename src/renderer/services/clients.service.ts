@@ -11,6 +11,7 @@ import type {
   SyncPreviewResult,
   SyncAllPreviewResult,
   ValidationResult,
+  ValidationResultByClientId,
 } from '@shared/types'
 import type { ClientInstallProgressPayload } from '@shared/channels'
 
@@ -35,6 +36,8 @@ export const clientsService = {
     window.api.clientsClearManualConfigPath(clientId),
   validateConfig: (clientId: ClientId): Promise<ValidationResult> =>
     window.api.clientsValidateConfig(clientId),
+  validateAllConfigs: (): Promise<ValidationResultByClientId> =>
+    window.api.clientsValidateAllConfigs(),
   onConfigChanged: (handler: (payload: ConfigChangedPayload) => void): (() => void) =>
     window.api.onConfigChanged(handler),
   onInstallProgress: (handler: (payload: ClientInstallProgressPayload) => void): (() => void) =>

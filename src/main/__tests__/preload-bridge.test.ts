@@ -13,6 +13,7 @@ const EXPECTED_KEYS = [
   'clientsImportConfigChanges',
   'clientsSetManualConfigPath',
   'clientsClearManualConfigPath',
+  'clientsValidateAllConfigs',
   'clientsValidateConfig',
   'serversList',
   'serversGet',

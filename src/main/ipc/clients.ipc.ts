@@ -1,6 +1,12 @@
 /**
  * @file src/main/ipc/clients.ipc.ts
  *
+ * @created 07.03.2026
+ * @modified 10.03.2026
+ *
+ * @author Christian Blank <aidrelay@proton.me>
+ * @copyright 2026
+ *
  * @description IPC handlers for all client-related channels.
  */
 
@@ -16,11 +22,13 @@ import type {
   ConfigImportPreviewResult,
   ConfigImportResult,
   McpServerMap,
+  StoredValidationResult,
   SyncClientOptions,
   SyncResult,
   SyncPreviewResult,
   SyncAllPreviewResult,
   ValidationResult,
+  ValidationResultByClientId,
 } from '@shared/types'
 import type { ClientInstallProgressPayload } from '@shared/channels'
 import { ADAPTERS, ADAPTER_IDS } from '@main/clients/registry'
@@ -41,6 +49,7 @@ import { SyncService } from '@main/sync/sync.service'
 import { VISUAL_STUDIO_CONFIG_SETTING_KEY } from '@main/clients/visual-studio.adapter'
 
 const MANUAL_CONFIG_PATH_PREFIX = 'clients.manualConfigPath.'
+const VALIDATION_RESULT_PREFIX = 'clients.validationResult.'
 
 // ─── Service Factory ──────────────────────────────────────────────────────────
 
@@ -59,6 +68,9 @@ const supportsManualConfigPath = (clientId: ClientId): boolean => clientId !== '
 
 const manualConfigPathSettingKey = (clientId: ClientId): string =>
   `${MANUAL_CONFIG_PATH_PREFIX}${clientId}`
+
+const validationResultSettingKey = (clientId: ClientId): string =>
+  `${VALIDATION_RESULT_PREFIX}${clientId}`
 
 const asNonEmptyString = (value: unknown): string | undefined => {
   if (typeof value !== 'string') return undefined
@@ -98,11 +110,73 @@ const clearStoredManualConfigPath = (clientId: ClientId): void => {
   }
 }
 
+const getStoredValidationResult = (clientId: ClientId): StoredValidationResult | undefined => {
+  const repo = settingsRepo()
+  return repo.get<StoredValidationResult>(validationResultSettingKey(clientId))
+}
+
+const setStoredValidationResult = (clientId: ClientId, result: StoredValidationResult): void => {
+  const repo = settingsRepo()
+  repo.set(validationResultSettingKey(clientId), result)
+}
+
+const clearStoredValidationResult = (clientId: ClientId): void => {
+  const repo = settingsRepo()
+  repo.delete(validationResultSettingKey(clientId))
+}
+
+const persistValidationResult = (
+  clientId: ClientId,
+  result: ValidationResult,
+): StoredValidationResult => {
+  const stored: StoredValidationResult = {
+    ...result,
+    validatedAt: new Date().toISOString(),
+  }
+  setStoredValidationResult(clientId, stored)
+  return stored
+}
+
+const normalizeValidationError = (error: unknown): ValidationResult => {
+  if (error instanceof Error) {
+    return { valid: false, errors: [error.message] }
+  }
+  return { valid: false, errors: ['Validation failed'] }
+}
+
 const resolveFallbackConfigPath = (clientId: ClientId): string | null => {
   switch (clientId) {
     case 'vscode': {
       const appData = process.env['APPDATA'] ?? ''
       return appData ? join(appData, 'Code', 'User', 'mcp.json') : null
+    }
+    case 'cline': {
+      const appData = process.env['APPDATA'] ?? ''
+      return appData
+        ? join(
+            appData,
+            'Code',
+            'User',
+            'globalStorage',
+            'saoudrizwan.claude-dev',
+            'settings',
+            'cline_mcp_settings.json',
+          )
+        : null
+    }
+    case 'roo-code': {
+      const appData = process.env['APPDATA'] ?? ''
+      return appData
+        ? join(
+            appData,
+            'Code',
+            'User',
+            'globalStorage',
+            'rooveterinaryinc.roo-cline',
+            'settings',
+            'mcp_settings.json',
+          )
+        : null
     }
     case 'vscode-insiders': {
       const appData = process.env['APPDATA'] ?? ''
@@ -115,6 +189,10 @@ const resolveFallbackConfigPath = (clientId: ClientId): string | null => {
     case 'gemini-cli': {
       const userProfile = process.env['USERPROFILE'] ?? ''
       return userProfile ? join(userProfile, '.gemini', 'settings.json') : null
+    }
+    case 'kilo-cli': {
+      const userProfile = process.env['USERPROFILE'] ?? ''
+      return userProfile ? join(userProfile, '.config', 'kilocode', 'kilocode.json') : null
     }
     case 'codex-gui': {
       const appData = process.env['APPDATA'] ?? ''
@@ -229,6 +307,7 @@ export const registerClientsIpc = (): void => {
       ADAPTER_IDS.map(async (id): Promise<ClientStatus> => {
         const adapter = ADAPTERS.get(id)!
         try {
+          const lastValidation = getStoredValidationResult(id)
           const { detection, manualConfigPath } = await resolveClientDetection(id, adapter)
           const latestSync = activityLogRepo.findLatestSyncByClient(id)
           const syncStatus =
@@ -248,9 +327,11 @@ export const registerClientsIpc = (): void => {
             syncStatus,
             ...(lastSyncedAt ? { lastSyncedAt } : {}),
             ...(manualConfigPath ? { manualConfigPath } : {}),
+            ...(lastValidation ? { lastValidation } : {}),
           }
         } catch (err) {
           const manualConfigPath = getStoredManualConfigPath(id)
+          const lastValidation = getStoredValidationResult(id)
           log.warn(`[ipc] detect failed for ${id}: ${String(err)}`)
           return {
             id,
@@ -260,6 +341,7 @@ export const registerClientsIpc = (): void => {
             serverCount: 0,
             syncStatus: 'error',
             ...(manualConfigPath ? { manualConfigPath } : {}),
+            ...(lastValidation ? { lastValidation } : {}),
           }
         }
       }),
@@ -502,20 +584,59 @@ export const registerClientsIpc = (): void => {
 
       const adapter = ADAPTERS.get(clientId)
       if (!adapter) {
+        clearStoredValidationResult(clientId)
         return { valid: false, errors: [`Unknown client: ${clientId}`] }
       }
 
       const { detection } = await resolveClientDetection(clientId, adapter)
       if (!detection.installed || detection.configPaths.length === 0) {
-        return {
+        const result = {
           valid: false,
           errors: [`${adapter.displayName} is not installed or has no config file`],
         }
+        persistValidationResult(clientId, result)
+        return result
       }
 
-      return adapter.validate(detection.configPaths[0]!)
+      try {
+        const result = await adapter.validate(detection.configPaths[0]!)
+        persistValidationResult(clientId, result)
+        return result
+      } catch (error) {
+        const result = normalizeValidationError(error)
+        persistValidationResult(clientId, result)
+        return result
+      }
     },
   )
+
+  ipcMain.handle('clients:validate-all-configs', async (): Promise<ValidationResultByClientId> => {
+    log.debug('[ipc] clients:validate-all-configs')
+
+    const results: ValidationResultByClientId = {}
+
+    for (const id of ADAPTER_IDS) {
+      const adapter = ADAPTERS.get(id)
+      if (!adapter) continue
+
+      const { detection } = await resolveClientDetection(id, adapter)
+      if (!detection.installed || detection.configPaths.length === 0) {
+        continue
+      }
+
+      try {
+        const validation = await adapter.validate(detection.configPaths[0]!)
+        const stored = persistValidationResult(id, validation)
+        results[id] = stored
+      } catch (error) {
+        const validation = normalizeValidationError(error)
+        const stored = persistValidationResult(id, validation)
+        results[id] = stored
+      }
+    }
+
+    return results
+  })
 
   log.info('[ipc] clients handlers registered')
 }

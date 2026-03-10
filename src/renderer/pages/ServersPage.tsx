@@ -2,7 +2,7 @@
  * @file src/renderer/pages/ServersPage.tsx
  *
  * @created 07.03.2026
- * @modified 08.03.2026
+ * @modified 10.03.2026
  *
  * @author Christian Blank <aidrelay@proton.me>
  * @copyright 2026
@@ -13,7 +13,7 @@
  * collapsible section below the table.
  */
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import {
   useReactTable,
   getCoreRowModel,
@@ -34,6 +34,7 @@ import {
   FlaskConical,
   Download,
   Copy,
+  Wrench,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
@@ -52,12 +53,14 @@ import {
 } from '@/components/ui/table'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { ServerEditor } from '@/components/servers/ServerEditor'
+import { InstallLocalWizard } from '@/components/installer/InstallLocalWizard'
 import { ToggleMatrix } from '@/components/servers/ToggleMatrix'
 import { ConfirmActionDialog } from '@/components/common/ConfirmActionDialog'
 import { useServersStore } from '@/stores/servers.store'
 import { useClientsStore } from '@/stores/clients.store'
 import { useFeatureGate } from '@/lib/useFeatureGate'
 import { useServersActions } from '@/hooks/useServersActions'
+import { useServerSetupStatuses, getSetupStatusKey } from '@/hooks/useServerSetupStatuses'
 import type { McpServer } from '@shared/types'
 
 // ─── Column helper ────────────────────────────────────────────────────────────
@@ -108,6 +111,9 @@ const formatCommandPreview = (
  */
 const ServersPage = () => {
   const { servers, loading, error, load, delete: deleteServer, toggleEnabled } = useServersStore()
+  const serverIdKey = servers.map((s) => s.id).join('|')
+  const serverIds = useMemo(() => servers.map((s) => s.id), [serverIdKey])
+  const { statuses } = useServerSetupStatuses(serverIds)
   const { clients, detectAll } = useClientsStore()
   const serverTestingEnabled = useFeatureGate('serverTesting')
   const { t } = useTranslation()
@@ -118,6 +124,8 @@ const ServersPage = () => {
   const [matrixExpanded, setMatrixExpanded] = useState(true)
   const [pendingDeleteServer, setPendingDeleteServer] = useState<McpServer | null>(null)
   const [deletingServer, setDeletingServer] = useState(false)
+  const [wizardServer, setWizardServer] = useState<McpServer | null>(null)
+  const [wizardMode, setWizardMode] = useState<'install' | 'repair'>('install')
   const {
     syncingAll,
     importingFromClients,
@@ -143,6 +151,21 @@ const ServersPage = () => {
     setEditingServer(server)
     setShowEditor(true)
   }, [])
+
+  const openInstall = useCallback((server: McpServer) => {
+    setWizardServer(server)
+    setWizardMode('install')
+  }, [])
+
+  const openRepair = useCallback((server: McpServer) => {
+    setWizardServer(server)
+    setWizardMode('repair')
+  }, [])
+
+  const closeWizard = useCallback(() => {
+    setWizardServer(null)
+    void load()
+  }, [load])
 
   const closeEditor = useCallback(() => {
     setShowEditor(false)
@@ -230,6 +253,25 @@ const ServersPage = () => {
       cell: ({ getValue }) => (
         <span className="rounded bg-muted px-1.5 py-0.5 text-xs font-mono">{getValue()}</span>
       ),
+    }),
+    columnHelper.display({
+      id: 'setupStatus',
+      header: () => t('servers.setupStatus'),
+      size: 108,
+      cell: ({ row }) => {
+        const state = statuses[row.original.id] ?? null
+        const statusKey = getSetupStatusKey(state)
+        const label = t(`servers.setupStatusLabels.${statusKey}`)
+        let variant: 'secondary' | 'destructive' | 'outline' | 'default' = 'outline'
+        if (statusKey === 'installed') variant = 'secondary'
+        else if (statusKey === 'failed' || statusKey === 'rolled_back') variant = 'destructive'
+        else if (statusKey === 'installing') variant = 'default'
+        return (
+          <Badge variant={variant} data-testid={`server-setup-status-${row.original.id}`}>
+            {label}
+          </Badge>
+        )
+      },
     }),
     columnHelper.display({
       id: 'status',
@@ -362,6 +404,43 @@ const ServersPage = () => {
               {serverTestingEnabled
                 ? t('servers.testTooltip', { name: row.original.name })
                 : t('servers.testUpgradeTooltip')}
+            </TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => {
+                  const state = statuses[row.original.id]
+                  if (state) {
+                    openRepair(row.original)
+                  } else {
+                    openInstall(row.original)
+                  }
+                }}
+                disabled={statuses[row.original.id]?.installStatus === 'running'}
+                aria-label={
+                  statuses[row.original.id]
+                    ? t('servers.repairAria', { name: row.original.name })
+                    : t('servers.installAria', { name: row.original.name })
+                }
+                data-testid={`server-install-repair-${row.original.id}`}
+              >
+                {statuses[row.original.id]?.installStatus === 'running' ? (
+                  <RefreshCw size={14} className="animate-spin" />
+                ) : statuses[row.original.id] ? (
+                  <Wrench size={14} />
+                ) : (
+                  <Download size={14} />
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              {statuses[row.original.id]
+                ? t('servers.repairTooltip', { name: row.original.name })
+                : t('servers.installTooltip', { name: row.original.name })}
             </TooltipContent>
           </Tooltip>
           <Tooltip>
@@ -609,6 +688,16 @@ const ServersPage = () => {
         <ServerEditor
           {...(editingServer !== undefined && { server: editingServer })}
           onClose={closeEditor}
+        />
+      )}
+      {wizardServer && (
+        <InstallLocalWizard
+          open={!!wizardServer}
+          serverId={wizardServer.id}
+          serverName={wizardServer.name}
+          variant={wizardMode}
+          onClose={closeWizard}
+          onSuccess={closeWizard}
         />
       )}
 

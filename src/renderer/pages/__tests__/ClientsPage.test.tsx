@@ -15,6 +15,8 @@ const detectAllMock = vi.fn<() => Promise<void>>()
 const syncClientMock =
   vi.fn<(id: string, options?: { allowCreateConfigIfMissing?: boolean }) => Promise<SyncResult>>()
 const validateConfigMock = vi.fn<() => Promise<{ valid: boolean; errors: string[] }>>()
+const validateAllConfigsMock =
+  vi.fn<() => Promise<Record<string, { valid: boolean; errors: string[]; validatedAt: string }>>>()
 const installClientMock = vi.fn<(id: string) => Promise<ClientInstallResult>>()
 const previewSyncAllMock = vi.fn<() => Promise<SyncAllPreviewResult>>()
 const syncAllMock = vi.fn<() => Promise<SyncResult[]>>()
@@ -115,6 +117,7 @@ describe('ClientsPage sync-all reporting', () => {
       value: {
         ...window.api,
         clientsValidateConfig: validateConfigMock,
+        clientsValidateAllConfigs: validateAllConfigsMock,
         clientsInstall: installClientMock,
         clientsPreviewSyncAll: previewSyncAllMock,
         clientsSyncAll: syncAllMock,
@@ -127,6 +130,7 @@ describe('ClientsPage sync-all reporting', () => {
       configurable: true,
     })
     validateConfigMock.mockResolvedValue({ valid: true, errors: [] })
+    validateAllConfigsMock.mockResolvedValue({})
   })
 
   afterEach(() => {
@@ -335,6 +339,56 @@ describe('ClientsPage sync-all reporting', () => {
     fireEvent.click(screen.getByTestId('btn-validate-vscode'))
     expect(await screen.findByTestId('validation-status-vscode-failure')).toBeInTheDocument()
     expect(screen.queryByTestId('validation-status-vscode-success')).not.toBeInTheDocument()
+  })
+
+  it('shows persisted validation indicators on initial render', async () => {
+    clientsFixture = [
+      {
+        id: 'cursor',
+        displayName: 'Cursor',
+        installed: true,
+        configPaths: ['C:\\Users\\tester\\.cursor\\mcp.json'],
+        serverCount: 1,
+        syncStatus: 'never-synced',
+        lastValidation: {
+          valid: false,
+          errors: ['bad schema'],
+          validatedAt: '2026-03-09T12:00:00.000Z',
+        },
+      },
+      {
+        id: 'vscode',
+        displayName: 'VS Code',
+        installed: true,
+        configPaths: ['C:\\Users\\tester\\AppData\\Roaming\\Code\\User\\mcp.json'],
+        serverCount: 1,
+        syncStatus: 'never-synced',
+        lastValidation: {
+          valid: true,
+          errors: [],
+          validatedAt: '2026-03-09T12:30:00.000Z',
+        },
+      },
+    ]
+
+    renderWithProviders(<ClientsPage />)
+
+    expect(await screen.findByTestId('validation-status-vscode-success')).toBeInTheDocument()
+    expect(await screen.findByTestId('validation-status-cursor-failure')).toBeInTheDocument()
+  })
+
+  it('runs validate-all and shows summary toast', async () => {
+    validateAllConfigsMock.mockResolvedValue({
+      cursor: { valid: false, errors: ['bad schema'], validatedAt: '2026-03-09T12:00:00.000Z' },
+      vscode: { valid: true, errors: [], validatedAt: '2026-03-09T12:30:00.000Z' },
+    })
+
+    renderWithProviders(<ClientsPage />)
+
+    fireEvent.click(screen.getByTestId('btn-validate-all'))
+
+    await waitFor(() => expect(validateAllConfigsMock).toHaveBeenCalledTimes(1))
+    expect(toastWarningMock).toHaveBeenCalledWith('Validated 1 of 2 clients (1 failed).')
   })
 
   it('runs install flow after confirmation and refreshes detection', async () => {

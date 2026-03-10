@@ -11,6 +11,7 @@
  * navigation. Highlights the active route using TanStack Router state.
  */
 
+import { useEffect, useRef } from 'react'
 import {
   LayoutDashboard,
   Server,
@@ -28,6 +29,7 @@ import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import { useLicense } from '@/lib/useLicense'
 import { useTheme } from '@/lib/useTheme'
+import { useProfilesStore } from '@/stores/profiles.store'
 import sidebarLogoDark from '../../assets/branding/aidrelay_logo_with_slogan_for_darkmode.png'
 import sidebarLogoLight from '../../assets/branding/aidrelay_logo_with_slogan_for_lightmode.png'
 
@@ -63,10 +65,13 @@ const Sidebar = () => {
   const { t } = useTranslation()
   const { status, loading } = useLicense()
   const { effectiveTheme } = useTheme()
+  const { profiles, loading: profilesLoading, load: loadProfiles } = useProfilesStore()
   const currentPath = location.pathname
   const sidebarLogo = effectiveTheme === 'dark' ? sidebarLogoDark : sidebarLogoLight
+  const profilesLoadedRef = useRef(false)
 
   const isPro = status.tier === 'pro' && status.valid
+  const activeProfile = profiles.find((profile) => profile.isActive)
   const linkClasses = (isActive: boolean) =>
     cn(
       'flex items-center gap-2.5 rounded-md border-l-2 px-3 py-2 text-sm font-medium transition-colors',
@@ -98,6 +103,14 @@ const Sidebar = () => {
       </li>
     )
   }
+
+  useEffect(() => {
+    if (profilesLoadedRef.current) return
+    if (!profilesLoading && profiles.length === 0) {
+      profilesLoadedRef.current = true
+      void loadProfiles()
+    }
+  }, [profilesLoading, profiles.length, loadProfiles])
 
   return (
     <aside
@@ -164,6 +177,51 @@ const Sidebar = () => {
           </section>
         </div>
       </nav>
+
+      {/* Active profile */}
+      <div className="border-t px-4 py-3">
+        <p className="px-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/80">
+          {t('profilesIndicator.label')}
+        </p>
+        {profilesLoading && profiles.length === 0 ? (
+          <p
+            className="mt-1 px-1 text-sm text-muted-foreground"
+            data-testid="active-profile-loading"
+          >
+            {t('profilesIndicator.loading')}
+          </p>
+        ) : activeProfile ? (
+          <Link
+            to="/profiles"
+            className={cn(
+              'mt-1 inline-flex w-full items-center justify-between gap-3 rounded-md border border-border/60',
+              'bg-muted/30 px-2.5 py-2 text-[13px] font-medium text-foreground/90',
+              'hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+            )}
+            data-testid="active-profile-indicator"
+            aria-label={t('profilesIndicator.aria', { name: activeProfile.name })}
+          >
+            <span className="flex min-w-0 items-center gap-2">
+              {activeProfile.icon ? (
+                <span className="text-base leading-none">{activeProfile.icon}</span>
+              ) : (
+                <span
+                  className="h-2.5 w-2.5 rounded-full"
+                  style={{ backgroundColor: activeProfile.color }}
+                />
+              )}
+              <span className="truncate">{activeProfile.name}</span>
+            </span>
+            <span className="rounded-full bg-accent/70 px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">
+              {t('profiles.active')}
+            </span>
+          </Link>
+        ) : (
+          <p className="mt-1 px-1 text-sm text-muted-foreground" data-testid="active-profile-empty">
+            {t('profilesIndicator.none')}
+          </p>
+        )}
+      </div>
 
       {/* Settings (pinned to bottom) */}
       <div className="border-t px-2 py-3">

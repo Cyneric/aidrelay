@@ -160,6 +160,22 @@ describe('ClientInstallService', () => {
     expect(spawnMock).toHaveBeenCalledTimes(1)
   })
 
+  it('installs kilo-cli via npm when npm is available', async () => {
+    managerAvailability.winget = false
+    managerAvailability.choco = false
+    managerAvailability.npm = true
+    spawnPlanQueue.push({ command: 'npm', exitCode: 0, stdout: 'ok' })
+    const service = new ClientInstallService()
+
+    const result = await service.install('kilo-cli')
+
+    expect(result.success).toBe(true)
+    expect(result.installedWith).toBe('npm')
+    expect(result.attempts).toHaveLength(1)
+    expect(result.attempts[0]?.manager).toBe('npm')
+    expect(spawnMock).toHaveBeenCalledTimes(1)
+  })
+
   it('emits manager_skipped progress events when managers are unavailable', async () => {
     managerAvailability.winget = false
     managerAvailability.choco = false

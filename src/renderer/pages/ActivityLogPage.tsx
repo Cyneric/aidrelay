@@ -72,6 +72,8 @@ const ActivityLogPage = () => {
   const CLIENT_IDS: ClientId[] = [
     'claude-desktop',
     'claude-code',
+    'cline',
+    'roo-code',
     'cursor',
     'vscode',
     'vscode-insiders',
@@ -79,6 +81,7 @@ const ActivityLogPage = () => {
     'zed',
     'jetbrains',
     'gemini-cli',
+    'kilo-cli',
     'codex-cli',
     'codex-gui',
     'opencode',

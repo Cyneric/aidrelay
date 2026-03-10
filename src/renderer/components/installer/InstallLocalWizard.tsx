@@ -39,6 +39,8 @@ interface InstallLocalWizardProps {
   readonly serverId: string
   /** Display name of the server (for UI). */
   readonly serverName: string
+  /** Variant of the wizard: install (first‑time) or repair (rerun missing steps). */
+  readonly variant?: 'install' | 'repair'
   /** Callback when the wizard closes (success or cancellation). */
   readonly onClose: () => void
   /** Callback when installation completes successfully. */
@@ -60,6 +62,7 @@ const InstallLocalWizard = ({
   open,
   serverId,
   serverName,
+  variant = 'install',
   onClose,
   onSuccess,
 }: InstallLocalWizardProps) => {
@@ -79,8 +82,12 @@ const InstallLocalWizard = ({
     setLoading(true)
     setError(null)
     try {
+      const planPromise =
+        variant === 'repair'
+          ? window.api.installerRepair(serverId)
+          : window.api.installerPrepare(serverId)
       const [planResult, reportResult] = await Promise.all([
-        window.api.installerPrepare(serverId),
+        planPromise,
         window.api.installerPreflight(serverId),
       ])
       setPlan(planResult)
@@ -96,7 +103,7 @@ const InstallLocalWizard = ({
     } finally {
       setLoading(false)
     }
-  }, [serverId, setLoading, setError, setPlan, setReport, setStep])
+  }, [serverId, variant, setLoading, setError, setPlan, setReport, setStep])
 
   const handleRetry = () => {
     void loadInstallData()

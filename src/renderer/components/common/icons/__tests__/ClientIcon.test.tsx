@@ -27,6 +27,8 @@ vi.mock('../client-icon-mapping', () => ({
     const mockMap: Record<string, { type: 'custom'; name: string; path: string }> = {
       'claude-desktop': { type: 'custom', name: 'claude', path: 'claude-icon-url' },
       'claude-code': { type: 'custom', name: 'claude', path: 'claude-icon-url' },
+      cline: { type: 'custom', name: 'cline', path: 'cline-icon-url' },
+      'roo-code': { type: 'custom', name: 'roo-code', path: 'roo-code-icon-url' },
       cursor: { type: 'custom', name: 'cursor', path: 'cursor-icon-url' },
       vscode: { type: 'custom', name: 'visual-studio-code', path: 'vscode-icon-url' },
       'vscode-insiders': {
@@ -38,6 +40,7 @@ vi.mock('../client-icon-mapping', () => ({
       zed: { type: 'custom', name: 'zed', path: 'zed-icon-url' },
       jetbrains: { type: 'custom', name: 'jetbrains', path: 'jetbrains-icon-url' },
       'gemini-cli': { type: 'custom', name: 'gemini-cli', path: 'gemini-icon-url' },
+      'kilo-cli': { type: 'custom', name: 'kilo-cli', path: 'kilo-icon-url' },
       'codex-cli': { type: 'custom', name: 'github-copilot', path: 'copilot-icon-url' },
       'codex-gui': { type: 'custom', name: 'github-copilot', path: 'copilot-icon-url' },
       opencode: { type: 'custom', name: 'opencode', path: 'opencode-icon-url' },
@@ -51,6 +54,8 @@ vi.mock('../client-icon-mapping', () => ({
     [
       'claude-desktop',
       'claude-code',
+      'cline',
+      'roo-code',
       'cursor',
       'vscode',
       'vscode-insiders',
@@ -58,6 +63,7 @@ vi.mock('../client-icon-mapping', () => ({
       'zed',
       'jetbrains',
       'gemini-cli',
+      'kilo-cli',
       'codex-cli',
       'codex-gui',
       'opencode',
@@ -92,6 +98,8 @@ describe('ClientIcon', () => {
     const clientIds: ClientId[] = [
       'claude-desktop',
       'claude-code',
+      'cline',
+      'roo-code',
       'cursor',
       'vscode',
       'vscode-insiders',
@@ -99,6 +107,7 @@ describe('ClientIcon', () => {
       'zed',
       'jetbrains',
       'gemini-cli',
+      'kilo-cli',
       'codex-cli',
       'codex-gui',
       'opencode',
