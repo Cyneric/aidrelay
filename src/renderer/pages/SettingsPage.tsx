@@ -2,7 +2,7 @@
  * @file src/renderer/pages/SettingsPage.tsx
  *
  * @created 07.03.2026
- * @modified 08.03.2026
+ * @modified 10.03.2026
  *
  * @author Christian Blank <christianblank91@protonmail.com>
  * @copyright 2026
@@ -13,18 +13,19 @@
  * the SQLite key-value store.
  */
 
-import { useState, useEffect, useCallback, type ElementType, type ReactNode } from 'react'
+import { useState, useEffect, useCallback, useMemo, type ElementType, type ReactNode } from 'react'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
-import { Save, RotateCcw, Key, Globe, Info, Download, AlertTriangle } from 'lucide-react'
+import { Save, RotateCcw, Key, Globe, Info, Download, AlertTriangle, BookOpen } from 'lucide-react'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import { PathWithActions } from '@/components/common/PathWithActions'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import {
@@ -48,6 +49,7 @@ import { useSettingsSections } from '@/hooks/useSettingsSections'
 import { DEFAULT_LANGUAGE, normalizeLanguage, type SupportedLanguage } from '@/i18n/language'
 import { appService } from '@/services/app.service'
 import { settingsService } from '@/services/settings.service'
+import type { OssAttribution } from '@shared/types'
 
 // ─── Validation Schemas ───────────────────────────────────────────────────────
 
@@ -189,6 +191,7 @@ const LicensingSection = () => {
 
 const GitRemoteSection = () => {
   const { t } = useTranslation()
+  const [guideOpen, setGuideOpen] = useState(false)
   const {
     control,
     register,
@@ -223,6 +226,69 @@ const GitRemoteSection = () => {
       description={t('settings.gitSyncDescription')}
       icon={Globe}
     >
+      <Button
+        type="button"
+        variant="link"
+        onClick={() => setGuideOpen(true)}
+        className="h-auto p-0 text-sm"
+        data-testid="btn-open-git-sync-guide"
+      >
+        {t('settings.gitSyncGuideLink')}
+      </Button>
+
+      <Dialog open={guideOpen} onOpenChange={setGuideOpen}>
+        <DialogContent className="sm:max-w-2xl" data-testid="git-sync-guide-dialog">
+          <DialogHeader>
+            <DialogTitle>{t('settings.gitSyncGuideTitle')}</DialogTitle>
+            <DialogDescription>{t('settings.gitSyncGuideDescription')}</DialogDescription>
+          </DialogHeader>
+
+          <ol className="list-decimal space-y-3 pl-5 text-sm">
+            <li>
+              <p className="font-medium">{t('settings.gitSyncGuideStepRepoTitle')}</p>
+              <p className="text-muted-foreground">{t('settings.gitSyncGuideStepRepoBody')}</p>
+            </li>
+            <li>
+              <p className="font-medium">{t('settings.gitSyncGuideStepUrlTitle')}</p>
+              <p className="text-muted-foreground">{t('settings.gitSyncGuideStepUrlBody')}</p>
+            </li>
+            <li>
+              <p className="font-medium">{t('settings.gitSyncGuideStepAuthTitle')}</p>
+              <p className="text-muted-foreground">{t('settings.gitSyncGuideStepAuthBody')}</p>
+            </li>
+            <li>
+              <p className="font-medium">{t('settings.gitSyncGuideStepSaveTitle')}</p>
+              <p className="text-muted-foreground">{t('settings.gitSyncGuideStepSaveBody')}</p>
+            </li>
+          </ol>
+
+          <div className="flex flex-col gap-1 text-sm">
+            <a
+              href="https://docs.github.com/en/authentication/connecting-to-github-with-ssh"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline hover:no-underline"
+            >
+              {t('settings.gitSyncGuideSshDocsLink')}
+            </a>
+            <a
+              href="https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline hover:no-underline"
+            >
+              {t('settings.gitSyncGuidePatDocsLink')}
+            </a>
+          </div>
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setGuideOpen(false)}>
+              {t('common.close')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <form onSubmit={(e) => void onSave(e)} className="space-y-3" data-testid="git-remote-form">
         <div>
           <Label htmlFor="remote-url" className="block mb-1">
@@ -473,6 +539,12 @@ const AboutSection = () => {
   const [updateAvailable, setUpdateAvailable] = useState(false)
   const [updateVersion, setUpdateVersion] = useState('')
   const [downloaded, setDownloaded] = useState(false)
+  const [ossDialogOpen, setOssDialogOpen] = useState(false)
+  const [ossLoading, setOssLoading] = useState(false)
+  const [ossLoaded, setOssLoaded] = useState(false)
+  const [ossError, setOssError] = useState<string | null>(null)
+  const [ossAttributions, setOssAttributions] = useState<OssAttribution[]>([])
+  const [ossQuery, setOssQuery] = useState('')
 
   useEffect(() => {
     void appService.version().then(setVersion)
@@ -492,6 +564,39 @@ const AboutSection = () => {
       unsubDownloaded()
     }
   }, [])
+
+  useEffect(() => {
+    if (!ossDialogOpen || ossLoading || ossLoaded) return
+
+    setOssLoading(true)
+    setOssError(null)
+    void appService
+      .ossAttributions()
+      .then((items) => {
+        setOssAttributions(items)
+        setOssLoaded(true)
+      })
+      .catch(() => {
+        setOssError(t('settings.ossLoadError'))
+        setOssLoaded(true)
+      })
+      .finally(() => {
+        setOssLoading(false)
+      })
+  }, [ossDialogOpen, ossLoaded, ossLoading, t])
+
+  const filteredAttributions = useMemo(() => {
+    const query = ossQuery.trim().toLowerCase()
+    if (!query) return ossAttributions
+
+    return ossAttributions.filter((entry) => {
+      return (
+        entry.packageName.toLowerCase().includes(query) ||
+        entry.license.toLowerCase().includes(query) ||
+        entry.version.toLowerCase().includes(query)
+      )
+    })
+  }, [ossAttributions, ossQuery])
 
   const handleCheckUpdates = async () => {
     setChecking(true)
@@ -558,6 +663,109 @@ const AboutSection = () => {
             {checking ? t('settings.checkingUpdates') : t('settings.checkUpdates')}
           </Button>
         )}
+
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => setOssDialogOpen(true)}
+          className="gap-1.5"
+          data-testid="btn-open-oss-attributions"
+        >
+          <BookOpen size={14} aria-hidden="true" />
+          {t('settings.openSourceAttributions')}
+        </Button>
+
+        <Dialog open={ossDialogOpen} onOpenChange={setOssDialogOpen}>
+          <DialogContent className="sm:max-w-4xl" data-testid="oss-attributions-modal">
+            <DialogHeader>
+              <DialogTitle>{t('settings.ossDialogTitle')}</DialogTitle>
+              <DialogDescription>{t('settings.ossDialogDescription')}</DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-3">
+              <Input
+                value={ossQuery}
+                onChange={(event) => setOssQuery(event.target.value)}
+                placeholder={t('settings.ossSearchPlaceholder')}
+                data-testid="input-oss-search"
+              />
+
+              {ossLoading ? (
+                <p data-testid="oss-attributions-loading">{t('settings.ossLoading')}</p>
+              ) : null}
+              {ossError ? (
+                <p className="text-destructive" data-testid="oss-attributions-error">
+                  {ossError}
+                </p>
+              ) : null}
+
+              {!ossLoading && !ossError ? (
+                filteredAttributions.length > 0 ? (
+                  <>
+                    <p className="text-sm text-muted-foreground">
+                      {t('settings.ossCount', { count: filteredAttributions.length })}
+                    </p>
+                    <ScrollArea className="h-[26rem] rounded-md border p-3">
+                      <div className="space-y-3" data-testid="oss-attributions-list">
+                        {filteredAttributions.map((entry) => (
+                          <article
+                            key={`${entry.packageName}@${entry.version}`}
+                            className="rounded-md border border-border/70 p-3"
+                          >
+                            <div className="flex flex-wrap items-baseline justify-between gap-2">
+                              <p className="font-medium">
+                                {entry.packageName}{' '}
+                                <span className="font-mono text-xs text-muted-foreground">
+                                  v{entry.version}
+                                </span>
+                              </p>
+                              <span className="rounded-full border px-2 py-0.5 text-xs">
+                                {entry.license}
+                              </span>
+                            </div>
+
+                            {entry.repositoryUrl ? (
+                              <a
+                                href={entry.repositoryUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="mt-1 inline-block text-xs underline hover:no-underline"
+                              >
+                                {t('settings.ossSourceLink')}
+                              </a>
+                            ) : null}
+
+                            <details className="mt-2">
+                              <summary className="cursor-pointer text-sm">
+                                {t('settings.ossViewLicenseText')}
+                              </summary>
+                              {entry.licenseFile ? (
+                                <p className="mt-2 text-xs text-muted-foreground">
+                                  {t('settings.ossLicenseFile', { path: entry.licenseFile })}
+                                </p>
+                              ) : null}
+                              <pre
+                                className="mt-2 max-h-52 overflow-auto rounded-md border bg-muted/30 p-2 text-xs whitespace-pre-wrap break-words"
+                                data-testid="oss-attribution-license-text"
+                              >
+                                {entry.licenseText}
+                              </pre>
+                            </details>
+                          </article>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground" data-testid="oss-attributions-empty">
+                    {t('settings.ossEmpty')}
+                  </p>
+                )
+              ) : null}
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </Section>
   )

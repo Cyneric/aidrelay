@@ -43,6 +43,7 @@ import type {
   DeviceSetupState,
   PendingSetup,
   SyncConflict,
+  OssAttribution,
 } from './types'
 
 // ─── Push-event Payload Types ─────────────────────────────────────────────────
@@ -611,6 +612,7 @@ export interface IpcChannels {
   // App
   'app:version': () => Promise<string>
   'app:startup-status': () => Promise<AppStartupStatus>
+  'app:oss-attributions': () => Promise<OssAttribution[]>
 
   // Auto-updater
   'updater:check': () => Promise<void>

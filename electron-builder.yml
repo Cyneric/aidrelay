@@ -20,6 +20,10 @@ files:
   - '!out/**/*.map'
   - package.json
 
+extraResources:
+  - from: resources/generated/oss-attributions.json
+    to: generated/oss-attributions.json
+
 # ── Native module rebuild ─────────────────────────────────────────────────────
 # Rebuild better-sqlite3 and keytar against the Electron runtime before
 # packaging so the bundled binaries match Electron's Node.js ABI.

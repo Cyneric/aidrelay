@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AppStartupStatus } from '@shared/channels'
+import type { OssAttribution } from '@shared/types'
 
-const { handlers, startupSnapshotRef } = vi.hoisted(() => ({
+const { handlers, startupSnapshotRef, ossAttributionsRef } = vi.hoisted(() => ({
   handlers: new Map<string, (...args: unknown[]) => unknown>(),
   startupSnapshotRef: {
     value: {
@@ -10,6 +11,18 @@ const { handlers, startupSnapshotRef } = vi.hoisted(() => ({
       ready: false,
       startedAt: 1000,
     } as AppStartupStatus,
+  },
+  ossAttributionsRef: {
+    value: [
+      {
+        packageName: 'react',
+        version: '19.1.0',
+        license: 'MIT',
+        repositoryUrl: 'https://github.com/facebook/react',
+        licenseFile: 'node_modules/react/LICENSE',
+        licenseText: 'MIT License',
+      },
+    ] as OssAttribution[],
   },
 }))
 
@@ -32,6 +45,10 @@ vi.mock('@main/startup/startup-state', () => ({
   getStartupStatus: () => startupSnapshotRef.value,
 }))
 
+vi.mock('@main/app/oss-attributions.service', () => ({
+  getOssAttributions: () => ossAttributionsRef.value,
+}))
+
 import { registerAppIpc } from '../app.ipc'
 
 const call = <T>(channel: string): T => {
@@ -49,6 +66,16 @@ describe('app IPC handlers', () => {
       ready: false,
       startedAt: 1000,
     }
+    ossAttributionsRef.value = [
+      {
+        packageName: 'react',
+        version: '19.1.0',
+        license: 'MIT',
+        repositoryUrl: 'https://github.com/facebook/react',
+        licenseFile: 'node_modules/react/LICENSE',
+        licenseText: 'MIT License',
+      },
+    ]
     registerAppIpc()
   })
 
@@ -75,5 +102,12 @@ describe('app IPC handlers', () => {
     expect(status.progress).toBe(100)
     expect(status.ready).toBe(true)
     expect(status.completedAt).toBe(2500)
+  })
+
+  it('returns OSS attribution list', () => {
+    const attributions = call<OssAttribution[]>('app:oss-attributions')
+    expect(attributions).toHaveLength(1)
+    expect(attributions[0]?.packageName).toBe('react')
+    expect(attributions[0]?.licenseText).toContain('MIT')
   })
 })

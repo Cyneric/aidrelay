@@ -80,6 +80,7 @@ const EXPECTED_KEYS = [
   'filesWriteText',
   'appVersion',
   'appStartupStatus',
+  'appOssAttributions',
   'settingsGet',
   'settingsSet',
   'settingsDelete',
@@ -139,6 +140,7 @@ describe('preload bridge composition', () => {
     await api.backupsList('cursor')
     await api.filesReveal('C:\\tmp\\file.txt')
     await api.registryPrepareInstall('smithery', '@anthropic/github-mcp')
+    await api.appOssAttributions()
     const offInstallProgress = api.onClientInstallProgress(() => {})
     offInstallProgress()
 
@@ -174,6 +176,7 @@ describe('preload bridge composition', () => {
       'smithery',
       '@anthropic/github-mcp',
     )
+    expect(invoke).toHaveBeenCalledWith('app:oss-attributions')
     const installProgressListener = (
       on.mock.calls as [string, (...args: unknown[]) => void][]
     ).find((call) => call[0] === 'clients:install-progress')?.[1]
