@@ -16,6 +16,7 @@ import { createRulesApi } from './rules.api'
 import { createSecretsApi } from './secrets.api'
 import { createServersApi } from './servers.api'
 import { createSettingsApi } from './settings.api'
+import { createSkillsApi } from './skills.api'
 import { createStacksApi } from './stacks.api'
 import { createUpdaterApi } from './updater.api'
 import { createWindowApi } from './window.api'
@@ -24,6 +25,7 @@ export const createApi = (ipcRenderer: IpcRendererLike) => ({
   ...createClientsApi(ipcRenderer),
   ...createServersApi(ipcRenderer),
   ...createRulesApi(ipcRenderer),
+  ...createSkillsApi(ipcRenderer),
   ...createProfilesApi(ipcRenderer),
   ...createSecretsApi(ipcRenderer),
   ...createLicenseApi(ipcRenderer),

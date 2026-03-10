@@ -16,7 +16,12 @@ import { ipcMain } from 'electron'
 import log from 'electron-log'
 import { gitSyncService } from '@main/git-sync/git-sync.service'
 import { checkGate } from '@main/licensing/feature-gates'
-import type { GitSyncStatus, GitPushResult, GitPullResult } from '@shared/types'
+import type {
+  GitSyncStatus,
+  GitPushResult,
+  GitPullResult,
+  GitRemoteTestResult,
+} from '@shared/types'
 import type { ManualGitConfig } from '@shared/types'
 
 // ─── Gate Helper ──────────────────────────────────────────────────────────────
@@ -60,6 +65,16 @@ export const registerGitSyncIpc = (): void => {
       log.debug(`[ipc] git-sync:connect-manual ${config.remoteUrl}`)
       requireGitSyncGate()
       return gitSyncService.connectManual(config)
+    },
+  )
+
+  // ── git-sync:test-remote ──────────────────────────────────────────────────
+  ipcMain.handle(
+    'git-sync:test-remote',
+    async (_event, config: ManualGitConfig): Promise<GitRemoteTestResult> => {
+      log.debug(`[ipc] git-sync:test-remote ${config.remoteUrl}`)
+      requireGitSyncGate()
+      return gitSyncService.testRemote(config)
     },
   )
 

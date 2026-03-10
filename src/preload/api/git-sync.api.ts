@@ -1,6 +1,7 @@
 import type {
   GitPullResult,
   GitPushResult,
+  GitRemoteTestResult,
   GitSyncStatus,
   ManualGitConfig,
 } from '../../shared/types'
@@ -11,6 +12,8 @@ export const createGitSyncApi = (ipcRenderer: IpcRendererLike) => ({
   gitSyncConnectGitHub: (): Promise<GitSyncStatus> => ipcRenderer.invoke('git-sync:connect-github'),
   gitSyncConnectManual: (config: ManualGitConfig): Promise<GitSyncStatus> =>
     ipcRenderer.invoke('git-sync:connect-manual', config),
+  gitSyncTestRemote: (config: ManualGitConfig): Promise<GitRemoteTestResult> =>
+    ipcRenderer.invoke('git-sync:test-remote', config),
   gitSyncDisconnect: (): Promise<void> => ipcRenderer.invoke('git-sync:disconnect'),
   gitSyncPush: (): Promise<GitPushResult> => ipcRenderer.invoke('git-sync:push'),
   gitSyncPull: (): Promise<GitPullResult> => ipcRenderer.invoke('git-sync:pull'),

@@ -335,7 +335,7 @@ const ClientRow = ({
                   size="icon-xs"
                   onClick={() => onInstall(client.id)}
                   disabled={installing}
-                  className="bg-amber-600 text-white hover:bg-amber-500 dark:bg-amber-500 dark:hover:bg-amber-400"
+                  className="bg-cyan-600 text-white hover:bg-cyan-500 dark:bg-cyan-500 dark:hover:bg-cyan-400"
                   aria-label={t('clients.installAria', { name: client.displayName })}
                   data-testid={`btn-install-${client.id}`}
                 >

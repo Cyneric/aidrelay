@@ -36,7 +36,15 @@ import type {
   GitSyncStatus,
   GitPushResult,
   GitPullResult,
+  GitRemoteTestResult,
   ManualGitConfig,
+  SkillScope,
+  SkillLocation,
+  InstalledSkill,
+  CuratedSkill,
+  SkillInstallPreview,
+  SkillMigrationPreview,
+  SkillSyncConflict,
   SyncClientOptions,
   InstallPlan,
   PreflightReport,
@@ -194,6 +202,53 @@ export interface CreateProfileInput {
 export type UpdateProfileInput = Partial<CreateProfileInput> & {
   readonly serverOverrides?: Profile['serverOverrides']
   readonly ruleOverrides?: Profile['ruleOverrides']
+}
+
+/**
+ * Input payload for creating a new skill scaffold.
+ */
+export interface CreateSkillInput {
+  readonly name: string
+  readonly scope: SkillScope
+  readonly projectPath?: string
+  readonly description?: string
+  readonly resources?: readonly ('scripts' | 'references' | 'assets')[]
+}
+
+/**
+ * Input payload for installing a curated skill.
+ */
+export interface InstallCuratedSkillInput {
+  readonly skillName: string
+  readonly scope: SkillScope
+  readonly projectPath?: string
+  readonly replace?: boolean
+}
+
+/**
+ * Input payload for deleting a skill.
+ */
+export interface DeleteSkillInput {
+  readonly scope: SkillScope
+  readonly skillName: string
+  readonly projectPath?: string
+}
+
+/**
+ * Input payload for toggling skill enablement (Codex `disable_skills`).
+ */
+export interface SetSkillEnabledInput {
+  readonly scope: SkillScope
+  readonly skillName: string
+  readonly enabled: boolean
+  readonly projectPath?: string
+}
+
+/**
+ * Input payload for applying legacy skill migrations.
+ */
+export interface ApplySkillMigrationInput {
+  readonly items: readonly SkillLocation[]
 }
 
 // ─── Supplementary Types ──────────────────────────────────────────────────────
@@ -571,6 +626,27 @@ export interface IpcChannels {
   'rules:detect-workspaces': () => Promise<string[]>
   'rules:estimate-tokens': (content: string) => Promise<number>
 
+  // Skills
+  'skills:list-installed': () => Promise<InstalledSkill[]>
+  'skills:list-curated': () => Promise<CuratedSkill[]>
+  'skills:detect-workspaces': () => Promise<string[]>
+  'skills:prepare-install': (
+    skillName: string,
+    scope: SkillScope,
+    projectPath?: string,
+  ) => Promise<SkillInstallPreview>
+  'skills:install-curated': (input: InstallCuratedSkillInput) => Promise<InstalledSkill>
+  'skills:create': (input: CreateSkillInput) => Promise<InstalledSkill>
+  'skills:delete': (input: DeleteSkillInput) => Promise<void>
+  'skills:set-enabled': (input: SetSkillEnabledInput) => Promise<void>
+  'skills:migrate-legacy-preview': () => Promise<SkillMigrationPreview>
+  'skills:migrate-legacy-apply': (input: ApplySkillMigrationInput) => Promise<SkillMigrationPreview>
+  'skills:sync:list-conflicts': () => Promise<SkillSyncConflict[]>
+  'skills:sync:resolve-conflict': (
+    conflictId: string,
+    resolution: 'local' | 'remote',
+  ) => Promise<void>
+
   // Profiles
   'profiles:list': () => Promise<Profile[]>
   'profiles:get': (id: string) => Promise<Profile | null>
@@ -587,6 +663,7 @@ export interface IpcChannels {
   'git-sync:status': () => Promise<GitSyncStatus>
   'git-sync:connect-github': () => Promise<GitSyncStatus>
   'git-sync:connect-manual': (config: ManualGitConfig) => Promise<GitSyncStatus>
+  'git-sync:test-remote': (config: ManualGitConfig) => Promise<GitRemoteTestResult>
   'git-sync:disconnect': () => Promise<void>
   'git-sync:push': () => Promise<GitPushResult>
   'git-sync:pull': () => Promise<GitPullResult>

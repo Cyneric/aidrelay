@@ -32,6 +32,7 @@ import { SettingsPage } from '@/pages/SettingsPage'
 import { HistoryPage } from '@/pages/HistoryPage'
 import { ClientsPage } from '@/pages/ClientsPage'
 import { SyncCenterPage } from '@/pages/SyncCenterPage'
+import { SkillsPage } from '@/pages/SkillsPage'
 import { StartupSplash } from '@/components/layout/StartupSplash'
 import { useStartupSplash } from '@/hooks/useStartupSplash'
 import { clientsService } from '@/services/clients.service'
@@ -107,6 +108,12 @@ const syncCenterRoute = createRoute({
   component: SyncCenterPage,
 })
 
+const skillsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/skills',
+  component: SkillsPage,
+})
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   serversRoute,
@@ -119,6 +126,7 @@ const routeTree = rootRoute.addChildren([
   settingsRoute,
   historyRoute,
   syncCenterRoute,
+  skillsRoute,
 ])
 
 // ─── Router ───────────────────────────────────────────────────────────────────

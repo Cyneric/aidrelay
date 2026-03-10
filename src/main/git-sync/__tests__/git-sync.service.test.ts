@@ -13,12 +13,39 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { EventEmitter } from 'events'
 import { createTestDb } from '@main/db/__tests__/helpers'
 import { getDatabase } from '@main/db/connection'
 import { storeSecret, getSecret, deleteAllSecrets } from '@main/secrets/keytar.service'
 import * as gitMod from 'isomorphic-git'
 import * as fsMod from 'fs'
 import * as fsPromises from 'fs/promises'
+import spawn from 'cross-spawn'
+
+const skillsExportToDirectoryMock =
+  vi.fn<
+    (
+      syncDir: string,
+    ) => Promise<{
+      skillsExported: number
+      userSkillsExported: number
+      projectSkillsExported: number
+      skillFilesExported: number
+    }>
+  >()
+const skillsImportFromDirectoryMock =
+  vi.fn<
+    (
+      syncDir: string,
+    ) => Promise<{
+      skillsImported: number
+      userSkillsImported: number
+      projectSkillsImported: number
+      skillConflicts: number
+      skillConflictItems: []
+      projectSkillMappings: []
+    }>
+  >()
 
 // ─── Module Mocks ─────────────────────────────────────────────────────────────
 
@@ -40,6 +67,10 @@ vi.mock('isomorphic-git', () => ({
 }))
 
 vi.mock('isomorphic-git/http/node', () => ({ default: {} }))
+
+vi.mock('cross-spawn', () => ({
+  default: vi.fn(),
+}))
 
 vi.mock('fs', async (importOriginal) => {
   const actual = await importOriginal<typeof fsMod>()
@@ -68,12 +99,54 @@ vi.mock('@main/secrets/keytar.service', () => ({
   deleteAllSecrets: vi.fn().mockResolvedValue(undefined),
 }))
 
+vi.mock('@main/skills/skills.service', () => ({
+  skillsService: {
+    exportToDirectory: (...args: Parameters<typeof skillsExportToDirectoryMock>) =>
+      skillsExportToDirectoryMock(...args),
+    importFromDirectory: (...args: Parameters<typeof skillsImportFromDirectoryMock>) =>
+      skillsImportFromDirectoryMock(...args),
+  },
+}))
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 /** Re-imports the service module after mocks are established. */
 const loadService = async () => {
   const mod = await import('../git-sync.service')
   return mod.gitSyncService
+}
+
+const createSpawnChild = (exitCode = 0, stderr = '', stdout = '') => {
+  const child = new EventEmitter() as EventEmitter & {
+    stdout: EventEmitter
+    stderr: EventEmitter
+  }
+  child.stdout = new EventEmitter()
+  child.stderr = new EventEmitter()
+
+  queueMicrotask(() => {
+    if (stdout.length > 0) child.stdout.emit('data', stdout)
+    if (stderr.length > 0) child.stderr.emit('data', stderr)
+    child.emit('close', exitCode)
+  })
+
+  return child
+}
+
+const createSpawnError = (message: string, code?: string) => {
+  const child = new EventEmitter() as EventEmitter & {
+    stdout: EventEmitter
+    stderr: EventEmitter
+  }
+  child.stdout = new EventEmitter()
+  child.stderr = new EventEmitter()
+
+  queueMicrotask(() => {
+    const error = Object.assign(new Error(message), code ? { code } : {})
+    child.emit('error', error)
+  })
+
+  return child
 }
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
@@ -85,6 +158,21 @@ describe('GitSyncService', () => {
     vi.clearAllMocks()
     testDb = createTestDb()
     vi.mocked(getDatabase).mockReturnValue(testDb)
+    vi.mocked(spawn).mockImplementation(() => createSpawnChild() as never)
+    skillsExportToDirectoryMock.mockResolvedValue({
+      skillsExported: 0,
+      userSkillsExported: 0,
+      projectSkillsExported: 0,
+      skillFilesExported: 0,
+    })
+    skillsImportFromDirectoryMock.mockResolvedValue({
+      skillsImported: 0,
+      userSkillsImported: 0,
+      projectSkillsImported: 0,
+      skillConflicts: 0,
+      skillConflictItems: [],
+      projectSkillMappings: [],
+    })
   })
 
   // ── getStatus ────────────────────────────────────────────────────────────
@@ -116,6 +204,24 @@ describe('GitSyncService', () => {
       expect(status.connected).toBe(false)
     })
 
+    it('returns connected for SSH remotes when clone exists and token is missing', async () => {
+      const service = await loadService()
+      testDb.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(
+        'git-sync:config',
+        JSON.stringify({
+          provider: 'generic',
+          remoteUrl: 'ssh://git@github.com/owner/repo.git',
+          branch: 'main',
+        }),
+      )
+
+      vi.mocked(getSecret).mockResolvedValue(null)
+      vi.mocked(fsMod.existsSync).mockReturnValue(true)
+
+      const status = await service.getStatus()
+      expect(status.connected).toBe(true)
+    })
+
     it('returns connected when config, token, and .git dir all exist', async () => {
       const service = await loadService()
       const config = {
@@ -139,12 +245,13 @@ describe('GitSyncService', () => {
   // ── connectManual ────────────────────────────────────────────────────────
 
   describe('connectManual()', () => {
-    it('clones the repo and persists config + token', async () => {
+    it('clones HTTPS repo and persists config + token', async () => {
       const service = await loadService()
       vi.mocked(fsMod.existsSync).mockReturnValue(false)
 
       const status = await service.connectManual({
         remoteUrl: 'https://gitlab.com/user/aidrelay-sync.git',
+        authMethod: 'https-token',
         authToken: 'glpat-secret',
       })
 
@@ -175,6 +282,7 @@ describe('GitSyncService', () => {
       await service.connectManual({
         remoteUrl: 'https://github.com/user/sync.git',
         branch: 'develop',
+        authMethod: 'https-token',
         authToken: 'ghp_token',
       })
 
@@ -187,6 +295,7 @@ describe('GitSyncService', () => {
 
       await service.connectManual({
         remoteUrl: 'https://github.com/user/sync.git',
+        authMethod: 'https-token',
         authToken: 'token',
       })
 
@@ -202,8 +311,160 @@ describe('GitSyncService', () => {
       vi.mocked(gitMod.clone).mockRejectedValueOnce(new Error('Authentication failed'))
 
       await expect(
-        service.connectManual({ remoteUrl: 'https://github.com/x/y.git', authToken: 'bad' }),
+        service.connectManual({
+          remoteUrl: 'https://github.com/x/y.git',
+          authMethod: 'https-token',
+          authToken: 'bad',
+        }),
       ).rejects.toThrow('Authentication failed')
+    })
+
+    it('uses git CLI for SSH remotes and does not store a token', async () => {
+      const service = await loadService()
+      vi.mocked(fsMod.existsSync).mockReturnValue(false)
+
+      const status = await service.connectManual({
+        remoteUrl: 'ssh://git@github.com/owner/repo.git',
+        authMethod: 'ssh',
+      })
+
+      expect(spawn).toHaveBeenCalledWith(
+        'git',
+        [
+          'clone',
+          '--depth',
+          '1',
+          '--branch',
+          'main',
+          'ssh://git@github.com/owner/repo.git',
+          expect.stringContaining('git-sync'),
+        ],
+        expect.objectContaining({
+          shell: false,
+          windowsHide: true,
+        }),
+      )
+      expect(storeSecret).not.toHaveBeenCalled()
+      expect(deleteAllSecrets).toHaveBeenCalledWith('git-sync')
+      expect(status.connected).toBe(true)
+    })
+
+    it('rejects HTTPS URL when SSH auth is selected', async () => {
+      const service = await loadService()
+
+      await expect(
+        service.connectManual({
+          remoteUrl: 'https://github.com/owner/repo.git',
+          authMethod: 'ssh',
+        }),
+      ).rejects.toThrow('SSH auth requires an SSH remote URL.')
+    })
+
+    it('returns actionable error when git CLI is missing for SSH remotes', async () => {
+      const service = await loadService()
+      vi.mocked(spawn).mockImplementationOnce(
+        () => createSpawnError('spawn git ENOENT', 'ENOENT') as never,
+      )
+
+      await expect(
+        service.connectManual({
+          remoteUrl: 'ssh://git@github.com/owner/repo.git',
+          authMethod: 'ssh',
+        }),
+      ).rejects.toThrow('Git CLI executable was not found')
+    })
+
+    it('returns actionable error for unknown SSH host key failures', async () => {
+      const service = await loadService()
+      vi.mocked(spawn).mockImplementationOnce(
+        () => createSpawnChild(128, 'Host key verification failed') as never,
+      )
+
+      await expect(
+        service.connectManual({
+          remoteUrl: 'ssh://git@github.com/owner/repo.git',
+          authMethod: 'ssh',
+        }),
+      ).rejects.toThrow('SSH host key verification failed')
+    })
+
+    it('returns actionable error for SSH publickey authentication failures', async () => {
+      const service = await loadService()
+      vi.mocked(spawn).mockImplementationOnce(
+        () =>
+          createSpawnChild(
+            128,
+            'git@github.com: Permission denied (publickey).\nfatal: Could not read from remote repository.',
+          ) as never,
+      )
+
+      await expect(
+        service.connectManual({
+          remoteUrl: 'ssh://git@github.com/owner/repo.git',
+          authMethod: 'ssh',
+        }),
+      ).rejects.toThrow('SSH authentication failed (publickey)')
+    })
+  })
+
+  // ── testRemote ───────────────────────────────────────────────────────────
+
+  describe('testRemote()', () => {
+    it('runs read-only ls-remote for SSH and does not mutate persisted config', async () => {
+      const service = await loadService()
+
+      const result = await service.testRemote({
+        remoteUrl: 'ssh://git@github.com/owner/repo.git',
+        authMethod: 'ssh',
+      })
+
+      expect(result).toEqual({ success: true })
+      expect(spawn).toHaveBeenCalledWith(
+        'git',
+        ['ls-remote', 'ssh://git@github.com/owner/repo.git', 'HEAD'],
+        expect.objectContaining({
+          cwd: '/mock/userData',
+          shell: false,
+          windowsHide: true,
+        }),
+      )
+
+      const row = testDb.prepare("SELECT value FROM settings WHERE key = 'git-sync:config'").get()
+      expect(row).toBeUndefined()
+      expect(storeSecret).not.toHaveBeenCalled()
+      expect(deleteAllSecrets).not.toHaveBeenCalled()
+      expect(gitMod.clone).not.toHaveBeenCalled()
+      expect(fsMod.rmSync).not.toHaveBeenCalled()
+    })
+
+    it('returns actionable message when git executable is missing', async () => {
+      const service = await loadService()
+      vi.mocked(spawn).mockImplementationOnce(
+        () => createSpawnError('spawn git ENOENT', 'ENOENT') as never,
+      )
+
+      const result = await service.testRemote({
+        remoteUrl: 'ssh://git@github.com/owner/repo.git',
+        authMethod: 'ssh',
+      })
+
+      expect(result.success).toBe(false)
+      expect(result.error).toMatch(/Git CLI executable was not found/)
+    })
+
+    it('returns strict host-key guidance when SSH host key is unknown', async () => {
+      const service = await loadService()
+      vi.mocked(spawn).mockImplementationOnce(
+        () => createSpawnChild(128, 'Host key verification failed') as never,
+      )
+
+      const result = await service.testRemote({
+        remoteUrl: 'ssh://git@github.com/owner/repo.git',
+        authMethod: 'ssh',
+      })
+
+      expect(result.success).toBe(false)
+      expect(result.error).toMatch(/SSH host key verification failed/)
     })
   })
 
@@ -273,6 +534,16 @@ describe('GitSyncService', () => {
         JSON.stringify({ provider: 'generic', remoteUrl: 'https://x.git', branch: 'main' }),
       )
     }
+    const seedConnectedSsh = (db: ReturnType<typeof createTestDb>) => {
+      db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(
+        'git-sync:config',
+        JSON.stringify({
+          provider: 'generic',
+          remoteUrl: 'ssh://git@github.com/owner/repo.git',
+          branch: 'main',
+        }),
+      )
+    }
 
     it('returns an error result when not connected (no config)', async () => {
       const service = await loadService()
@@ -295,6 +566,24 @@ describe('GitSyncService', () => {
       expect(gitMod.add).toHaveBeenCalled()
       expect(gitMod.commit).toHaveBeenCalled()
       expect(gitMod.push).toHaveBeenCalled()
+    })
+
+    it('uses git CLI push for SSH remotes', async () => {
+      const service = await loadService()
+      seedConnectedSsh(testDb)
+      vi.mocked(fsMod.existsSync).mockReturnValue(true)
+      vi.mocked(gitMod.statusMatrix).mockResolvedValue([['servers.json', 0, 2, 0]])
+      vi.mocked(gitMod.commit).mockResolvedValue('deadbeef')
+
+      const result = await service.push()
+
+      expect(result.success).toBe(true)
+      expect(spawn).toHaveBeenCalledWith(
+        'git',
+        ['push', 'origin', 'main'],
+        expect.objectContaining({ shell: false }),
+      )
+      expect(gitMod.push).not.toHaveBeenCalled()
     })
 
     it('skips commit/push when there are no changes', async () => {
@@ -353,6 +642,16 @@ describe('GitSyncService', () => {
         JSON.stringify({ provider: 'generic', remoteUrl: 'https://x.git', branch: 'main' }),
       )
     }
+    const seedConnectedSsh = (db: ReturnType<typeof createTestDb>) => {
+      db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(
+        'git-sync:config',
+        JSON.stringify({
+          provider: 'generic',
+          remoteUrl: 'ssh://git@github.com/owner/repo.git',
+          branch: 'main',
+        }),
+      )
+    }
 
     it('returns an error result when not connected (no config)', async () => {
       const service = await loadService()
@@ -379,6 +678,28 @@ describe('GitSyncService', () => {
       expect(gitMod.checkout).toHaveBeenCalledWith(
         expect.objectContaining({ ref: 'main', force: true }),
       )
+    })
+
+    it('uses git CLI fetch + reset for SSH remotes', async () => {
+      const service = await loadService()
+      seedConnectedSsh(testDb)
+      vi.mocked(fsMod.existsSync).mockReturnValue(true)
+      vi.mocked(fsPromises.readFile).mockResolvedValue('[]')
+
+      const result = await service.pull()
+
+      expect(result.success).toBe(true)
+      expect(spawn).toHaveBeenCalledWith(
+        'git',
+        ['fetch', 'origin', 'main'],
+        expect.objectContaining({ shell: false }),
+      )
+      expect(spawn).toHaveBeenCalledWith(
+        'git',
+        ['reset', '--hard', 'origin/main'],
+        expect.objectContaining({ shell: false }),
+      )
+      expect(gitMod.fetch).not.toHaveBeenCalled()
     })
 
     it('imports pulled entities and returns correct counts', async () => {

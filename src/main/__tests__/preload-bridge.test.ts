@@ -32,6 +32,18 @@ const EXPECTED_KEYS = [
   'rulesSyncAll',
   'rulesDetectWorkspaces',
   'rulesImportFromProject',
+  'skillsListInstalled',
+  'skillsListCurated',
+  'skillsDetectWorkspaces',
+  'skillsPrepareInstall',
+  'skillsInstallCurated',
+  'skillsCreate',
+  'skillsDelete',
+  'skillsSetEnabled',
+  'skillsMigrateLegacyPreview',
+  'skillsMigrateLegacyApply',
+  'skillsSyncListConflicts',
+  'skillsSyncResolveConflict',
   'profilesList',
   'profilesGet',
   'profilesCreate',
@@ -51,6 +63,7 @@ const EXPECTED_KEYS = [
   'gitSyncStatus',
   'gitSyncConnectGitHub',
   'gitSyncConnectManual',
+  'gitSyncTestRemote',
   'gitSyncDisconnect',
   'gitSyncPush',
   'gitSyncPull',
@@ -136,6 +149,10 @@ describe('preload bridge composition', () => {
     await api.clientsClearManualConfigPath('cursor')
     await api.serversList()
     await api.rulesSyncAll()
+    await api.gitSyncTestRemote({
+      remoteUrl: 'ssh://git@github.com/owner/repo.git',
+      authMethod: 'ssh',
+    })
     await api.settingsSet('language', 'en')
     await api.backupsList('cursor')
     await api.filesReveal('C:\\tmp\\file.txt')
@@ -168,6 +185,10 @@ describe('preload bridge composition', () => {
     expect(invoke).toHaveBeenCalledWith('clients:clear-manual-config-path', 'cursor')
     expect(invoke).toHaveBeenCalledWith('servers:list')
     expect(invoke).toHaveBeenCalledWith('rules:sync-all')
+    expect(invoke).toHaveBeenCalledWith('git-sync:test-remote', {
+      remoteUrl: 'ssh://git@github.com/owner/repo.git',
+      authMethod: 'ssh',
+    })
     expect(invoke).toHaveBeenCalledWith('settings:set', 'language', 'en')
     expect(invoke).toHaveBeenCalledWith('backups:list', 'cursor')
     expect(invoke).toHaveBeenCalledWith('files:reveal', 'C:\\tmp\\file.txt')

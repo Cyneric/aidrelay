@@ -2,7 +2,7 @@
  * @file src/main/db/servers.repo.ts
  *
  * @created 07.03.2026
- * @modified 09.03.2026
+ * @modified 10.03.2026
  *
  * @author Christian Blank <aidrelay@proton.me>
  * @copyright 2026
@@ -225,5 +225,15 @@ export class ServersRepo {
    */
   delete(id: string): void {
     this.db.prepare('DELETE FROM servers WHERE id = ?').run(id)
+  }
+
+  /**
+   * Updates only the setup status of a server.
+   */
+  updateSetupStatus(id: string, setupStatus: McpServer['setupStatus']): void {
+    const now = new Date().toISOString()
+    this.db
+      .prepare('UPDATE servers SET setup_status = ?, updated_at = ? WHERE id = ?')
+      .run(setupStatus, now, id)
   }
 }
