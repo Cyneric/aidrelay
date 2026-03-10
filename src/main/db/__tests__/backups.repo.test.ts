@@ -72,6 +72,45 @@ describe('BackupsRepo', () => {
     })
   })
 
+  // ─── query ────────────────────────────────────────────────────────────────
+
+  describe('query()', () => {
+    it('supports filtering by type and pagination with newest sort', () => {
+      repo.create({ ...SAMPLE_BACKUP, backupPath: '/b/1.json', backupType: 'manual' })
+      repo.create({ ...SAMPLE_BACKUP, backupPath: '/b/2.json', backupType: 'sync' })
+      repo.create({ ...SAMPLE_BACKUP, backupPath: '/b/3.json', backupType: 'sync' })
+
+      const page = repo.query({
+        clientId: 'cursor',
+        types: ['sync'],
+        sort: 'newest',
+        limit: 1,
+        offset: 0,
+      })
+
+      expect(page.total).toBe(2)
+      expect(page.items).toHaveLength(1)
+      expect(page.items[0]?.backupType).toBe('sync')
+    })
+
+    it('supports search and oldest-first sorting', () => {
+      repo.create({ ...SAMPLE_BACKUP, backupPath: '/backups/cursor/special-file.json' })
+      repo.create({ ...SAMPLE_BACKUP, backupPath: '/backups/cursor/z-last.json' })
+
+      const page = repo.query({
+        clientId: 'cursor',
+        search: 'special',
+        sort: 'oldest',
+        limit: 10,
+        offset: 0,
+      })
+
+      expect(page.total).toBe(1)
+      expect(page.items).toHaveLength(1)
+      expect(page.items[0]?.backupPath).toContain('special-file')
+    })
+  })
+
   // ─── deleteById ───────────────────────────────────────────────────────────
 
   describe('deleteById()', () => {

@@ -71,6 +71,8 @@ const EXPECTED_KEYS = [
   'stacksExport',
   'stacksImport',
   'backupsList',
+  'backupsQuery',
+  'backupsPreviewRestore',
   'backupsRestore',
   'showOpenDialog',
   'filesReveal',

@@ -13,7 +13,7 @@
  */
 
 import type Database from 'better-sqlite3'
-import type { BackupEntry } from '@shared/channels'
+import type { BackupEntry, BackupQueryFilters, BackupQueryResult } from '@shared/channels'
 import type { ClientId } from '@shared/types'
 
 // ─── Row Shape ────────────────────────────────────────────────────────────────
@@ -132,6 +132,65 @@ export class BackupsRepo {
       .prepare('SELECT * FROM backups WHERE client_id = ? ORDER BY created_at DESC')
       .all(clientId) as BackupRow[]
     return rows.map(rowToEntry)
+  }
+
+  /**
+   * Returns a paged backup list based on filter criteria.
+   *
+   * @param filters - Optional query filters.
+   * @returns Paged query result with total count.
+   */
+  query(filters: BackupQueryFilters): BackupQueryResult {
+    const whereParts: string[] = []
+    const whereParams: unknown[] = []
+
+    if (filters.clientId) {
+      whereParts.push('client_id = ?')
+      whereParams.push(filters.clientId)
+    }
+
+    const search = filters.search?.trim()
+    if (search) {
+      whereParts.push('(backup_path LIKE ? OR client_id LIKE ?)')
+      const likeValue = `%${search}%`
+      whereParams.push(likeValue, likeValue)
+    }
+
+    if (filters.types && filters.types.length > 0) {
+      const placeholders = filters.types.map(() => '?').join(', ')
+      whereParts.push(`backup_type IN (${placeholders})`)
+      whereParams.push(...filters.types)
+    }
+
+    if (filters.from) {
+      whereParts.push('created_at >= ?')
+      whereParams.push(filters.from)
+    }
+
+    if (filters.to) {
+      whereParts.push('created_at <= ?')
+      whereParams.push(filters.to)
+    }
+
+    const whereClause = whereParts.length > 0 ? `WHERE ${whereParts.join(' AND ')}` : ''
+    const sortDirection = filters.sort === 'oldest' ? 'ASC' : 'DESC'
+    const limit = Math.max(0, Math.min(500, filters.limit ?? 25))
+    const offset = Math.max(0, filters.offset ?? 0)
+
+    const totalRow = this.db
+      .prepare(`SELECT COUNT(*) as count FROM backups ${whereClause}`)
+      .get(...whereParams) as { count: number }
+
+    const rows = this.db
+      .prepare(
+        `SELECT * FROM backups ${whereClause} ORDER BY created_at ${sortDirection} LIMIT ? OFFSET ?`,
+      )
+      .all(...whereParams, limit, offset) as BackupRow[]
+
+    return {
+      items: rows.map(rowToEntry),
+      total: totalRow.count,
+    }
   }
 
   /**

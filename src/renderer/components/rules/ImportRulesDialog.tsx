@@ -2,7 +2,7 @@
  * @file src/renderer/components/rules/ImportRulesDialog.tsx
  *
  * @created 07.03.2026
- * @modified 08.03.2026
+ * @modified 10.03.2026
  *
  * @author Christian Blank <aidrelay@proton.me>
  * @copyright 2026

@@ -15,6 +15,7 @@
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest'
 import { render, screen, fireEvent, act } from '@testing-library/react'
 import type { WindowMaximizeChangedPayload } from '@shared/channels'
+import type { LicenseStatus } from '@shared/types'
 import { TitleBar } from '../TitleBar'
 
 // ─── Theme Hook Mock ──────────────────────────────────────────────────────────
@@ -27,6 +28,26 @@ vi.mock('@/lib/useTheme', () => ({
     setTheme: vi.fn(),
     effectiveTheme: mockEffectiveTheme,
   }),
+}))
+
+// ─── License Hook Mock ───────────────────────────────────────────────────────
+
+const mockLicenseState: {
+  status: LicenseStatus
+  loading: boolean
+  activating: boolean
+  activate: () => Promise<void>
+  deactivate: () => Promise<void>
+} = {
+  status: { tier: 'free', valid: false, lastValidatedAt: new Date().toISOString() },
+  loading: false,
+  activating: false,
+  activate: vi.fn(),
+  deactivate: vi.fn(),
+}
+
+vi.mock('@/lib/useLicense', () => ({
+  useLicense: () => mockLicenseState,
 }))
 
 // ─── window.api mock ──────────────────────────────────────────────────────────
@@ -50,6 +71,12 @@ vi.stubGlobal('api', {
 describe('TitleBar', () => {
   beforeEach(() => {
     mockEffectiveTheme = 'light'
+    mockLicenseState.status = {
+      tier: 'free',
+      valid: false,
+      lastValidatedAt: new Date().toISOString(),
+    }
+    mockLicenseState.loading = false
     vi.clearAllMocks()
     mockOnMaximizeChanged.mockReturnValue(() => undefined)
   })
@@ -64,6 +91,47 @@ describe('TitleBar', () => {
     const logo = screen.getByTestId('title-bar-logo')
     expect(logo).toBeInTheDocument()
     expect(logo).toHaveAttribute('alt', 'aidrelay logo')
+  })
+
+  describe('plan badge', () => {
+    it('renders the badge when loading is false', () => {
+      render(<TitleBar />)
+      expect(screen.getByTestId('plan-bookmark')).toBeInTheDocument()
+      expect(screen.getByTestId('plan-badge')).toBeInTheDocument()
+    })
+
+    it('shows Free label and aria-label on free tier', () => {
+      render(<TitleBar />)
+      expect(screen.getByTestId('plan-badge')).toHaveTextContent('Free')
+      expect(screen.getByTestId('plan-badge')).toHaveAttribute('aria-label', 'Current plan: Free')
+    })
+
+    it('shows Pro label and aria-label on valid pro tier', () => {
+      mockLicenseState.status = {
+        tier: 'pro',
+        valid: true,
+        lastValidatedAt: new Date().toISOString(),
+      }
+      render(<TitleBar />)
+      expect(screen.getByTestId('plan-badge')).toHaveTextContent('Pro')
+      expect(screen.getByTestId('plan-badge')).toHaveAttribute('aria-label', 'Current plan: Pro')
+    })
+
+    it('shows Free when pro tier is invalid', () => {
+      mockLicenseState.status = {
+        tier: 'pro',
+        valid: false,
+        lastValidatedAt: new Date().toISOString(),
+      }
+      render(<TitleBar />)
+      expect(screen.getByTestId('plan-badge')).toHaveTextContent('Free')
+    })
+
+    it('hides the badge while license state is loading', () => {
+      mockLicenseState.loading = true
+      render(<TitleBar />)
+      expect(screen.queryByTestId('plan-badge')).not.toBeInTheDocument()
+    })
   })
 
   it('uses the light title logo in light theme', () => {

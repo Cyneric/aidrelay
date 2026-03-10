@@ -385,7 +385,9 @@ describe('GitSyncService', () => {
       const service = await loadService()
       seedConnected(testDb)
       vi.mocked(getSecret).mockResolvedValue('my-token')
-      vi.mocked(fsMod.existsSync).mockReturnValue(true)
+      vi.mocked(fsMod.existsSync).mockImplementation((path) =>
+        String(path).replace(/\\/g, '/').endsWith('/.git'),
+      )
 
       const mockServers = [
         {
@@ -422,7 +424,9 @@ describe('GitSyncService', () => {
       const service = await loadService()
       seedConnected(testDb)
       vi.mocked(getSecret).mockResolvedValue('my-token')
-      vi.mocked(fsMod.existsSync).mockReturnValue(true)
+      vi.mocked(fsMod.existsSync).mockImplementation((path) =>
+        String(path).replace(/\\/g, '/').endsWith('/.git'),
+      )
 
       // Seed a local server with a newer updatedAt.
       testDb

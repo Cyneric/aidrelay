@@ -22,6 +22,7 @@ import {
   flexRender,
   createColumnHelper,
   type SortingState,
+  type ColumnFiltersState,
 } from '@tanstack/react-table'
 import {
   Plus,
@@ -44,6 +45,13 @@ import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
   Table,
   TableBody,
   TableCell,
@@ -60,8 +68,14 @@ import { useServersStore } from '@/stores/servers.store'
 import { useClientsStore } from '@/stores/clients.store'
 import { useFeatureGate } from '@/lib/useFeatureGate'
 import { useServersActions } from '@/hooks/useServersActions'
-import { useServerSetupStatuses, getSetupStatusKey } from '@/hooks/useServerSetupStatuses'
+import {
+  useServerSetupStatuses,
+  getSetupStatusKey,
+  type SetupStatusKey,
+} from '@/hooks/useServerSetupStatuses'
 import type { McpServer } from '@shared/types'
+
+const ALL_STATUSES_VALUE = '__all__' as const
 
 // ─── Column helper ────────────────────────────────────────────────────────────
 
@@ -112,13 +126,17 @@ const formatCommandPreview = (
 const ServersPage = () => {
   const { servers, loading, error, load, delete: deleteServer, toggleEnabled } = useServersStore()
   const serverIdKey = servers.map((s) => s.id).join('|')
-  const serverIds = useMemo(() => servers.map((s) => s.id), [serverIdKey])
+  const serverIds = useMemo(() => servers.map((s) => s.id), [serverIdKey]) // eslint-disable-line react-hooks/exhaustive-deps
   const { statuses } = useServerSetupStatuses(serverIds)
   const { clients, detectAll } = useClientsStore()
   const serverTestingEnabled = useFeatureGate('serverTesting')
   const { t } = useTranslation()
   const [sorting, setSorting] = useState<SortingState>([])
   const [globalFilter, setGlobalFilter] = useState('')
+  const [setupStatusFilter, setSetupStatusFilter] = useState<
+    SetupStatusKey | typeof ALL_STATUSES_VALUE
+  >(ALL_STATUSES_VALUE)
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [editingServer, setEditingServer] = useState<McpServer | undefined>(undefined)
   const [showEditor, setShowEditor] = useState(false)
   const [matrixExpanded, setMatrixExpanded] = useState(true)
@@ -141,6 +159,15 @@ const ServersPage = () => {
     void load()
     void detectAll()
   }, [load, detectAll])
+
+  useEffect(() => {
+    setColumnFilters((prev) => {
+      const existing = prev.filter((f) => f.id !== 'setupStatus')
+      if (setupStatusFilter !== ALL_STATUSES_VALUE)
+        return [...existing, { id: 'setupStatus', value: setupStatusFilter }]
+      return existing
+    })
+  }, [setupStatusFilter])
 
   const openCreate = useCallback(() => {
     setEditingServer(undefined)
@@ -254,25 +281,33 @@ const ServersPage = () => {
         <span className="rounded bg-muted px-1.5 py-0.5 text-xs font-mono">{getValue()}</span>
       ),
     }),
-    columnHelper.display({
-      id: 'setupStatus',
-      header: () => t('servers.setupStatus'),
-      size: 108,
-      cell: ({ row }) => {
-        const state = statuses[row.original.id] ?? null
-        const statusKey = getSetupStatusKey(state)
-        const label = t(`servers.setupStatusLabels.${statusKey}`)
-        let variant: 'secondary' | 'destructive' | 'outline' | 'default' = 'outline'
-        if (statusKey === 'installed') variant = 'secondary'
-        else if (statusKey === 'failed' || statusKey === 'rolled_back') variant = 'destructive'
-        else if (statusKey === 'installing') variant = 'default'
-        return (
-          <Badge variant={variant} data-testid={`server-setup-status-${row.original.id}`}>
-            {label}
-          </Badge>
-        )
+    columnHelper.accessor(
+      (row) => {
+        const state = statuses[row.id] ?? null
+        return getSetupStatusKey(state)
       },
-    }),
+      {
+        id: 'setupStatus',
+        header: () => t('servers.setupStatus'),
+        size: 108,
+        enableColumnFilter: true,
+        filterFn: 'equals',
+        cell: ({ row }) => {
+          const state = statuses[row.original.id] ?? null
+          const statusKey = getSetupStatusKey(state)
+          const label = t(`servers.setupStatusLabels.${statusKey}`)
+          let variant: 'secondary' | 'destructive' | 'outline' | 'default' = 'outline'
+          if (statusKey === 'installed') variant = 'secondary'
+          else if (statusKey === 'failed' || statusKey === 'rolled_back') variant = 'destructive'
+          else if (statusKey === 'installing') variant = 'default'
+          return (
+            <Badge variant={variant} data-testid={`server-setup-status-${row.original.id}`}>
+              {label}
+            </Badge>
+          )
+        },
+      },
+    ),
     columnHelper.display({
       id: 'status',
       header: () => t('servers.status'),
@@ -481,9 +516,10 @@ const ServersPage = () => {
   const table = useReactTable({
     data: servers,
     columns,
-    state: { sorting, globalFilter },
+    state: { sorting, globalFilter, columnFilters },
     onSortingChange: setSorting,
     onGlobalFilterChange: setGlobalFilter,
+    onColumnFiltersChange: setColumnFilters,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
@@ -574,8 +610,8 @@ const ServersPage = () => {
           </div>
         )}
 
-        {/* Search */}
-        <div>
+        {/* Search and filter */}
+        <div className="flex items-center gap-2">
           <Input
             type="search"
             value={globalFilter}
@@ -585,6 +621,35 @@ const ServersPage = () => {
             aria-label={t('servers.search')}
             data-testid="servers-search"
           />
+          <Select
+            value={setupStatusFilter}
+            onValueChange={(value) =>
+              setSetupStatusFilter(value as SetupStatusKey | typeof ALL_STATUSES_VALUE)
+            }
+            data-testid="servers-setup-status-filter"
+          >
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder={t('servers.setupStatusFilterPlaceholder')} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL_STATUSES_VALUE}>
+                {t('servers.setupStatusFilterAll')}
+              </SelectItem>
+              {(
+                [
+                  'not_installed',
+                  'installing',
+                  'installed',
+                  'failed',
+                  'rolled_back',
+                ] as SetupStatusKey[]
+              ).map((key) => (
+                <SelectItem key={key} value={key}>
+                  {t(`servers.setupStatusLabels.${key}`)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         {/* Table */}

@@ -399,6 +399,7 @@ export interface GitPullResult {
   readonly serversImported: number
   readonly rulesImported: number
   readonly profilesImported: number
+  readonly installIntentsImported: number
   /** Count of local entries overwritten by the remote (last-write-wins). */
   readonly conflicts: number
   readonly error?: string
