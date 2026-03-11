@@ -2,7 +2,7 @@
  * @file src/main/ipc/sync.ipc.ts
  *
  * @created 10.03.2026
- * @modified 10.03.2026
+ * @modified 11.03.2026
  *
  * @author Christian Blank <aidrelay@proton.me>
  * @copyright 2026
@@ -45,6 +45,13 @@ export const registerSyncIpc = (): void => {
     return crossDeviceSyncService.listPending()
   })
 
+  // ── sync:list-conflicts ──────────────────────────────────────────────────────
+  ipcMain.handle('sync:list-conflicts', async (): Promise<SyncConflict[]> => {
+    log.debug('[ipc] sync:list-conflicts')
+    requireGitSyncGate()
+    return crossDeviceSyncService.listConflicts()
+  })
+
   // ── sync:apply-pending ──────────────────────────────────────────────────────
   ipcMain.handle('sync:apply-pending', async (_event, serverId: string): Promise<void> => {
     log.debug(`[ipc] sync:apply-pending ${serverId}`)
@@ -68,9 +75,7 @@ export const registerSyncIpc = (): void => {
     async (_event, conflictId: string, resolution: 'local' | 'remote'): Promise<void> => {
       log.debug(`[ipc] sync:resolve-conflict ${conflictId} ${resolution}`)
       requireGitSyncGate()
-      // TODO: Implement conflict resolution
-      await Promise.resolve()
-      throw new Error('Not implemented')
+      await crossDeviceSyncService.resolveConflict(conflictId, resolution)
     },
   )
 

@@ -42,6 +42,7 @@ import { ProfilesRepo } from '@main/db/profiles.repo'
 import { SettingsRepo } from '@main/db/settings.repo'
 import { ActivityLogRepo } from '@main/db/activity-log.repo'
 import { SyncInstallIntentRepo } from '@main/db/sync-install-intent.repo'
+import { SyncConflictsRepo } from '@main/db/sync-conflicts.repo'
 import { skillsService } from '@main/skills/skills.service'
 import { storeSecret, getSecret, deleteAllSecrets } from '@main/secrets/keytar.service'
 import type {
@@ -57,6 +58,7 @@ import type {
   ManualGitConfig,
   SkillSyncConflict,
   ProjectSkillMapping,
+  SyncConflict,
 } from '@shared/types'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -336,6 +338,7 @@ class GitSyncService {
     settings: SettingsRepo
     log: ActivityLogRepo
     installIntents: SyncInstallIntentRepo
+    syncConflicts: SyncConflictsRepo
   } {
     const db = getDatabase()
     return {
@@ -345,6 +348,7 @@ class GitSyncService {
       settings: new SettingsRepo(db),
       log: new ActivityLogRepo(db),
       installIntents: new SyncInstallIntentRepo(db),
+      syncConflicts: new SyncConflictsRepo(db),
     }
   }
 
@@ -595,6 +599,26 @@ class GitSyncService {
     let profilesImported = 0
     let installIntentsImported = 0
 
+    // Helper to generate conflict ID and store conflict details
+    const storeConflict = (
+      entityType: 'server' | 'rule' | 'profile' | 'install-intent',
+      entityId: string,
+      serverId: string,
+      serverName: string,
+      localValue: unknown,
+      remoteValue: unknown,
+    ): void => {
+      const conflict: SyncConflict = {
+        id: `${entityType}-${entityId}-conflict`,
+        serverId,
+        serverName,
+        field: entityType,
+        localValue,
+        remoteValue,
+      }
+      repos.syncConflicts.upsert(conflict, entityType, entityId)
+    }
+
     // ── Servers ───────────────────────────────────────────────────────────
     const localServers = repos.servers.findAll()
     const localServerByName = new Map(localServers.map((s) => [s.name, s]))
@@ -602,7 +626,10 @@ class GitSyncService {
     for (const pulled of snapshot.servers) {
       const local = localServerByName.get(pulled.name)
       if (local) {
-        if (local.updatedAt > pulled.updatedAt) conflicts++
+        if (local.updatedAt > pulled.updatedAt) {
+          conflicts++
+          storeConflict('server', local.id, local.id, local.name, local, pulled)
+        }
         repos.servers.update(local.id, {
           type: pulled.type,
           command: pulled.command,
@@ -636,7 +663,10 @@ class GitSyncService {
     for (const pulled of snapshot.rules) {
       const local = localRuleByName.get(pulled.name)
       if (local) {
-        if (local.updatedAt > pulled.updatedAt) conflicts++
+        if (local.updatedAt > pulled.updatedAt) {
+          conflicts++
+          storeConflict('rule', local.id, '', local.name, local, pulled)
+        }
         repos.rules.update(local.id, {
           description: pulled.description,
           content: pulled.content,
@@ -675,7 +705,10 @@ class GitSyncService {
     for (const pulled of snapshot.profiles) {
       const local = localProfileByName.get(pulled.name)
       if (local) {
-        if (local.updatedAt > pulled.updatedAt) conflicts++
+        if (local.updatedAt > pulled.updatedAt) {
+          conflicts++
+          storeConflict('profile', local.id, '', local.name, local, pulled)
+        }
         repos.profiles.update(local.id, {
           description: pulled.description,
           icon: pulled.icon,
@@ -703,7 +736,17 @@ class GitSyncService {
     for (const pulled of snapshot.installIntents) {
       const local = localIntentByServerId.get(pulled.serverId)
       if (local) {
-        if (local.updatedAt > pulled.updatedAt) conflicts++
+        if (local.updatedAt > pulled.updatedAt) {
+          conflicts++
+          storeConflict(
+            'install-intent',
+            pulled.serverId,
+            pulled.serverId,
+            pulled.serverId,
+            local,
+            pulled,
+          )
+        }
         repos.installIntents.upsert(pulled)
       } else {
         repos.installIntents.insert(pulled)

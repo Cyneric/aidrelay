@@ -2,7 +2,7 @@
  * @file src/shared/channels.ts
  *
  * @created 07.03.2026
- * @modified 10.03.2026
+ * @modified 11.03.2026
  *
  * @author Christian Blank <aidrelay@proton.me>
  * @copyright 2026
@@ -49,6 +49,7 @@ import type {
   InstallPlan,
   PreflightReport,
   DeviceSetupState,
+  DiagnosticReport,
   PendingSetup,
   SyncConflict,
   OssAttribution,
@@ -577,6 +578,9 @@ export interface IpcChannels {
 
   // Activity Log
   'log:query': (filters: LogFilters) => Promise<ActivityLogEntry[]>
+
+  // Diagnostics
+  'diagnostics:generate-report': (serverId?: string) => Promise<DiagnosticReport>
 
   // Servers — connection test
   'servers:test': (id: string) => Promise<TestResult>

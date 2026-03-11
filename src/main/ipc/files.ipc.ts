@@ -62,10 +62,16 @@ export const registerFilesIpc = (): void => {
       throw makeIpcError('file_not_found', `Path not found: ${path}`)
     }
 
-    shell.showItemInFolder(path)
-    const fallbackError = await shell.openPath(dirname(path))
-    if (fallbackError) {
-      throw makeIpcError('file_reveal_failed', fallbackError)
+    try {
+      shell.showItemInFolder(path)
+      return
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      log.warn('[ipc] files:reveal showItemInFolder failed, trying openPath fallback', message)
+      const fallbackError = await shell.openPath(dirname(path))
+      if (fallbackError) {
+        throw makeIpcError('file_reveal_failed', fallbackError)
+      }
     }
   })
 

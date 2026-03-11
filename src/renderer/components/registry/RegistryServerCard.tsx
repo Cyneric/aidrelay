@@ -87,6 +87,13 @@ const RegistryServerCard = ({ server, canInstall }: RegistryServerCardProps) => 
     installTooltip = `Install ${server.displayName}`
   }
 
+  let infoUrl: string | null = null
+  if (server.source === 'smithery') {
+    infoUrl = `https://smithery.ai/server/${encodeURIComponent(server.id)}`
+  } else if (server.source === 'official') {
+    infoUrl = `https://registry.modelcontextprotocol.io/servers/${encodeURIComponent(server.id)}`
+  }
+
   return (
     <>
       <article
@@ -131,11 +138,24 @@ const RegistryServerCard = ({ server, canInstall }: RegistryServerCardProps) => 
 
         {/* Footer */}
         <div className="flex items-center justify-between gap-2 mt-auto pt-1">
-          {server.useCount !== undefined && (
-            <span className="text-xs text-muted-foreground">
-              {server.useCount.toLocaleString()} installs
-            </span>
-          )}
+          <div className="flex items-center gap-3 min-w-0">
+            {server.useCount !== undefined && (
+              <span className="text-xs text-muted-foreground">
+                {server.useCount.toLocaleString()} installs
+              </span>
+            )}
+            {infoUrl && (
+              <a
+                href={infoUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="text-xs text-primary hover:underline"
+                data-testid={`registry-more-info-${server.id}`}
+              >
+                {t('registry.moreInfo')}
+              </a>
+            )}
+          </div>
 
           <Tooltip>
             <TooltipTrigger asChild>

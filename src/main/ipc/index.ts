@@ -2,7 +2,7 @@
  * @file src/main/ipc/index.ts
  *
  * @created 07.03.2026
- * @modified 07.03.2026
+ * @modified 11.03.2026
  *
  * @author Christian Blank <aidrelay@proton.me>
  * @copyright 2026
@@ -17,6 +17,7 @@ import log from 'electron-log'
 import { registerClientsIpc } from './clients.ipc'
 import { registerServersIpc } from './servers.ipc'
 import { registerLogIpc } from './log.ipc'
+import { registerDiagnosticsIpc } from './diagnostics.ipc'
 import { registerRulesIpc } from './rules.ipc'
 import { registerProfilesIpc } from './profiles.ipc'
 import { registerSecretsIpc } from './secrets.ipc'
@@ -44,6 +45,7 @@ export const registerIpcHandlers = (): void => {
   registerServersIpc()
   registerSecretsIpc()
   registerLogIpc()
+  registerDiagnosticsIpc()
   registerRulesIpc()
   registerProfilesIpc()
   registerLicenseIpc()

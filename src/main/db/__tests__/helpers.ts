@@ -21,6 +21,7 @@ import {
   MIGRATION_004,
   MIGRATION_005,
   MIGRATION_006,
+  MIGRATION_007,
 } from '../migrations/index'
 
 /**
@@ -41,5 +42,6 @@ export const createTestDb = (): Database.Database => {
   db.exec(MIGRATION_004)
   db.exec(MIGRATION_005)
   db.exec(MIGRATION_006)
+  db.exec(MIGRATION_007)
   return db
 }

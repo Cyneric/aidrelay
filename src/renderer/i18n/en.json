@@ -60,6 +60,11 @@
     "syncPreviewSummaryNoOp": "{{count}} no change",
     "syncPreviewSummaryPreserved": "{{count}} preserved (unmanaged)",
     "syncPreviewSummaryRemoved": "{{count}} removed",
+    "syncPreviewFilesToChange_one": "{{count}} file to be changed",
+    "syncPreviewFilesToChange_other": "{{count}} files to be changed",
+    "syncPreviewTargetFile": "Target file location",
+    "syncPreviewNoPath": "No target file path available.",
+    "syncPreviewAllUnavailable": "Could not build a preview for actionable clients.",
     "syncPreviewBefore": "Current in client",
     "syncPreviewAfter": "Will be written",
     "syncPreviewAction": {
@@ -93,6 +98,8 @@
     "syncAllActionable": "Sync all actionable",
     "syncAllSuccess": "Synced {{count}} actionable clients.",
     "syncAllSummary": "Synced {{succeeded}} of {{total}} clients ({{failed}} failed).",
+    "syncNoChanges": "Already in sync. No file changes needed.",
+    "syncAllNoChangesActionable": "All actionable clients are already in sync.",
     "syncIndicatorAllSynced": "All installed clients are in sync.",
     "syncIndicatorMissingConfig": "No syncable clients ({{count}} missing config).",
     "syncIndicatorNoInstalled": "No installed clients.",
@@ -560,6 +567,7 @@
     "title": "Registry",
     "subtitle": "Browse and install MCP servers from published registries.",
     "helperText": "Registry search shows published catalog entries, not this machine's configured local servers.",
+    "moreInfo": "More info",
     "searchPlaceholder": "Search MCP servers…",
     "searchAriaLabel": "Search registry",
     "searching": "Searching registry…",
@@ -854,6 +862,119 @@
       "failure": "{{name}} installation failed",
       "successDescription": "The MCP server is now ready to use.",
       "failureDescription": "Something went wrong during installation. Check the logs for details."
+    }
+  },
+  "skillsPage": {
+    "title": "Skills",
+    "subtitle": "Discover, install, create, and manage skills across user and project scopes.",
+    "actions": {
+      "refresh": "Refresh",
+      "scope": "Install scope",
+      "projectPath": "Project path"
+    },
+    "scope": {
+      "user": "User",
+      "project": "Project"
+    },
+    "sections": {
+      "discover": "Discover",
+      "installed": "Installed",
+      "create": "Create",
+      "conflicts": "Conflicts"
+    },
+    "descriptionSource": {
+      "frontmatter": "Frontmatter",
+      "body": "Body",
+      "none": "None"
+    },
+    "errors": {
+      "revealFailed": "Failed to reveal path",
+      "prepareInstallFailed": "Failed to prepare install"
+    },
+    "common": {
+      "loading": "Loading skills…",
+      "enabled": "Enabled",
+      "disabled": "Disabled",
+      "noDescription": "No description available.",
+      "unknownProject": "Unknown project"
+    },
+    "migration": {
+      "title": "Legacy skills detected in .codex/skills.",
+      "body": "{{count}} skill(s) can be migrated to .agents/skills.",
+      "cta": "Migrate legacy skills"
+    },
+    "discover": {
+      "searchPlaceholder": "Search curated skills",
+      "install": "Install",
+      "installing": "Installing…",
+      "viewSource": "View source",
+      "userInstalled": "Installed in user scope",
+      "projectInstalled": "Installed in project scope",
+      "empty": "No curated skills match your filters."
+    },
+    "installed": {
+      "title": "Installed Skills",
+      "searchPlaceholder": "Search installed skills",
+      "scopeAll": "All scopes",
+      "userGroup": "User scope ({{count}})",
+      "projectGroup": "Project scope ({{count}})",
+      "toggle": "Enabled",
+      "edit": "Edit",
+      "reveal": "Reveal",
+      "delete": "Delete",
+      "deleting": "Deleting…",
+      "empty": "No installed skills found."
+    },
+    "create": {
+      "title": "Create Skill",
+      "steps": {
+        "details": "Details",
+        "scope": "Scope",
+        "resources": "Resources",
+        "review": "Review"
+      },
+      "name": "Skill name",
+      "namePlaceholder": "e.g. release-guardian",
+      "description": "Description",
+      "descriptionPlaceholder": "Optional frontmatter description",
+      "projectPath": "Project path",
+      "resources": "Optional resources",
+      "preview": "Generated SKILL.md preview",
+      "next": "Next",
+      "create": "Create Skill",
+      "creating": "Creating…",
+      "defaultDescription": "Add a concise skill description.",
+      "validation": {
+        "nameRequired": "Skill name is required.",
+        "projectPathRequired": "Project path is required for project scope."
+      }
+    },
+    "conflicts": {
+      "title": "Sync Conflicts",
+      "pending": "Needs review",
+      "added": "{{count}} added",
+      "modified": "{{count}} modified",
+      "removed": "{{count}} removed",
+      "localPath": "Local path",
+      "remotePath": "Remote path",
+      "keepLocal": "Keep local",
+      "useRemote": "Use remote",
+      "empty": "No pending skill sync conflicts."
+    },
+    "installDialog": {
+      "title": "Install Preview",
+      "skill": "Skill",
+      "scope": "Scope",
+      "viewSource": "Open source on GitHub",
+      "noChanges": "No file changes detected.",
+      "conflictWarning": "Target has differences. Replace is required to overwrite.",
+      "safeInstall": "No conflicts detected for this target.",
+      "installIfSafe": "Install if safe",
+      "replaceAndInstall": "Replace and install"
+    },
+    "deleteDialog": {
+      "title": "Delete skill?",
+      "description": "Delete \"{{name}}\" from {{path}}?"
     }
   },
   "syncCenter": {

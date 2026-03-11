@@ -145,7 +145,7 @@
    */
   :root {
     --scrollbar-size-horizontal: 6px;
-    --scrollbar-size-vertical: 10px;
+    --scrollbar-size-vertical: 8px;
   }
 
   :where(

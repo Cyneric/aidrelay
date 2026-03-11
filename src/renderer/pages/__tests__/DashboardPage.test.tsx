@@ -5,13 +5,16 @@ import { renderWithProviders } from '@/test-utils'
 import { DashboardPage } from '../DashboardPage'
 import type * as ClientsStoreModule from '@/stores/clients.store'
 import type * as ServersStoreModule from '@/stores/servers.store'
-import type { ClientStatus, McpServer } from '@shared/types'
+import type { ClientStatus, McpServer, SyncAllPreviewResult } from '@shared/types'
 
 const detectAllMock = vi.fn<() => Promise<void>>()
 const loadServersMock = vi.fn<() => Promise<void>>()
 const clientsReadConfigMock = vi.fn()
 const syncClientMock =
   vi.fn<(id: string, options?: { allowCreateConfigIfMissing?: boolean }) => Promise<unknown>>()
+const previewSyncMock = vi.fn()
+const previewSyncAllMock = vi.fn<() => Promise<SyncAllPreviewResult>>()
+const clientsSyncMock = vi.fn()
 const previewConfigImportMock = vi.fn()
 const importConfigChangesMock = vi.fn()
 
@@ -155,6 +158,54 @@ describe('DashboardPage', () => {
     loadServersMock.mockResolvedValue()
     clientsReadConfigMock.mockResolvedValue({})
     syncClientMock.mockResolvedValue({})
+    previewSyncMock.mockResolvedValue({
+      clientId: 'codex-cli',
+      configPath: 'C:\\Users\\tester\\.codex\\mcp.json',
+      items: [
+        {
+          name: 'filesystem',
+          source: 'modified',
+          action: 'overwrite',
+          before: { command: 'old' },
+          after: { command: 'new' },
+        },
+      ],
+    })
+    previewSyncAllMock.mockResolvedValue({
+      previews: {
+        'codex-cli': {
+          clientId: 'codex-cli',
+          configPath: 'C:\\Users\\tester\\.codex\\mcp.json',
+          items: [
+            {
+              name: 'filesystem',
+              source: 'modified',
+              action: 'overwrite',
+              before: { command: 'old' },
+              after: { command: 'new' },
+            },
+          ],
+        },
+        jetbrains: {
+          clientId: 'jetbrains',
+          configPath: 'C:\\Users\\tester\\AppData\\Roaming\\JetBrains\\mcp.json',
+          items: [
+            {
+              name: 'filesystem',
+              source: 'modified',
+              action: 'overwrite',
+              before: { command: 'old' },
+              after: { command: 'new' },
+            },
+          ],
+        },
+      },
+    })
+    clientsSyncMock.mockResolvedValue({
+      success: true,
+      serversWritten: 0,
+      syncedAt: '2026-03-11T00:00:00.000Z',
+    })
     previewConfigImportMock.mockResolvedValue({
       clientId: 'codex-cli',
       configPath: 'C:\\Users\\tester\\.codex\\config.json',
@@ -174,6 +225,9 @@ describe('DashboardPage', () => {
       value: {
         ...window.api,
         clientsReadConfig: clientsReadConfigMock,
+        clientsPreviewSync: previewSyncMock,
+        clientsPreviewSyncAll: previewSyncAllMock,
+        clientsSync: clientsSyncMock,
         clientsPreviewConfigImport: previewConfigImportMock,
         clientsImportConfigChanges: importConfigChangesMock,
         onConfigChanged: () => () => {},
@@ -441,18 +495,186 @@ describe('DashboardPage', () => {
     expect(cards[0]).toHaveAttribute('data-testid', 'client-card-jetbrains')
   })
 
-  it('shows sync error and resets syncing state when sync fails', async () => {
+  it('opens sync preview first and only syncs after confirm', async () => {
+    renderWithProviders(<DashboardPage />)
+
+    fireEvent.click(screen.getByTestId('client-sync-button-codex-cli'))
+
+    await waitFor(() => expect(previewSyncMock).toHaveBeenCalledWith('codex-cli', undefined))
+    expect(syncClientMock).not.toHaveBeenCalled()
+    expect(await screen.findByTestId('sync-diff-dialog')).toBeInTheDocument()
+    expect(screen.getByText('C:\\Users\\tester\\.codex\\mcp.json')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByTestId('sync-preview-confirm'))
+
+    await waitFor(() => expect(syncClientMock).toHaveBeenCalledWith('codex-cli', undefined))
+  })
+
+  it('skips single-client diff dialog when preview has no meaningful changes', async () => {
+    previewSyncMock.mockResolvedValue({
+      clientId: 'codex-cli',
+      configPath: 'C:\\Users\\tester\\.codex\\mcp.json',
+      items: [
+        {
+          name: 'filesystem',
+          source: 'modified',
+          action: 'no-op',
+          before: { command: 'same' },
+          after: { command: 'same' },
+        },
+        {
+          name: 'custom',
+          source: 'added',
+          action: 'preserved_unmanaged',
+          before: null,
+          after: { command: 'keep' },
+        },
+      ],
+    })
+    renderWithProviders(<DashboardPage />)
+
+    fireEvent.click(screen.getByTestId('client-sync-button-codex-cli'))
+
+    await waitFor(() => expect(previewSyncMock).toHaveBeenCalledWith('codex-cli', undefined))
+    expect(screen.queryByTestId('sync-diff-dialog')).not.toBeInTheDocument()
+    expect(syncClientMock).not.toHaveBeenCalled()
+    expect(toastInfoMock).toHaveBeenCalledWith(
+      'Already in sync. No file changes needed.',
+      undefined,
+    )
+  })
+
+  it('shows sync error and resets syncing state when confirm sync fails', async () => {
     syncClientMock.mockRejectedValue(new Error('sync exploded'))
     renderWithProviders(<DashboardPage />)
 
     fireEvent.click(screen.getByTestId('client-sync-button-codex-cli'))
+    await screen.findByTestId('sync-diff-dialog')
+    fireEvent.click(screen.getByTestId('sync-preview-confirm'))
 
     await waitFor(() => expect(toastErrorMock).toHaveBeenCalledWith('sync exploded'))
     expect(screen.getByTestId('client-sync-button-codex-cli')).toHaveTextContent('Sync')
     expect(screen.getByTestId('client-sync-button-codex-cli')).not.toHaveTextContent('Syncing')
   })
 
-  it('prompts to create config from dedicated action and syncs on confirm', async () => {
+  it('opens actionable bulk preview and syncs only actionable clients after confirm', async () => {
+    renderWithProviders(<DashboardPage />)
+
+    fireEvent.click(screen.getByTestId('sync-all-actionable-button'))
+    await waitFor(() => expect(previewSyncAllMock).toHaveBeenCalledTimes(1))
+    expect(await screen.findByTestId('sync-all-diff-dialog')).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /codex-cli/i })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /jetbrains/i })).toBeInTheDocument()
+    expect(screen.queryByRole('tab', { name: /claude-desktop/i })).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByTestId('sync-all-preview-confirm'))
+
+    await waitFor(() => {
+      expect(clientsSyncMock).toHaveBeenCalledWith('codex-cli', undefined)
+      expect(clientsSyncMock).toHaveBeenCalledWith('jetbrains', undefined)
+      expect(clientsSyncMock).toHaveBeenCalledTimes(2)
+    })
+  })
+
+  it('skips bulk diff dialog when actionable previews have no meaningful changes', async () => {
+    previewSyncAllMock.mockResolvedValue({
+      previews: {
+        'codex-cli': {
+          clientId: 'codex-cli',
+          configPath: 'C:\\Users\\tester\\.codex\\mcp.json',
+          items: [
+            {
+              name: 'filesystem',
+              source: 'modified',
+              action: 'no-op',
+              before: { command: 'same' },
+              after: { command: 'same' },
+            },
+          ],
+        },
+        jetbrains: {
+          clientId: 'jetbrains',
+          configPath: 'C:\\Users\\tester\\AppData\\Roaming\\JetBrains\\mcp.json',
+          items: [
+            {
+              name: 'custom',
+              source: 'added',
+              action: 'preserved_unmanaged',
+              before: null,
+              after: { command: 'keep' },
+            },
+          ],
+        },
+      },
+    })
+    renderWithProviders(<DashboardPage />)
+
+    fireEvent.click(screen.getByTestId('sync-all-actionable-button'))
+
+    await waitFor(() => expect(previewSyncAllMock).toHaveBeenCalledTimes(1))
+    expect(screen.queryByTestId('sync-all-diff-dialog')).not.toBeInTheDocument()
+    expect(clientsSyncMock).not.toHaveBeenCalled()
+    expect(toastInfoMock).toHaveBeenCalledWith(
+      'All actionable clients are already in sync.',
+      undefined,
+    )
+  })
+
+  it('shows bulk diff dialog only for actionable clients with meaningful changes', async () => {
+    previewSyncAllMock.mockResolvedValue({
+      previews: {
+        'codex-cli': {
+          clientId: 'codex-cli',
+          configPath: 'C:\\Users\\tester\\.codex\\mcp.json',
+          items: [
+            {
+              name: 'filesystem',
+              source: 'modified',
+              action: 'overwrite',
+              before: { command: 'old' },
+              after: { command: 'new' },
+            },
+          ],
+        },
+        jetbrains: {
+          clientId: 'jetbrains',
+          configPath: 'C:\\Users\\tester\\AppData\\Roaming\\JetBrains\\mcp.json',
+          items: [
+            {
+              name: 'filesystem',
+              source: 'modified',
+              action: 'no-op',
+              before: { command: 'same' },
+              after: { command: 'same' },
+            },
+          ],
+        },
+      },
+    })
+    renderWithProviders(<DashboardPage />)
+
+    fireEvent.click(screen.getByTestId('sync-all-actionable-button'))
+
+    await waitFor(() => expect(previewSyncAllMock).toHaveBeenCalledTimes(1))
+    expect(await screen.findByTestId('sync-all-diff-dialog')).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /codex-cli/i })).toBeInTheDocument()
+    expect(screen.queryByRole('tab', { name: /jetbrains/i })).not.toBeInTheDocument()
+  })
+
+  it('prompts to create config from dedicated action, then previews before sync', async () => {
+    previewSyncMock.mockResolvedValue({
+      clientId: 'cursor',
+      configPath: 'C:\\Users\\tester\\.cursor\\mcp.json',
+      items: [
+        {
+          name: 'filesystem',
+          source: 'modified',
+          action: 'overwrite',
+          before: { command: 'old' },
+          after: { command: 'new' },
+        },
+      ],
+    })
     renderWithProviders(<DashboardPage />)
 
     expect(screen.getByTestId('client-sync-button-cursor')).toBeDisabled()
@@ -462,6 +684,14 @@ describe('DashboardPage', () => {
     expect(await screen.findByText('Create new configuration?')).toBeInTheDocument()
     fireEvent.click(screen.getByTestId('create-config-confirm'))
 
+    await waitFor(() =>
+      expect(previewSyncMock).toHaveBeenCalledWith('cursor', {
+        allowCreateConfigIfMissing: true,
+      }),
+    )
+    expect(syncClientMock).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByTestId('sync-preview-confirm'))
     await waitFor(() =>
       expect(syncClientMock).toHaveBeenCalledWith('cursor', {
         allowCreateConfigIfMissing: true,

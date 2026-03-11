@@ -2,7 +2,7 @@
  * @file src/shared/types.ts
  *
  * @created 07.03.2026
- * @modified 10.03.2026
+ * @modified 11.03.2026
  *
  * @author Christian Blank <aidrelay@proton.me>
  * @copyright 2026
@@ -389,6 +389,7 @@ export interface SkillLocation {
  */
 export interface InstalledSkill extends SkillLocation {
   readonly description?: string
+  readonly descriptionSource: 'frontmatter' | 'body' | 'none'
   readonly enabled: boolean
   readonly source: 'curated' | 'manual' | 'legacy' | 'unknown'
   readonly updatedAt: string
@@ -401,6 +402,7 @@ export interface CuratedSkill {
   readonly name: string
   readonly slug: string
   readonly description: string
+  readonly descriptionSource: 'frontmatter' | 'body' | 'none'
   readonly repository: string
   readonly path: string
 }
@@ -423,6 +425,7 @@ export interface SkillInstallPreview {
   readonly scope: SkillScope
   readonly projectPath?: string
   readonly targetPath: string
+  readonly summary?: string
   readonly exists: boolean
   readonly conflict: boolean
   readonly files: readonly SkillFileDiff[]
@@ -667,6 +670,18 @@ export interface LogEntry {
 }
 
 /**
+ * A single entry in the activity log.
+ */
+export interface ActivityLogEntry {
+  readonly id: number
+  readonly timestamp: string
+  readonly action: string
+  readonly details: Readonly<Record<string, unknown>>
+  readonly clientId?: ClientId | undefined
+  readonly serverId?: string | undefined
+}
+
+/**
  * Synced install intent metadata (synced across devices).
  */
 export interface SyncedInstallIntent {
@@ -716,6 +731,38 @@ export interface SyncConflict {
   readonly localValue: unknown
   readonly remoteValue: unknown
   readonly resolved?: boolean
+}
+
+/**
+ * Diagnostic information for a single server, redacted for safe sharing.
+ */
+export interface ServerDiagnostic {
+  readonly serverId: string
+  readonly serverName: string
+  readonly serverType: McpServerType
+  readonly config: McpServer
+  readonly installIntent: SyncedInstallIntent | null
+  readonly deviceSetupState: DeviceSetupState | null
+}
+
+/**
+ * Complete diagnostic report for troubleshooting install issues.
+ * Contains system information, server diagnostics, and recent activity logs.
+ */
+export interface DiagnosticReport {
+  readonly timestamp: string
+  readonly systemInfo: {
+    readonly platform: string
+    readonly arch: string
+    readonly hostname: string
+    readonly appVersion: string
+    readonly electronVersion: string
+    readonly nodeVersion: string
+    readonly gitSyncConnected: boolean
+    readonly gitRemoteUrl?: string
+  }
+  readonly serverDiagnostics: readonly ServerDiagnostic[]
+  readonly recentActivity: readonly ActivityLogEntry[]
 }
 
 /**

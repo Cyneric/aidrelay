@@ -19,9 +19,11 @@ import {
   writeFileSync,
 } from 'fs'
 import { basename, dirname, join } from 'path'
+import { gunzipSync } from 'zlib'
 import { getDatabase } from '@main/db/connection'
 import { SettingsRepo } from '@main/db/settings.repo'
 import { detectRecentWorkspaces } from '@main/rules/workspace-detector'
+import { extractSkillDescription } from './skill-description'
 import type {
   CuratedSkill,
   InstalledSkill,
@@ -55,7 +57,6 @@ const SKILL_FILENAME = 'SKILL.md'
 
 interface FrontmatterInfo {
   name?: string
-  description?: string
 }
 
 interface PreparedCuratedInstall {
@@ -245,7 +246,6 @@ const parseSkillFrontmatter = (content: string): FrontmatterInfo => {
       .trim()
       .replace(/^['"]|['"]$/g, '')
     if (key === 'name') out.name = value
-    if (key === 'description') out.description = value
   }
 
   return out
@@ -267,6 +267,18 @@ const parseDisableSkills = (toml: string): string[] => {
 
 const serializeDisableSkills = (skills: readonly string[]): string =>
   `disable_skills = [${skills.map((name) => `"${name}"`).join(', ')}]`
+
+const readTarString = (buffer: Buffer): string => {
+  const nul = buffer.indexOf(0)
+  const end = nul >= 0 ? nul : buffer.length
+  return buffer.subarray(0, end).toString('utf-8')
+}
+
+const parseTarOctal = (buffer: Buffer): number => {
+  const raw = readTarString(buffer).trim()
+  if (!raw) return 0
+  return Number.parseInt(raw, 8) || 0
+}
 
 class SkillsService {
   private curatedCache: { at: number; skills: CuratedSkill[] } | null = null
@@ -391,6 +403,87 @@ class SkillsService {
     return Buffer.from(arr)
   }
 
+  private curatedRawUrl(slug: string, relativePath: string): string {
+    const [owner, repo] = CURATED_REPO.split('/')
+    return `https://raw.githubusercontent.com/${owner}/${repo}/${CURATED_BRANCH}/${CURATED_ROOT}/${slug}/${relativePath}`
+  }
+
+  private async fetchCuratedSkillFilesFromTarball(slug: string): Promise<Map<string, Buffer>> {
+    const [owner, repo] = CURATED_REPO.split('/')
+    const tarballUrl = `https://codeload.github.com/${owner}/${repo}/tar.gz/refs/heads/${CURATED_BRANCH}`
+    const gz = await this.githubBytes(tarballUrl)
+    const tar = gunzipSync(gz)
+    const out = new Map<string, Buffer>()
+    const marker = `/${CURATED_ROOT}/${slug}/`
+
+    let offset = 0
+    while (offset + 512 <= tar.length) {
+      const header = tar.subarray(offset, offset + 512)
+      const isZeroBlock = header.every((byte) => byte === 0)
+      if (isZeroBlock) break
+
+      const name = readTarString(header.subarray(0, 100))
+      const prefix = readTarString(header.subarray(345, 500))
+      const fullPath = prefix ? `${prefix}/${name}` : name
+      const typeFlag = header[156]
+      const size = parseTarOctal(header.subarray(124, 136))
+      const dataStart = offset + 512
+      const dataEnd = dataStart + size
+
+      if ((typeFlag === 0 || typeFlag === 48) && size > 0) {
+        const idx = fullPath.indexOf(marker)
+        if (idx >= 0) {
+          const relative = fullPath.slice(idx + marker.length)
+          if (relative.length > 0) {
+            out.set(relative, Buffer.from(tar.subarray(dataStart, dataEnd)))
+          }
+        }
+      }
+
+      const dataBlocks = Math.ceil(size / 512)
+      offset = dataStart + dataBlocks * 512
+    }
+
+    if (!out.has(SKILL_FILENAME)) {
+      throw new Error(`Curated skill "${slug}" is missing ${SKILL_FILENAME}`)
+    }
+    return out
+  }
+
+  private async listCuratedSlugsFromTarball(): Promise<string[]> {
+    const [owner, repo] = CURATED_REPO.split('/')
+    const tarballUrl = `https://codeload.github.com/${owner}/${repo}/tar.gz/refs/heads/${CURATED_BRANCH}`
+    const gz = await this.githubBytes(tarballUrl)
+    const tar = gunzipSync(gz)
+    const marker = `/${CURATED_ROOT}/`
+    const out = new Set<string>()
+
+    let offset = 0
+    while (offset + 512 <= tar.length) {
+      const header = tar.subarray(offset, offset + 512)
+      const isZeroBlock = header.every((byte) => byte === 0)
+      if (isZeroBlock) break
+
+      const name = readTarString(header.subarray(0, 100))
+      const prefix = readTarString(header.subarray(345, 500))
+      const fullPath = prefix ? `${prefix}/${name}` : name
+      const size = parseTarOctal(header.subarray(124, 136))
+      const dataStart = offset + 512
+
+      const idx = fullPath.indexOf(marker)
+      if (idx >= 0) {
+        const remainder = fullPath.slice(idx + marker.length)
+        const slug = remainder.split('/')[0]
+        if (slug) out.add(slug)
+      }
+
+      const dataBlocks = Math.ceil(size / 512)
+      offset = dataStart + dataBlocks * 512
+    }
+
+    return Array.from(out).sort((a, b) => a.localeCompare(b))
+  }
+
   private async fetchCuratedSkillFiles(slug: string): Promise<Map<string, Buffer>> {
     interface RepoEntry {
       type: 'file' | 'dir'
@@ -418,7 +511,16 @@ class SkillsService {
       }
     }
 
-    await walk(rootPath, '')
+    try {
+      await walk(rootPath, '')
+    } catch (err) {
+      const message = String(err)
+      if (message.includes('GitHub request failed (403)')) {
+        log.warn(`[skills] GitHub API rate-limited for ${slug}; falling back to tarball download`)
+        return this.fetchCuratedSkillFilesFromTarball(slug)
+      }
+      throw err
+    }
     if (!files.has(SKILL_FILENAME)) {
       throw new Error(`Curated skill "${slug}" is missing ${SKILL_FILENAME}`)
     }
@@ -451,13 +553,14 @@ class SkillsService {
     if (!existsSync(location.skillMdPath)) return null
 
     const content = readFileSync(location.skillMdPath, 'utf-8')
-    const fm = parseSkillFrontmatter(content)
+    const description = extractSkillDescription(content)
     const metadataPath = join(location.skillPath, METADATA_FILENAME)
     const metadata = readJsonFile<SkillMetadataFile>(metadataPath)
 
     return {
       ...location,
-      ...(fm.description ? { description: fm.description } : {}),
+      ...(description.description ? { description: description.description } : {}),
+      descriptionSource: description.source,
       enabled: !disabledNames.has(location.skillName),
       source: metadata?.source ?? 'unknown',
       updatedAt: statSync(location.skillMdPath).mtime.toISOString(),
@@ -566,18 +669,36 @@ class SkillsService {
     }
 
     const [owner, repo] = CURATED_REPO.split('/')
-    const entries = await this.githubJson<CuratedEntry[]>(
-      `https://api.github.com/repos/${owner}/${repo}/contents/${CURATED_ROOT}?ref=${CURATED_BRANCH}`,
-    )
-
-    const directories = entries.filter((entry) => entry.type === 'dir')
+    let directories: CuratedEntry[] = []
+    try {
+      const entries = await this.githubJson<CuratedEntry[]>(
+        `https://api.github.com/repos/${owner}/${repo}/contents/${CURATED_ROOT}?ref=${CURATED_BRANCH}`,
+      )
+      directories = entries.filter((entry) => entry.type === 'dir')
+    } catch (err) {
+      if (String(err).includes('GitHub request failed (403)')) {
+        log.warn('[skills] GitHub API rate-limited for curated list; falling back to tarball')
+        const slugs = await this.listCuratedSlugsFromTarball()
+        directories = slugs.map((slug) => ({
+          name: slug,
+          path: `${CURATED_ROOT}/${slug}`,
+          type: 'dir',
+        }))
+      } else {
+        throw err
+      }
+    }
     const skills = await Promise.all(
       directories.map(async (entry) => {
         let description = ''
+        let descriptionSource: CuratedSkill['descriptionSource'] = 'none'
         try {
-          const files = await this.fetchCuratedSkillFiles(entry.name)
-          const content = files.get(SKILL_FILENAME)?.toString('utf-8') ?? ''
-          description = parseSkillFrontmatter(content).description ?? ''
+          const content = (
+            await this.githubBytes(this.curatedRawUrl(entry.name, SKILL_FILENAME))
+          ).toString('utf-8')
+          const extracted = extractSkillDescription(content)
+          description = extracted.description
+          descriptionSource = extracted.source
         } catch (err) {
           log.warn(`[skills] failed to read curated metadata for ${entry.name}: ${String(err)}`)
         }
@@ -586,6 +707,7 @@ class SkillsService {
           name: entry.name,
           slug: entry.name,
           description,
+          descriptionSource,
           repository: CURATED_REPO,
           path: `${CURATED_ROOT}/${entry.name}`,
         } satisfies CuratedSkill
@@ -629,6 +751,7 @@ class SkillsService {
       scope: location.scope,
       skillPath: location.skillPath,
     })
+    const description = extractSkillDescription(skillDoc)
 
     const localFiles = readDirectoryFiles(location.skillPath)
     const files = diffFileMaps(localFiles, remoteFiles)
@@ -641,6 +764,7 @@ class SkillsService {
         scope,
         ...(location.projectPath ? { projectPath: location.projectPath } : {}),
         targetPath: location.skillPath,
+        ...(description.description ? { summary: description.description } : {}),
         exists,
         conflict: exists && files.length > 0,
         files,
@@ -958,6 +1082,7 @@ class SkillsService {
           userSkillsImported++
           existingByName.set(skillName, {
             ...target,
+            descriptionSource: 'none',
             enabled: true,
             source: 'unknown',
             updatedAt: new Date().toISOString(),
@@ -1051,6 +1176,7 @@ class SkillsService {
           projectSkillsImported++
           existingByName.set(skillName, {
             ...target,
+            descriptionSource: 'none',
             enabled: true,
             source: 'unknown',
             updatedAt: new Date().toISOString(),

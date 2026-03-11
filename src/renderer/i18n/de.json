@@ -60,6 +60,11 @@
     "syncPreviewSummaryNoOp": "{{count}} unverändert",
     "syncPreviewSummaryPreserved": "{{count}} erhalten (unverwaltet)",
     "syncPreviewSummaryRemoved": "{{count}} entfernt",
+    "syncPreviewFilesToChange_one": "{{count}} Datei wird geändert",
+    "syncPreviewFilesToChange_other": "{{count}} Dateien werden geändert",
+    "syncPreviewTargetFile": "Zieldatei (Speicherort)",
+    "syncPreviewNoPath": "Kein Zieldateipfad verfügbar.",
+    "syncPreviewAllUnavailable": "Für relevante Clients konnte keine Vorschau erstellt werden.",
     "syncPreviewBefore": "Aktuell im Client",
     "syncPreviewAfter": "Wird geschrieben",
     "syncPreviewAction": {
@@ -93,6 +98,8 @@
     "syncAllActionable": "Alle relevanten synchronisieren",
     "syncAllSuccess": "{{count}} relevante Clients synchronisiert.",
     "syncAllSummary": "Mit {{succeeded}} von {{total}} Clients synchronisiert ({{failed}} fehlgeschlagen).",
+    "syncNoChanges": "Bereits synchronisiert. Es sind keine Dateiänderungen nötig.",
+    "syncAllNoChangesActionable": "Alle relevanten Clients sind bereits synchronisiert.",
     "syncIndicatorAllSynced": "Alle installierten Clients sind synchronisiert.",
     "syncIndicatorMissingConfig": "Keine synchronisierbaren Clients ({{count}} ohne Konfiguration).",
     "syncIndicatorNoInstalled": "Keine installierten Clients.",
@@ -560,6 +567,7 @@
     "title": "Registry",
     "subtitle": "MCP-Server aus veröffentlichten Registries durchsuchen und installieren.",
     "helperText": "Die Registry-Suche zeigt veröffentlichte Katalogeinträge, nicht lokal auf diesem Gerät konfigurierte Server.",
+    "moreInfo": "Mehr Infos",
     "searchPlaceholder": "MCP-Server suchen…",
     "searchAriaLabel": "Registry durchsuchen",
     "searching": "Registry wird durchsucht…",
@@ -854,6 +862,119 @@
       "failure": "{{name}} Installation fehlgeschlagen",
       "successDescription": "Der MCP-Server ist jetzt einsatzbereit.",
       "failureDescription": "Bei der Installation ist etwas schiefgelaufen. Überprüfen Sie die Logs für Details."
+    }
+  },
+  "skillsPage": {
+    "title": "Skills",
+    "subtitle": "Skills entdecken, installieren, erstellen und über Benutzer- und Projekt-Scope verwalten.",
+    "actions": {
+      "refresh": "Aktualisieren",
+      "scope": "Installations-Scope",
+      "projectPath": "Projektpfad"
+    },
+    "scope": {
+      "user": "Benutzer",
+      "project": "Projekt"
+    },
+    "sections": {
+      "discover": "Entdecken",
+      "installed": "Installiert",
+      "create": "Erstellen",
+      "conflicts": "Konflikte"
+    },
+    "descriptionSource": {
+      "frontmatter": "Frontmatter",
+      "body": "Inhalt",
+      "none": "Keine"
+    },
+    "errors": {
+      "revealFailed": "Pfad konnte nicht geöffnet werden",
+      "prepareInstallFailed": "Installation konnte nicht vorbereitet werden"
+    },
+    "common": {
+      "loading": "Skills werden geladen…",
+      "enabled": "Aktiv",
+      "disabled": "Deaktiviert",
+      "noDescription": "Keine Beschreibung verfügbar.",
+      "unknownProject": "Unbekanntes Projekt"
+    },
+    "migration": {
+      "title": "Legacy-Skills in .codex/skills erkannt.",
+      "body": "{{count}} Skill(s) können nach .agents/skills migriert werden.",
+      "cta": "Legacy-Skills migrieren"
+    },
+    "discover": {
+      "searchPlaceholder": "Kurierte Skills durchsuchen",
+      "install": "Installieren",
+      "installing": "Installiere…",
+      "viewSource": "Quelle ansehen",
+      "userInstalled": "Im Benutzer-Scope installiert",
+      "projectInstalled": "Im Projekt-Scope installiert",
+      "empty": "Keine kuratierten Skills entsprechen den Filtern."
+    },
+    "installed": {
+      "title": "Installierte Skills",
+      "searchPlaceholder": "Installierte Skills durchsuchen",
+      "scopeAll": "Alle Scopes",
+      "userGroup": "Benutzer-Scope ({{count}})",
+      "projectGroup": "Projekt-Scope ({{count}})",
+      "toggle": "Aktiv",
+      "edit": "Bearbeiten",
+      "reveal": "Öffnen",
+      "delete": "Löschen",
+      "deleting": "Lösche…",
+      "empty": "Keine installierten Skills gefunden."
+    },
+    "create": {
+      "title": "Skill erstellen",
+      "steps": {
+        "details": "Details",
+        "scope": "Scope",
+        "resources": "Ressourcen",
+        "review": "Vorschau"
+      },
+      "name": "Skill-Name",
+      "namePlaceholder": "z. B. release-guardian",
+      "description": "Beschreibung",
+      "descriptionPlaceholder": "Optionale Frontmatter-Beschreibung",
+      "projectPath": "Projektpfad",
+      "resources": "Optionale Ressourcen",
+      "preview": "Generierte SKILL.md-Vorschau",
+      "next": "Weiter",
+      "create": "Skill erstellen",
+      "creating": "Erstelle…",
+      "defaultDescription": "Fügen Sie eine prägnante Skill-Beschreibung hinzu.",
+      "validation": {
+        "nameRequired": "Ein Skill-Name ist erforderlich.",
+        "projectPathRequired": "Für den Projekt-Scope ist ein Projektpfad erforderlich."
+      }
+    },
+    "conflicts": {
+      "title": "Sync-Konflikte",
+      "pending": "Prüfung erforderlich",
+      "added": "{{count}} hinzugefügt",
+      "modified": "{{count}} geändert",
+      "removed": "{{count}} entfernt",
+      "localPath": "Lokaler Pfad",
+      "remotePath": "Remote-Pfad",
+      "keepLocal": "Lokal behalten",
+      "useRemote": "Remote verwenden",
+      "empty": "Keine ausstehenden Skill-Sync-Konflikte."
+    },
+    "installDialog": {
+      "title": "Installationsvorschau",
+      "skill": "Skill",
+      "scope": "Scope",
+      "viewSource": "Quelle auf GitHub öffnen",
+      "noChanges": "Keine Dateiänderungen erkannt.",
+      "conflictWarning": "Das Ziel enthält Unterschiede. Zum Überschreiben ist Ersetzen erforderlich.",
+      "safeInstall": "Für dieses Ziel wurden keine Konflikte erkannt.",
+      "installIfSafe": "Wenn sicher installieren",
+      "replaceAndInstall": "Ersetzen und installieren"
+    },
+    "deleteDialog": {
+      "title": "Skill löschen?",
+      "description": "\"{{name}}\" aus {{path}} löschen?"
     }
   },
   "syncCenter": {
