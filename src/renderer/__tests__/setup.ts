@@ -15,6 +15,7 @@
 import '@testing-library/jest-dom'
 // Initialize i18n so that useTranslation() resolves keys to actual strings in tests.
 import '@/i18n'
+import { FREE_GATES } from '@shared/feature-gates'
 
 // Stub the window.api bridge that the preload script normally exposes.
 // Individual tests can override specific methods as needed.
@@ -95,9 +96,13 @@ Object.defineProperty(window, 'api', {
       Promise.resolve({ hasLegacy: false, items: [], migrated: 0, skipped: 0 }),
     skillsSyncListConflicts: () => Promise.resolve([]),
     skillsSyncResolveConflict: () => Promise.resolve(),
+    licenseFeatureGates: () => Promise.resolve(FREE_GATES),
     gitSyncStatus: () => Promise.resolve({ connected: false }),
+    gitSyncConnectGitHub: () => Promise.resolve({ connected: true }),
     gitSyncConnectManual: () => Promise.resolve({ connected: true }),
     gitSyncTestRemote: () => Promise.resolve({ success: true }),
+    gitSyncDisconnect: () => Promise.resolve(),
+    gitSyncPush: () => Promise.resolve({ success: true }),
     gitSyncPull: () =>
       Promise.resolve({
         success: true,

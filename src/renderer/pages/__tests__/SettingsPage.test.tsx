@@ -9,13 +9,25 @@ import { fireEvent, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import i18n from '@/i18n'
 import { renderWithProviders } from '@/test-utils'
+import { FREE_GATES, PRO_GATES } from '@shared/feature-gates'
+import { invalidateGateCache } from '@/lib/useFeatureGate'
 import { SettingsPage } from '../SettingsPage'
 
 const settingsGetMock = vi.fn<(key: string) => Promise<unknown>>()
 const settingsSetMock = vi.fn<(key: string, value: unknown) => Promise<void>>()
+const licenseFeatureGatesMock = vi.fn<() => Promise<typeof PRO_GATES>>()
 const gitSyncStatusMock = vi.fn<() => Promise<{ connected: boolean }>>()
+const gitSyncConnectGitHubMock = vi.fn<() => Promise<{ connected: boolean }>>()
 const gitSyncConnectManualMock = vi.fn<(input: unknown) => Promise<{ connected: boolean }>>()
 const gitSyncTestRemoteMock = vi.fn<() => Promise<{ success: boolean; error?: string }>>()
+const gitSyncDisconnectMock = vi.fn<() => Promise<void>>()
+const gitSyncPushMock = vi.fn<
+  () => Promise<{
+    success: boolean
+    commitHash?: string
+    error?: string
+  }>
+>()
 const gitSyncPullMock = vi.fn<
   () => Promise<{
     success: boolean
@@ -93,14 +105,19 @@ vi.mock('@/lib/useLicense', () => ({
 
 beforeEach(async () => {
   vi.clearAllMocks()
+  invalidateGateCache()
   localStorage.removeItem('language')
   await i18n.changeLanguage('en')
 
   settingsGetMock.mockResolvedValue(undefined)
   settingsSetMock.mockResolvedValue()
+  licenseFeatureGatesMock.mockResolvedValue(PRO_GATES)
   gitSyncStatusMock.mockResolvedValue({ connected: false })
+  gitSyncConnectGitHubMock.mockResolvedValue({ connected: true })
   gitSyncConnectManualMock.mockResolvedValue({ connected: true })
   gitSyncTestRemoteMock.mockResolvedValue({ success: true })
+  gitSyncDisconnectMock.mockResolvedValue()
+  gitSyncPushMock.mockResolvedValue({ success: true })
   gitSyncPullMock.mockResolvedValue({
     success: true,
     serversImported: 0,
@@ -149,9 +166,13 @@ beforeEach(async () => {
       settingsGet: settingsGetMock,
       settingsSet: settingsSetMock,
       settingsReset: settingsResetMock,
+      licenseFeatureGates: licenseFeatureGatesMock,
       gitSyncStatus: gitSyncStatusMock,
+      gitSyncConnectGitHub: gitSyncConnectGitHubMock,
       gitSyncConnectManual: gitSyncConnectManualMock,
       gitSyncTestRemote: gitSyncTestRemoteMock,
+      gitSyncDisconnect: gitSyncDisconnectMock,
+      gitSyncPush: gitSyncPushMock,
       gitSyncPull: gitSyncPullMock,
       appVersion: () => Promise.resolve('1.0.0'),
       appOssAttributions: appOssAttributionsMock,
@@ -164,6 +185,13 @@ beforeEach(async () => {
     configurable: true,
   })
 })
+
+const openAdvancedSetup = async (user: ReturnType<typeof userEvent.setup>): Promise<void> => {
+  const advanced = screen.getByTestId('git-sync-advanced')
+  if (advanced instanceof HTMLDetailsElement && !advanced.open) {
+    await user.click(screen.getByTestId('git-sync-advanced-summary'))
+  }
+}
 
 describe('SettingsPage language preference', () => {
   it('reflects active i18n language in the selector when no saved language exists', async () => {
@@ -379,6 +407,7 @@ describe('SettingsPage git remote URL handling', () => {
   it('normalizes SSH scp-style URLs on save and runs connect + pull', async () => {
     const user = userEvent.setup()
     renderWithProviders(<SettingsPage />)
+    await openAdvancedSetup(user)
 
     const remoteInput = screen.getByTestId('input-remote-url')
     await user.clear(remoteInput)
@@ -404,6 +433,7 @@ describe('SettingsPage git remote URL handling', () => {
   it('shows a specific validation error for malformed SSH scp-style input', async () => {
     const user = userEvent.setup()
     renderWithProviders(<SettingsPage />)
+    await openAdvancedSetup(user)
 
     await user.type(screen.getByTestId('input-remote-url'), 'github.com:owner/repo.git')
     await user.click(screen.getByTestId('btn-save-git-remote'))
@@ -420,6 +450,7 @@ describe('SettingsPage git remote URL handling', () => {
   it('requires token input when HTTPS token auth is selected', async () => {
     const user = userEvent.setup()
     renderWithProviders(<SettingsPage />)
+    await openAdvancedSetup(user)
 
     await user.click(screen.getByText('HTTPS Token'))
     await user.type(screen.getByTestId('input-remote-url'), 'https://github.com/owner/repo.git')
@@ -434,6 +465,7 @@ describe('SettingsPage git remote URL handling', () => {
   it('blocks SSH URL when HTTPS token auth is selected', async () => {
     const user = userEvent.setup()
     renderWithProviders(<SettingsPage />)
+    await openAdvancedSetup(user)
 
     await user.click(screen.getByText('HTTPS Token'))
     await user.type(screen.getByTestId('input-remote-url'), 'git@github.com:owner/repo.git')
@@ -448,6 +480,7 @@ describe('SettingsPage git remote URL handling', () => {
   it('blocks HTTPS URL when SSH auth is selected', async () => {
     const user = userEvent.setup()
     renderWithProviders(<SettingsPage />)
+    await openAdvancedSetup(user)
 
     await user.type(screen.getByTestId('input-remote-url'), 'https://github.com/owner/repo.git')
     await user.click(screen.getByTestId('btn-save-git-remote'))
@@ -461,6 +494,7 @@ describe('SettingsPage git remote URL handling', () => {
   it('keeps canonical SSH URLs unchanged when valid', async () => {
     const user = userEvent.setup()
     renderWithProviders(<SettingsPage />)
+    await openAdvancedSetup(user)
 
     await user.type(screen.getByTestId('input-remote-url'), 'ssh://git@github.com/owner/repo.git')
     await user.click(screen.getByTestId('btn-save-git-remote'))
@@ -477,9 +511,10 @@ describe('SettingsPage git remote URL handling', () => {
     })
   })
 
-  it('keeps HTTPS URLs unchanged when HTTPS token auth is selected', async () => {
+  it('keeps HTTPS URLs unchanged, does not persist PAT, and clears token input after successful connect', async () => {
     const user = userEvent.setup()
     renderWithProviders(<SettingsPage />)
+    await openAdvancedSetup(user)
 
     await user.click(screen.getByText('HTTPS Token'))
     await user.type(screen.getByTestId('input-remote-url'), 'https://github.com/owner/repo.git')
@@ -490,7 +525,6 @@ describe('SettingsPage git remote URL handling', () => {
       expect(settingsSetMock).toHaveBeenCalledWith('git-remote', {
         remoteUrl: 'https://github.com/owner/repo.git',
         authMethod: 'https-token',
-        httpsToken: 'ghp_secret',
       }),
     )
     expect(gitSyncConnectManualMock).toHaveBeenCalledWith({
@@ -498,15 +532,15 @@ describe('SettingsPage git remote URL handling', () => {
       authMethod: 'https-token',
       authToken: 'ghp_secret',
     })
+    expect(screen.getByTestId('input-https-token')).toHaveValue('')
   })
 
-  it('keeps saved settings and allows retry when connection fails', async () => {
+  it('shows sync failure when manual connect fails and keeps saved settings', async () => {
     const user = userEvent.setup()
-    gitSyncConnectManualMock
-      .mockRejectedValueOnce(new Error('Host key verification failed'))
-      .mockResolvedValueOnce({ connected: true })
+    gitSyncConnectManualMock.mockRejectedValueOnce(new Error('Host key verification failed'))
 
     renderWithProviders(<SettingsPage />)
+    await openAdvancedSetup(user)
 
     await user.type(screen.getByTestId('input-remote-url'), 'git@github.com:owner/repo.git')
     await user.click(screen.getByTestId('btn-save-git-remote'))
@@ -515,17 +549,12 @@ describe('SettingsPage git remote URL handling', () => {
     expect(await screen.findByText('Connection or sync failed.')).toBeInTheDocument()
     expect(await screen.findByText('Host key verification failed')).toBeInTheDocument()
     expect(gitSyncPullMock).not.toHaveBeenCalled()
-
-    await user.click(screen.getByTestId('btn-retry-git-sync'))
-
-    await waitFor(() => expect(gitSyncConnectManualMock).toHaveBeenCalledTimes(2))
-    await waitFor(() => expect(gitSyncPullMock).toHaveBeenCalledTimes(1))
-    expect(await screen.findByText('Connected and synced.')).toBeInTheDocument()
   })
 
   it('runs a read-only SSH test without saving or syncing', async () => {
     const user = userEvent.setup()
     renderWithProviders(<SettingsPage />)
+    await openAdvancedSetup(user)
 
     await user.type(screen.getByTestId('input-remote-url'), 'git@github.com:owner/repo.git')
     await user.click(screen.getByTestId('btn-test-git-ssh'))
@@ -551,6 +580,7 @@ describe('SettingsPage git remote URL handling', () => {
     })
 
     renderWithProviders(<SettingsPage />)
+    await openAdvancedSetup(user)
 
     await user.type(screen.getByTestId('input-remote-url'), 'git@github.com:owner/repo.git')
     await user.click(screen.getByTestId('btn-test-git-ssh'))
@@ -560,5 +590,136 @@ describe('SettingsPage git remote URL handling', () => {
     expect(await screen.findByTestId('git-sync-publickey-help')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Open setup guide' }))
     expect(await screen.findByTestId('git-sync-guide-dialog')).toBeInTheDocument()
+  })
+
+  it('connects with GitHub OAuth and automatically pulls', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<SettingsPage />)
+
+    await user.click(screen.getByTestId('btn-connect-github-oauth'))
+
+    await waitFor(() => expect(gitSyncConnectGitHubMock).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(gitSyncPullMock).toHaveBeenCalledTimes(1))
+    const connectOrder = gitSyncConnectGitHubMock.mock.invocationCallOrder[0]
+    const pullOrder = gitSyncPullMock.mock.invocationCallOrder[0]
+    expect(connectOrder).toBeDefined()
+    expect(pullOrder).toBeDefined()
+    expect(connectOrder!).toBeLessThan(pullOrder!)
+  })
+
+  it('shows actionable error when GitHub OAuth connect fails and keeps form state stable', async () => {
+    const user = userEvent.setup()
+    gitSyncConnectGitHubMock.mockRejectedValueOnce(
+      new Error('Set VITE_GITHUB_CLIENT_ID and VITE_GITHUB_CLIENT_SECRET in your .env file.'),
+    )
+
+    renderWithProviders(<SettingsPage />)
+    await openAdvancedSetup(user)
+    const remoteInput = screen.getByTestId('input-remote-url')
+    await user.type(remoteInput, 'git@github.com:owner/repo.git')
+
+    await user.click(screen.getByTestId('btn-connect-github-oauth'))
+
+    expect(await screen.findByTestId('git-sync-status-error')).toHaveTextContent(
+      'VITE_GITHUB_CLIENT_ID',
+    )
+    expect(remoteInput).toHaveValue('git@github.com:owner/repo.git')
+  })
+
+  it('calls pull, push, and disconnect actions when connected', async () => {
+    const user = userEvent.setup()
+    gitSyncStatusMock.mockResolvedValueOnce({ connected: true })
+    gitSyncPushMock.mockResolvedValueOnce({ success: true, commitHash: 'abc1234' })
+
+    renderWithProviders(<SettingsPage />)
+
+    await user.click(screen.getByTestId('btn-git-sync-pull'))
+    await waitFor(() => expect(gitSyncPullMock).toHaveBeenCalledTimes(1))
+
+    await user.click(screen.getByTestId('btn-git-sync-push'))
+    await waitFor(() => expect(gitSyncPushMock).toHaveBeenCalledTimes(1))
+
+    await user.click(screen.getByTestId('btn-git-sync-disconnect'))
+    await waitFor(() => expect(gitSyncDisconnectMock).toHaveBeenCalledTimes(1))
+  })
+
+  it('disables git sync controls while pull is in-flight', async () => {
+    const user = userEvent.setup()
+    gitSyncStatusMock.mockResolvedValueOnce({ connected: true })
+
+    let resolvePull:
+      | ((value: {
+          success: boolean
+          serversImported: number
+          rulesImported: number
+          profilesImported: number
+          installIntentsImported: number
+          skillsImported: number
+          userSkillsImported: number
+          projectSkillsImported: number
+          conflicts: number
+          skillConflicts: number
+          skillMappingsRequired: number
+          skillConflictItems: []
+          projectSkillMappings: []
+        }) => void)
+      | undefined
+
+    gitSyncPullMock.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolvePull = resolve
+        }),
+    )
+
+    renderWithProviders(<SettingsPage />)
+
+    const connectButton = screen.getByTestId('btn-connect-github-oauth')
+    const pullButton = screen.getByTestId('btn-git-sync-pull')
+    const pushButton = screen.getByTestId('btn-git-sync-push')
+    const disconnectButton = screen.getByTestId('btn-git-sync-disconnect')
+
+    await user.click(pullButton)
+    await waitFor(() => expect(gitSyncPullMock).toHaveBeenCalledTimes(1))
+
+    expect(connectButton).toBeDisabled()
+    expect(pullButton).toBeDisabled()
+    expect(pushButton).toBeDisabled()
+    expect(disconnectButton).toBeDisabled()
+
+    resolvePull?.({
+      success: true,
+      serversImported: 0,
+      rulesImported: 0,
+      profilesImported: 0,
+      installIntentsImported: 0,
+      skillsImported: 0,
+      userSkillsImported: 0,
+      projectSkillsImported: 0,
+      conflicts: 0,
+      skillConflicts: 0,
+      skillMappingsRequired: 0,
+      skillConflictItems: [],
+      projectSkillMappings: [],
+    })
+
+    await waitFor(() => expect(pullButton).not.toBeDisabled())
+  })
+
+  it('renders read-only upgrade UX for free tier and disables sync actions', async () => {
+    const user = userEvent.setup()
+    invalidateGateCache()
+    licenseFeatureGatesMock.mockResolvedValueOnce(FREE_GATES)
+
+    renderWithProviders(<SettingsPage />)
+
+    expect(screen.getByTestId('git-sync-upgrade-prompt')).toBeInTheDocument()
+    expect(screen.getByTestId('btn-connect-github-oauth')).toBeDisabled()
+    expect(screen.getByTestId('btn-git-sync-pull')).toBeDisabled()
+    expect(screen.getByTestId('btn-git-sync-push')).toBeDisabled()
+    expect(screen.getByTestId('btn-git-sync-disconnect')).toBeDisabled()
+
+    await user.click(screen.getByTestId('btn-connect-github-oauth'))
+    expect(gitSyncConnectGitHubMock).not.toHaveBeenCalled()
   })
 })

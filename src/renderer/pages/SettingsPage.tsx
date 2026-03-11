@@ -24,8 +24,11 @@ import {
   RotateCcw,
   Key,
   Globe,
+  Github,
   Info,
   Download,
+  Upload,
+  Unplug,
   AlertTriangle,
   BookOpen,
   Loader2,
@@ -56,24 +59,39 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { useLicense } from '@/lib/useLicense'
+import { useFeatureGate } from '@/lib/useFeatureGate'
 import { useTheme, type Theme } from '@/lib/useTheme'
 import { useSettingsSections } from '@/hooks/useSettingsSections'
 import { DEFAULT_LANGUAGE, normalizeLanguage, type SupportedLanguage } from '@/i18n/language'
 import { appService } from '@/services/app.service'
 import { settingsService } from '@/services/settings.service'
+import { UpgradePrompt } from '@/components/common/UpgradePrompt'
 import type { OssAttribution } from '@shared/types'
 
 // ─── Validation Schemas ───────────────────────────────────────────────────────
 
 type GitRemoteAuthMethod = 'ssh' | 'https-token'
 type ParsedRemoteUrlKind = 'empty' | 'ssh' | 'https' | 'invalid' | 'invalid-ssh-missing-user'
-type GitSyncPhase = 'idle' | 'connecting' | 'pulling' | 'connected' | 'error'
+type GitSyncPhase =
+  | 'idle'
+  | 'connecting'
+  | 'testing'
+  | 'pulling'
+  | 'pushing'
+  | 'disconnecting'
+  | 'connected'
+  | 'error'
 type GitSyncStatusMode = 'sync' | 'test'
 
 interface GitRemoteForm {
   remoteUrl: string
   authMethod: GitRemoteAuthMethod
   httpsToken?: string | undefined
+}
+
+interface GitRemoteSettings {
+  remoteUrl: string
+  authMethod: GitRemoteAuthMethod
 }
 
 interface ParsedRemoteUrl {
@@ -324,50 +342,106 @@ const LicensingSection = () => {
 
 const GitRemoteSection = () => {
   const { t } = useTranslation()
+  const canGitSync = useFeatureGate('gitSync')
   const [guideOpen, setGuideOpen] = useState(false)
+  const [advancedOpen, setAdvancedOpen] = useState(false)
+  const [isConnected, setIsConnected] = useState(false)
   const [syncPhase, setSyncPhase] = useState<GitSyncPhase>('idle')
   const [syncStatusMode, setSyncStatusMode] = useState<GitSyncStatusMode>('sync')
   const [syncError, setSyncError] = useState<string | null>(null)
-  const [lastSavedConfig, setLastSavedConfig] = useState<GitRemoteForm | null>(null)
   const gitRemoteSchema = useMemo(() => createGitRemoteSchema(t), [t])
   const {
     control,
     register,
     handleSubmit,
+    setValue,
     reset,
     watch,
-    formState: { errors, isDirty, isSubmitting },
+    formState: { errors, isSubmitting },
   } = useForm<GitRemoteForm>({
     resolver: zodResolver(gitRemoteSchema),
-    defaultValues: { remoteUrl: '', authMethod: 'ssh' },
+    defaultValues: { remoteUrl: '', authMethod: 'ssh', httpsToken: '' },
   })
 
   const authMethod = watch('authMethod')
   const remoteUrl = watch('remoteUrl')
-  const syncInProgress = syncPhase === 'connecting' || syncPhase === 'pulling'
+  const operationInProgress =
+    syncPhase === 'connecting' ||
+    syncPhase === 'testing' ||
+    syncPhase === 'pulling' ||
+    syncPhase === 'pushing' ||
+    syncPhase === 'disconnecting'
   const hasRemoteUrlValue = parseGitRemoteUrl(remoteUrl ?? '').normalized.trim().length > 0
 
   const normalizeFormData = useCallback((data: GitRemoteForm): GitRemoteForm => {
-    const remoteUrl = parseGitRemoteUrl(data.remoteUrl).normalized
+    const normalizedRemoteUrl = parseGitRemoteUrl(data.remoteUrl).normalized
     if (data.authMethod === 'https-token') {
       return {
-        remoteUrl,
+        remoteUrl: normalizedRemoteUrl,
         authMethod: 'https-token',
         httpsToken: (data.httpsToken ?? '').trim(),
       }
     }
 
     return {
-      remoteUrl,
+      remoteUrl: normalizedRemoteUrl,
       authMethod: 'ssh',
     }
   }, [])
 
-  const runConnectAndPull = useCallback(
+  const toPersistedSettings = useCallback((config: GitRemoteForm): GitRemoteSettings => {
+    return {
+      remoteUrl: config.remoteUrl,
+      authMethod: config.authMethod,
+    }
+  }, [])
+
+  const applyPull = useCallback(async (): Promise<void> => {
+    setSyncStatusMode('sync')
+    setSyncError(null)
+    setSyncPhase('pulling')
+    const pullResult = await window.api.gitSyncPull()
+    if (!pullResult.success) {
+      throw new Error(pullResult.error ?? t('settings.gitSyncStatusErrorUnknown'))
+    }
+
+    const totalImported =
+      pullResult.serversImported +
+      pullResult.rulesImported +
+      pullResult.profilesImported +
+      pullResult.installIntentsImported +
+      pullResult.skillsImported
+
+    if (totalImported === 0 && pullResult.conflicts === 0 && pullResult.skillConflicts === 0) {
+      toast.success(t('settings.gitSyncPullSuccessNoChanges'))
+    } else {
+      toast.success(
+        t('settings.gitSyncPullSuccessSummary', {
+          servers: pullResult.serversImported,
+          rules: pullResult.rulesImported,
+          profiles: pullResult.profilesImported,
+          conflicts: pullResult.conflicts,
+        }),
+      )
+    }
+
+    setIsConnected(true)
+    setSyncPhase('connected')
+    setSyncError(null)
+  }, [t])
+
+  const handleSyncFailure = useCallback((error: unknown) => {
+    const message = error instanceof Error ? error.message : String(error)
+    setSyncPhase('error')
+    setSyncError(message)
+  }, [])
+
+  const runManualConnectAndPull = useCallback(
     async (config: GitRemoteForm): Promise<void> => {
       if (config.remoteUrl.trim().length === 0) {
         setSyncPhase('idle')
         setSyncError(null)
+        setIsConnected(false)
         return
       }
 
@@ -379,24 +453,21 @@ const GitRemoteSection = () => {
         authMethod: config.authMethod,
         ...(config.authMethod === 'https-token' ? { authToken: config.httpsToken ?? '' } : {}),
       })
-
-      setSyncPhase('pulling')
-      const pullResult = await window.api.gitSyncPull()
-      if (!pullResult.success) {
-        throw new Error(pullResult.error ?? t('settings.gitSyncStatusErrorUnknown'))
-      }
-
-      setSyncPhase('connected')
-      setSyncError(null)
+      setIsConnected(true)
+      await applyPull()
     },
-    [t],
+    [applyPull],
   )
 
-  const handleSyncFailure = useCallback((error: unknown) => {
-    const message = error instanceof Error ? error.message : String(error)
-    setSyncPhase('error')
-    setSyncError(message)
-  }, [])
+  const runOAuthConnectAndPull = useCallback(async (): Promise<void> => {
+    setSyncStatusMode('sync')
+    setSyncError(null)
+    setSyncPhase('connecting')
+    await window.api.gitSyncConnectGitHub()
+    setIsConnected(true)
+    await applyPull()
+    toast.success(t('settings.gitSyncConnectedViaGitHub'))
+  }, [applyPull, t])
 
   useEffect(() => {
     let mounted = true
@@ -409,24 +480,23 @@ const GitRemoteSection = () => {
 
       if (stored && typeof stored === 'object') {
         const typed = stored as Partial<GitRemoteForm>
-        const remoteUrl =
+        const normalizedRemoteUrl =
           typeof typed.remoteUrl === 'string'
             ? parseGitRemoteUrl(typed.remoteUrl).normalized || typed.remoteUrl.trim()
             : ''
 
         const normalized: GitRemoteForm = {
-          remoteUrl,
+          remoteUrl: normalizedRemoteUrl,
           authMethod: typed.authMethod === 'https-token' ? 'https-token' : 'ssh',
-          ...(typed.authMethod === 'https-token' && typeof typed.httpsToken === 'string'
-            ? { httpsToken: typed.httpsToken }
-            : {}),
+          // Backward compatibility: legacy persisted tokens are ignored and stripped on next save.
+          httpsToken: '',
         }
 
         reset(normalized)
-        setLastSavedConfig(normalized)
       }
 
       if (status) {
+        setIsConnected(status.connected)
         setSyncPhase(status.connected ? 'connected' : 'idle')
       }
     })
@@ -436,36 +506,35 @@ const GitRemoteSection = () => {
     }
   }, [reset])
 
-  const onSave = handleSubmit(async (data) => {
-    const normalized = normalizeFormData(data)
+  const onSaveManual = handleSubmit(async (data) => {
+    if (!canGitSync) return
 
-    await settingsService.set('git-remote', normalized)
-    reset(normalized)
-    setLastSavedConfig(normalized)
+    const normalized = normalizeFormData(data)
+    const persisted = toPersistedSettings(normalized)
+
+    await settingsService.set('git-remote', persisted)
 
     try {
-      await runConnectAndPull(normalized)
+      await runManualConnectAndPull(normalized)
+      if (normalized.authMethod === 'https-token') {
+        setValue('httpsToken', '', { shouldDirty: false })
+      }
+      reset({ ...persisted, httpsToken: '' })
     } catch (error) {
       handleSyncFailure(error)
     }
   })
 
-  const onRetry = useCallback(() => {
-    if (!lastSavedConfig || syncInProgress) return
-
-    void runConnectAndPull(lastSavedConfig).catch((error) => {
-      handleSyncFailure(error)
-    })
-  }, [handleSyncFailure, lastSavedConfig, runConnectAndPull, syncInProgress])
-
   const onTestSsh = handleSubmit(async (data) => {
+    if (!canGitSync) return
+
     const normalized = normalizeFormData(data)
     if (normalized.authMethod !== 'ssh' || normalized.remoteUrl.trim().length === 0) return
 
     try {
       setSyncStatusMode('test')
       setSyncError(null)
-      setSyncPhase('connecting')
+      setSyncPhase('testing')
 
       const result = await window.api.gitSyncTestRemote({
         remoteUrl: normalized.remoteUrl,
@@ -477,19 +546,83 @@ const GitRemoteSection = () => {
       }
 
       setSyncPhase('connected')
+      setSyncError(null)
+      toast.success(t('settings.gitSyncStatusTestPassed'))
     } catch (error) {
       handleSyncFailure(error)
     }
   })
 
+  const onConnectGitHub = useCallback(() => {
+    if (!canGitSync || operationInProgress) return
+    void runOAuthConnectAndPull().catch((error) => {
+      handleSyncFailure(error)
+    })
+  }, [canGitSync, handleSyncFailure, operationInProgress, runOAuthConnectAndPull])
+
+  const onPull = useCallback(() => {
+    if (!canGitSync || operationInProgress || !isConnected) return
+    void applyPull().catch((error) => {
+      handleSyncFailure(error)
+    })
+  }, [applyPull, canGitSync, handleSyncFailure, isConnected, operationInProgress])
+
+  const onPush = useCallback(() => {
+    if (!canGitSync || operationInProgress || !isConnected) return
+    void (async () => {
+      try {
+        setSyncStatusMode('sync')
+        setSyncError(null)
+        setSyncPhase('pushing')
+        const pushResult = await window.api.gitSyncPush()
+        if (!pushResult.success) {
+          throw new Error(pushResult.error ?? t('settings.gitSyncStatusErrorUnknown'))
+        }
+        setSyncPhase('connected')
+        setSyncError(null)
+        if (pushResult.commitHash) {
+          toast.success(
+            t('settings.gitSyncPushSuccessSummary', { commitHash: pushResult.commitHash }),
+          )
+        } else {
+          toast.success(t('settings.gitSyncPushSuccessNoChanges'))
+        }
+      } catch (error) {
+        handleSyncFailure(error)
+      }
+    })()
+  }, [canGitSync, handleSyncFailure, isConnected, operationInProgress, t])
+
+  const onDisconnect = useCallback(() => {
+    if (!canGitSync || operationInProgress || !isConnected) return
+    void (async () => {
+      try {
+        setSyncStatusMode('sync')
+        setSyncError(null)
+        setSyncPhase('disconnecting')
+        await window.api.gitSyncDisconnect()
+        setIsConnected(false)
+        setSyncPhase('idle')
+        setSyncError(null)
+        toast.success(t('settings.gitSyncDisconnected'))
+      } catch (error) {
+        handleSyncFailure(error)
+      }
+    })()
+  }, [canGitSync, handleSyncFailure, isConnected, operationInProgress, t])
+
   const syncStatusLabel = useMemo(() => {
     switch (syncPhase) {
       case 'connecting':
-        return syncStatusMode === 'test'
-          ? t('settings.gitSyncStatusTesting')
-          : t('settings.gitSyncStatusConnecting')
+        return t('settings.gitSyncStatusConnecting')
+      case 'testing':
+        return t('settings.gitSyncStatusTesting')
       case 'pulling':
         return t('settings.gitSyncStatusPulling')
+      case 'pushing':
+        return t('settings.gitSyncStatusPushing')
+      case 'disconnecting':
+        return t('settings.gitSyncStatusDisconnecting')
       case 'connected':
         return syncStatusMode === 'test'
           ? t('settings.gitSyncStatusTestPassed')
@@ -512,6 +645,15 @@ const GitRemoteSection = () => {
       description={t('settings.gitSyncDescription')}
       icon={Globe}
     >
+      {!canGitSync && (
+        <div className="mb-3" data-testid="git-sync-upgrade-prompt">
+          <UpgradePrompt
+            feature={t('settings.gitSyncTitle')}
+            description={t('settings.gitSyncReadOnlyDescription')}
+          />
+        </div>
+      )}
+
       <Button
         type="button"
         variant="link"
@@ -535,8 +677,8 @@ const GitRemoteSection = () => {
               <p className="text-muted-foreground">{t('settings.gitSyncGuideStepRepoBody')}</p>
             </li>
             <li>
-              <p className="font-medium">{t('settings.gitSyncGuideStepUrlTitle')}</p>
-              <p className="text-muted-foreground">{t('settings.gitSyncGuideStepUrlBody')}</p>
+              <p className="font-medium">{t('settings.gitSyncGuideStepOAuthTitle')}</p>
+              <p className="text-muted-foreground">{t('settings.gitSyncGuideStepOAuthBody')}</p>
             </li>
             <li>
               <p className="font-medium">{t('settings.gitSyncGuideStepAuthTitle')}</p>
@@ -575,157 +717,224 @@ const GitRemoteSection = () => {
         </DialogContent>
       </Dialog>
 
-      <form onSubmit={(e) => void onSave(e)} className="space-y-3" data-testid="git-remote-form">
-        <div>
-          <Label htmlFor="remote-url" className="block mb-1">
-            {t('settings.remoteUrlLabel')}
-          </Label>
-          <Input
-            id="remote-url"
-            {...register('remoteUrl')}
-            type="text"
-            placeholder={t('settings.remoteUrlPlaceholder')}
-            data-testid="input-remote-url"
-          />
-          {errors.remoteUrl && (
-            <p className="mt-1 text-xs text-destructive" role="alert">
-              {errors.remoteUrl.message}
-            </p>
-          )}
-          <p className="mt-1 text-xs text-muted-foreground" data-testid="remote-url-help">
-            {authMethod === 'ssh'
-              ? t('settings.remoteUrlHelpSsh')
-              : t('settings.remoteUrlHelpHttpsToken')}
-          </p>
-          {authMethod === 'ssh' && (
-            <ul className="mt-2 list-disc space-y-1 pl-4 text-xs text-muted-foreground">
-              <li>{t('settings.sshChecklistKeyLoaded')}</li>
-              <li>{t('settings.sshChecklistKeyRegistered')}</li>
-              <li>{t('settings.sshChecklistRepoAccess')}</li>
-            </ul>
-          )}
-        </div>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <Button
+          type="button"
+          onClick={onConnectGitHub}
+          disabled={!canGitSync || operationInProgress}
+          className="gap-1.5"
+          data-testid="btn-connect-github-oauth"
+        >
+          <Github size={14} aria-hidden="true" />
+          {t('settings.connectGitHubButton')}
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onPull}
+          disabled={!canGitSync || operationInProgress || !isConnected}
+          className="gap-1.5"
+          data-testid="btn-git-sync-pull"
+        >
+          <Download size={14} aria-hidden="true" />
+          {t('settings.pullButton')}
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onPush}
+          disabled={!canGitSync || operationInProgress || !isConnected}
+          className="gap-1.5"
+          data-testid="btn-git-sync-push"
+        >
+          <Upload size={14} aria-hidden="true" />
+          {t('settings.pushButton')}
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onDisconnect}
+          disabled={!canGitSync || operationInProgress || !isConnected}
+          className="gap-1.5"
+          data-testid="btn-git-sync-disconnect"
+        >
+          <Unplug size={14} aria-hidden="true" />
+          {t('settings.disconnectButton')}
+        </Button>
+      </div>
 
-        <div>
-          <span className="block text-sm font-medium mb-1">{t('settings.authMethodLabel')}</span>
-          <Controller
-            control={control}
-            name="authMethod"
-            render={({ field }) => (
-              <RadioGroup value={field.value} onValueChange={field.onChange} className="flex gap-4">
-                <div className="flex items-center gap-2">
-                  <RadioGroupItem value="ssh" id="auth-ssh" />
-                  <Label htmlFor="auth-ssh" className="cursor-pointer text-sm font-normal">
-                    {t('settings.authSsh')}
-                  </Label>
-                </div>
-                <div className="flex items-center gap-2">
-                  <RadioGroupItem value="https-token" id="auth-https-token" />
-                  <Label htmlFor="auth-https-token" className="cursor-pointer text-sm font-normal">
-                    {t('settings.authHttpsToken')}
-                  </Label>
-                </div>
-              </RadioGroup>
-            )}
-          />
-        </div>
+      <details
+        className="mt-4 rounded-md border border-border/70 p-3"
+        open={advancedOpen}
+        onToggle={(event) => setAdvancedOpen((event.currentTarget as HTMLDetailsElement).open)}
+        data-testid="git-sync-advanced"
+      >
+        <summary
+          className="cursor-pointer text-sm font-medium"
+          data-testid="git-sync-advanced-summary"
+        >
+          {t('settings.gitSyncAdvancedTitle')}
+        </summary>
+        <p className="mt-1 text-xs text-muted-foreground">
+          {t('settings.gitSyncAdvancedDescription')}
+        </p>
 
-        {authMethod === 'https-token' && (
+        <form
+          onSubmit={(event) => void onSaveManual(event)}
+          className="mt-3 space-y-3"
+          data-testid="git-remote-form"
+        >
           <div>
-            <Label htmlFor="https-token" className="block mb-1">
-              {t('settings.patLabel')}
+            <Label htmlFor="remote-url" className="block mb-1">
+              {t('settings.remoteUrlLabel')}
             </Label>
             <Input
-              id="https-token"
-              {...register('httpsToken')}
-              type="password"
-              placeholder={t('settings.patPlaceholder')}
-              data-testid="input-https-token"
+              id="remote-url"
+              {...register('remoteUrl')}
+              type="text"
+              placeholder={t('settings.remoteUrlPlaceholder')}
+              data-testid="input-remote-url"
+              disabled={!canGitSync || operationInProgress}
             />
-            {errors.httpsToken && (
+            {errors.remoteUrl && (
               <p className="mt-1 text-xs text-destructive" role="alert">
-                {errors.httpsToken.message}
+                {errors.remoteUrl.message}
               </p>
             )}
-          </div>
-        )}
-
-        <div className="flex flex-wrap gap-2">
-          <Button
-            type="submit"
-            disabled={!isDirty || isSubmitting || syncInProgress}
-            className="gap-1.5"
-            data-testid="btn-save-git-remote"
-          >
-            <Save size={14} aria-hidden="true" />
-            {t('settings.saveButton')}
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            disabled={authMethod !== 'ssh' || isSubmitting || syncInProgress || !hasRemoteUrlValue}
-            onClick={() => void onTestSsh()}
-            className="gap-1.5"
-            data-testid="btn-test-git-ssh"
-          >
-            <Globe size={14} aria-hidden="true" />
-            {t('settings.testSshButton')}
-          </Button>
-        </div>
-
-        <div
-          className="rounded-md border border-border/70 bg-muted/30 px-3 py-2 text-sm"
-          data-testid="git-sync-status-row"
-        >
-          <div className="flex items-center gap-2" data-testid="git-sync-status-text">
-            {syncPhase === 'connected' && <CheckCircle2 size={14} className="text-green-600" />}
-            {(syncPhase === 'connecting' || syncPhase === 'pulling') && (
-              <Loader2 size={14} className="animate-spin text-muted-foreground" />
+            <p className="mt-1 text-xs text-muted-foreground" data-testid="remote-url-help">
+              {authMethod === 'ssh'
+                ? t('settings.remoteUrlHelpSsh')
+                : t('settings.remoteUrlHelpHttpsToken')}
+            </p>
+            {authMethod === 'ssh' && (
+              <ul className="mt-2 list-disc space-y-1 pl-4 text-xs text-muted-foreground">
+                <li>{t('settings.sshChecklistKeyLoaded')}</li>
+                <li>{t('settings.sshChecklistKeyRegistered')}</li>
+                <li>{t('settings.sshChecklistRepoAccess')}</li>
+              </ul>
             )}
-            {syncPhase === 'error' && <XCircle size={14} className="text-destructive" />}
-            {syncPhase === 'idle' && <Info size={14} className="text-muted-foreground" />}
-            <span>{syncStatusLabel}</span>
           </div>
 
-          {syncPhase === 'error' && syncError && (
-            <p className="mt-1 text-xs text-destructive" data-testid="git-sync-status-error">
-              {syncError}
-            </p>
+          <div>
+            <span className="block text-sm font-medium mb-1">{t('settings.authMethodLabel')}</span>
+            <Controller
+              control={control}
+              name="authMethod"
+              render={({ field }) => (
+                <RadioGroup
+                  value={field.value}
+                  onValueChange={field.onChange}
+                  className="flex gap-4"
+                  disabled={!canGitSync || operationInProgress}
+                >
+                  <div className="flex items-center gap-2">
+                    <RadioGroupItem value="ssh" id="auth-ssh" />
+                    <Label htmlFor="auth-ssh" className="cursor-pointer text-sm font-normal">
+                      {t('settings.authSsh')}
+                    </Label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <RadioGroupItem value="https-token" id="auth-https-token" />
+                    <Label
+                      htmlFor="auth-https-token"
+                      className="cursor-pointer text-sm font-normal"
+                    >
+                      {t('settings.authHttpsToken')}
+                    </Label>
+                  </div>
+                </RadioGroup>
+              )}
+            />
+          </div>
+
+          {authMethod === 'https-token' && (
+            <div>
+              <Label htmlFor="https-token" className="block mb-1">
+                {t('settings.patLabel')}
+              </Label>
+              <Input
+                id="https-token"
+                {...register('httpsToken')}
+                type="password"
+                placeholder={t('settings.patPlaceholder')}
+                data-testid="input-https-token"
+                disabled={!canGitSync || operationInProgress}
+              />
+              {errors.httpsToken && (
+                <p className="mt-1 text-xs text-destructive" role="alert">
+                  {errors.httpsToken.message}
+                </p>
+              )}
+            </div>
           )}
 
-          {isPublicKeyAuthError && (
-            <p className="mt-1 text-xs text-muted-foreground" data-testid="git-sync-publickey-help">
-              {t('settings.gitSyncPublicKeyHelp')}{' '}
-              <button
-                type="button"
-                className="underline hover:no-underline"
-                onClick={() => setGuideOpen(true)}
-              >
-                {t('settings.gitSyncOpenGuideLink')}
-              </button>
-            </p>
-          )}
-
-          {syncPhase === 'error' && lastSavedConfig && (
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="submit"
+              disabled={!canGitSync || isSubmitting || operationInProgress || !hasRemoteUrlValue}
+              className="gap-1.5"
+              data-testid="btn-save-git-remote"
+            >
+              <Save size={14} aria-hidden="true" />
+              {t('settings.saveButton')}
+            </Button>
             <Button
               type="button"
               variant="outline"
-              size="sm"
-              className="mt-2"
-              onClick={onRetry}
-              disabled={syncInProgress}
-              data-testid="btn-retry-git-sync"
+              disabled={
+                !canGitSync ||
+                authMethod !== 'ssh' ||
+                isSubmitting ||
+                operationInProgress ||
+                !hasRemoteUrlValue
+              }
+              onClick={() => void onTestSsh()}
+              className="gap-1.5"
+              data-testid="btn-test-git-ssh"
             >
-              <RotateCcw size={12} aria-hidden="true" />
-              {t('settings.gitSyncRetry')}
+              <Globe size={14} aria-hidden="true" />
+              {t('settings.testSshButton')}
             </Button>
+          </div>
+        </form>
+      </details>
+
+      <div
+        className="mt-3 rounded-md border border-border/70 bg-muted/30 px-3 py-2 text-sm"
+        data-testid="git-sync-status-row"
+      >
+        <div className="flex items-center gap-2" data-testid="git-sync-status-text">
+          {syncPhase === 'connected' && <CheckCircle2 size={14} className="text-green-600" />}
+          {operationInProgress && (
+            <Loader2 size={14} className="animate-spin text-muted-foreground" />
           )}
+          {syncPhase === 'error' && <XCircle size={14} className="text-destructive" />}
+          {syncPhase === 'idle' && <Info size={14} className="text-muted-foreground" />}
+          <span>{syncStatusLabel}</span>
         </div>
-      </form>
+
+        {syncPhase === 'error' && syncError && (
+          <p className="mt-1 text-xs text-destructive" data-testid="git-sync-status-error">
+            {syncError}
+          </p>
+        )}
+
+        {isPublicKeyAuthError && (
+          <p className="mt-1 text-xs text-muted-foreground" data-testid="git-sync-publickey-help">
+            {t('settings.gitSyncPublicKeyHelp')}{' '}
+            <button
+              type="button"
+              className="underline hover:no-underline"
+              onClick={() => setGuideOpen(true)}
+            >
+              {t('settings.gitSyncOpenGuideLink')}
+            </button>
+          </p>
+        )}
+      </div>
     </Section>
   )
 }
-
 // ─── General Section ──────────────────────────────────────────────────────────
 
 const GeneralSection = () => {
