@@ -307,9 +307,6 @@ const ClientCard = ({ client, onSync, onCreateConfig, syncing = false }: ClientC
                 event.preventDefault()
                 void copyConfigPath()
               }}
-              onClick={() => {
-                void copyConfigPath()
-              }}
               data-testid={`client-copy-config-path-${client.id}`}
             >
               {t('dashboard.copyConfigPath')}
@@ -318,9 +315,6 @@ const ClientCard = ({ client, onSync, onCreateConfig, syncing = false }: ClientC
               disabled={client.configPaths.length === 0}
               onSelect={(event) => {
                 event.preventDefault()
-                void revealConfigPath()
-              }}
-              onClick={() => {
                 void revealConfigPath()
               }}
               data-testid={`client-reveal-config-path-${client.id}`}

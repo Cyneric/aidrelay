@@ -2,7 +2,7 @@
  * @file src/renderer/pages/SyncCenterPage.tsx
  *
  * @created 10.03.2026
- * @modified 10.03.2026
+ * @modified 11.03.2026
  *
  * @author Christian Blank <christianblank91@protonmail.com>
  * @copyright 2026
@@ -14,8 +14,11 @@
 
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Button } from '@/components/ui/button'
 import { syncService } from '@/services/sync.service'
+import { diagnosticsService } from '@/services/diagnostics.service'
 import type { PendingSetup, SyncConflict } from '@shared/types'
 
 // ─── Tab Components ────────────────────────────────────────────────────────────
@@ -262,9 +265,7 @@ const SyncCenterPage = () => {
     const loadConflicts = async () => {
       setLoadingConflicts(true)
       try {
-        // TODO: Replace with actual conflict list endpoint when available
-        // For now, reuse push-review as conflicts are the same structure
-        const data = await syncService.pushReview()
+        const data = await syncService.listConflicts()
         setConflicts(data)
       } catch (error) {
         console.error('Failed to load conflicts:', error)
@@ -305,9 +306,9 @@ const SyncCenterPage = () => {
     try {
       await syncService.resolveConflict(conflictId, resolution)
       // Refresh conflicts
-      const data = await syncService.pushReview()
+      const data = await syncService.listConflicts()
       setConflicts(data)
-      // Also refresh push review
+      // Also refresh push review (since resolving a conflict may affect push review)
       const pushData = await syncService.pushReview()
       setPushReview(pushData)
     } catch (error) {
@@ -326,11 +327,37 @@ const SyncCenterPage = () => {
     }
   }
 
+  const handleCopyDiagnostics = async () => {
+    try {
+      const report = await diagnosticsService.generateReport()
+      const json = JSON.stringify(report, null, 2)
+      await navigator.clipboard.writeText(json)
+      toast.success('Diagnostic report copied to clipboard')
+    } catch (error) {
+      console.error('Failed to copy diagnostics:', error)
+      toast.error('Failed to copy diagnostics')
+    }
+  }
+
   return (
     <div className="flex h-full flex-col" data-testid="sync-center-page">
       <header className="border-b p-6">
-        <h1 className="text-2xl font-bold">{t('syncCenter.title')}</h1>
-        <p className="mt-1 text-muted-foreground">{t('syncCenter.subtitle')}</p>
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-2xl font-bold">{t('syncCenter.title')}</h1>
+            <p className="mt-1 text-muted-foreground">{t('syncCenter.subtitle')}</p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              void handleCopyDiagnostics()
+            }}
+            data-testid="copy-diagnostics-button"
+          >
+            Copy troubleshooting bundle
+          </Button>
+        </div>
       </header>
 
       <main className="flex-1 overflow-hidden p-6">

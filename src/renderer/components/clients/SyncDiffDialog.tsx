@@ -14,6 +14,8 @@
 
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
+import { Copy } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -25,6 +27,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { PathWithActions } from '@/components/common/PathWithActions'
 import type { SyncPreviewResult } from '@shared/types'
 
 interface SyncDiffDialogProps {
@@ -47,6 +50,20 @@ const SyncDiffDialog = ({
   onConfirm,
 }: SyncDiffDialogProps) => {
   const { t } = useTranslation()
+  const targetPath = preview?.configPath ?? ''
+
+  const copyConfigPath = async () => {
+    if (!targetPath) return
+    try {
+      if (typeof navigator === 'undefined' || !navigator.clipboard?.writeText) {
+        throw new Error('Clipboard unavailable')
+      }
+      await navigator.clipboard.writeText(targetPath)
+      toast.success(t('dashboard.copyConfigPathSuccess'))
+    } catch {
+      toast.error(t('dashboard.copyConfigPathFailed'))
+    }
+  }
 
   const summary = useMemo(() => {
     const items = preview?.items ?? []
@@ -92,6 +109,35 @@ const SyncDiffDialog = ({
             {t('dashboard.syncPreviewSummaryNoOp', { count: summary.noOp })}
           </Badge>
         </div>
+
+        <section className="rounded-md border border-border/70 bg-surface-2 p-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-text-secondary">
+            {t('dashboard.syncPreviewTargetFile')}
+          </p>
+          {targetPath ? (
+            <div className="mt-1 flex items-center gap-2">
+              <PathWithActions
+                path={targetPath}
+                className="flex min-w-0 items-center gap-1"
+                textClassName="flex-1 break-all text-xs text-text-primary"
+                allowEdit={false}
+                testIdPrefix="sync-preview-config-path"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="icon-xs"
+                onClick={() => void copyConfigPath()}
+                aria-label={t('dashboard.copyConfigPath')}
+                data-testid="sync-preview-config-path-copy"
+              >
+                <Copy size={12} aria-hidden="true" />
+              </Button>
+            </div>
+          ) : (
+            <p className="mt-1 text-xs text-text-secondary">{t('dashboard.syncPreviewNoPath')}</p>
+          )}
+        </section>
 
         <ScrollArea className="flex-1 border rounded-md p-3 bg-muted/20">
           <div className="space-y-4">
@@ -141,10 +187,21 @@ const SyncDiffDialog = ({
         </ScrollArea>
 
         <DialogFooter>
-          <Button type="button" variant="outline" onClick={onCancel} disabled={syncing}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onCancel}
+            disabled={syncing}
+            data-testid="sync-preview-cancel"
+          >
             {t('common.cancel')}
           </Button>
-          <Button type="button" onClick={onConfirm} disabled={syncing || !preview || loading}>
+          <Button
+            type="button"
+            onClick={onConfirm}
+            disabled={syncing || !preview || loading}
+            data-testid="sync-preview-confirm"
+          >
             {syncing ? t('common.loading') : t('clients.sync')}
           </Button>
         </DialogFooter>

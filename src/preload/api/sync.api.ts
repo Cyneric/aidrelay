@@ -9,6 +9,8 @@ export const createSyncApi = (ipcRenderer: IpcRendererLike) => ({
 
   syncAutoPull: (): Promise<void> => ipcRenderer.invoke('sync:auto-pull'),
 
+  syncListConflicts: (): Promise<SyncConflict[]> => ipcRenderer.invoke('sync:list-conflicts'),
+
   syncResolveConflict: (conflictId: string, resolution: 'local' | 'remote'): Promise<void> =>
     ipcRenderer.invoke('sync:resolve-conflict', conflictId, resolution),
 

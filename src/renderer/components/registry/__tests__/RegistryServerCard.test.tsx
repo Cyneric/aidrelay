@@ -39,6 +39,15 @@ const remoteServer: RegistryServer = {
   remote: true,
 }
 
+const officialServer: RegistryServer = {
+  id: 'acme/official-server',
+  displayName: 'Official Server',
+  description: 'Official MCP endpoint',
+  source: 'official',
+  verified: true,
+  remote: true,
+}
+
 describe('RegistryServerCard', () => {
   it('keeps remote install enabled when Pro gate is active', () => {
     renderWithProviders(<RegistryServerCard server={remoteServer} canInstall />)
@@ -71,5 +80,23 @@ describe('RegistryServerCard', () => {
     expect(
       screen.getByTestId('registry-availability-badge-@acme/deployable-server'),
     ).toHaveTextContent('Deployable')
+  })
+
+  it('renders a provider link for Smithery entries', () => {
+    renderWithProviders(<RegistryServerCard server={remoteServer} canInstall />)
+
+    const moreInfo = screen.getByTestId('registry-more-info-@acme/remote-server')
+    expect(moreInfo).toHaveAttribute('href', 'https://smithery.ai/server/%40acme%2Fremote-server')
+    expect(moreInfo).toHaveAttribute('target', '_blank')
+    expect(moreInfo).toHaveAttribute('rel', 'noreferrer')
+  })
+
+  it('renders a provider link for Official registry entries', () => {
+    renderWithProviders(<RegistryServerCard server={officialServer} canInstall />)
+
+    expect(screen.getByTestId('registry-more-info-acme/official-server')).toHaveAttribute(
+      'href',
+      'https://registry.modelcontextprotocol.io/servers/acme%2Fofficial-server',
+    )
   })
 })

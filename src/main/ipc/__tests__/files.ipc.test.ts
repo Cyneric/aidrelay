@@ -26,7 +26,7 @@ vi.mock('electron', () => ({
 }))
 
 vi.mock('electron-log', () => ({
-  default: { debug: vi.fn(), info: vi.fn() },
+  default: { debug: vi.fn(), info: vi.fn(), warn: vi.fn() },
 }))
 
 vi.mock('node:fs', () => ({
@@ -62,12 +62,34 @@ describe('files IPC handlers', () => {
 
   it('reveals a file in explorer', async () => {
     existsSync.mockReturnValue(true)
+
+    await call<void>('files:reveal', 'C:\\tmp\\a.json')
+
+    expect(showItemInFolder).toHaveBeenCalledWith('C:\\tmp\\a.json')
+    expect(openPath).not.toHaveBeenCalled()
+  })
+
+  it('falls back to opening the parent folder when reveal fails', async () => {
+    existsSync.mockReturnValue(true)
+    showItemInFolder.mockImplementation(() => {
+      throw new Error('reveal failed')
+    })
     openPath.mockResolvedValue('')
 
     await call<void>('files:reveal', 'C:\\tmp\\a.json')
 
     expect(showItemInFolder).toHaveBeenCalledWith('C:\\tmp\\a.json')
-    expect(openPath).toHaveBeenCalled()
+    expect(openPath).toHaveBeenCalledWith('C:\\tmp')
+  })
+
+  it('throws file_reveal_failed when fallback open fails', async () => {
+    existsSync.mockReturnValue(true)
+    showItemInFolder.mockImplementation(() => {
+      throw new Error('reveal failed')
+    })
+    openPath.mockResolvedValue('cannot open')
+
+    await expect(call('files:reveal', 'C:\\tmp\\a.json')).rejects.toThrow('[file_reveal_failed]')
   })
 
   it('reads UTF-8 text files', async () => {

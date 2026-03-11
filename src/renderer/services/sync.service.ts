@@ -2,7 +2,7 @@
  * @file src/renderer/services/sync.service.ts
  *
  * @created 10.03.2026
- * @modified 10.03.2026
+ * @modified 11.03.2026
  *
  * @author Christian Blank <christianblank91@protonmail.com>
  * @copyright 2026
@@ -15,6 +15,8 @@ import type { PendingSetup, SyncConflict } from '@shared/types'
 
 export const syncService = {
   listPending: (): Promise<PendingSetup[]> => window.api.syncListPending(),
+
+  listConflicts: (): Promise<SyncConflict[]> => window.api.syncListConflicts(),
 
   applyPending: (serverId: string): Promise<void> => window.api.syncApplyPending(serverId),
 

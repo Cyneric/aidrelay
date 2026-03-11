@@ -2,7 +2,7 @@
  * @file src/main/sync/cross-device-sync.service.ts
  *
  * @created 10.03.2026
- * @modified 10.03.2026
+ * @modified 11.03.2026
  *
  * @author Christian Blank <christianblank91@protonmail.com>
  * @copyright 2026
@@ -19,6 +19,7 @@ import { ServersRepo } from '@main/db/servers.repo'
 import { RulesRepo } from '@main/db/rules.repo'
 import { ProfilesRepo } from '@main/db/profiles.repo'
 import { SyncInstallIntentRepo } from '@main/db/sync-install-intent.repo'
+import { SyncConflictsRepo } from '@main/db/sync-conflicts.repo'
 import { ActivityLogRepo } from '@main/db/activity-log.repo'
 import { DeviceSetupStateRepo } from '@main/db/device-setup-state.repo'
 import { BackupsRepo } from '@main/db/backups.repo'
@@ -85,6 +86,7 @@ class CrossDeviceSyncService {
     installIntents: SyncInstallIntentRepo
     deviceSetupState: DeviceSetupStateRepo
     log: ActivityLogRepo
+    syncConflicts: SyncConflictsRepo
   } {
     const db = getDatabase()
     return {
@@ -94,6 +96,7 @@ class CrossDeviceSyncService {
       installIntents: new SyncInstallIntentRepo(db),
       deviceSetupState: new DeviceSetupStateRepo(db),
       log: new ActivityLogRepo(db),
+      syncConflicts: new SyncConflictsRepo(db),
     }
   }
 
@@ -493,7 +496,12 @@ class CrossDeviceSyncService {
     }
     // Auto-sync ready servers to clients
     await this.syncReadyServers(ready)
-    // TODO: Record conflicts (Task 85)
+    // Conflicts are already stored by importFromFiles (see storeConflict calls)
+    if (pullResult.conflicts > 0) {
+      log.info(
+        `[cross-device-sync] ${pullResult.conflicts} registry conflict(s) stored in database`,
+      )
+    }
 
     // Log summary using pull result counts (should match diff totals)
     log.info(
@@ -527,24 +535,97 @@ class CrossDeviceSyncService {
 
   /**
    * Lists unresolved sync conflicts between local and remote versions.
-   * (To be implemented in Task 85.)
    */
   async listConflicts(): Promise<SyncConflict[]> {
-    // TODO: Query conflicts from database
+    const repos = this.createRepos()
     await Promise.resolve()
-    return []
+    return repos.syncConflicts.listUnresolved()
   }
 
   /**
    * Resolves a conflict by choosing either the local or remote value.
-   * (To be implemented in Task 85.)
    */
   async resolveConflict(conflictId: string, resolution: 'local' | 'remote'): Promise<void> {
-    void conflictId
-    void resolution
-    // TODO: Implement conflict resolution
     await Promise.resolve()
-    throw new Error('Not implemented')
+    const repos = this.createRepos()
+    const row = repos.syncConflicts.findRowById(conflictId)
+    if (!row) {
+      throw new Error(`Conflict ${conflictId} not found`)
+    }
+    const conflict = repos.syncConflicts.findById(conflictId)
+    if (!conflict) {
+      throw new Error(`Conflict ${conflictId} data corrupted`)
+    }
+
+    const { entity_type: entityType, entity_id: _entityId } = row
+    void _entityId
+
+    // Apply the chosen value to the appropriate entity
+    const chosenValue = resolution === 'local' ? conflict.localValue : conflict.remoteValue
+    if (chosenValue === null) {
+      // Should not happen for conflicts (both local and remote exist)
+      throw new Error(`Cannot resolve conflict with null ${resolution} value`)
+    }
+
+    switch (entityType) {
+      case 'server': {
+        const server = chosenValue as McpServer
+        repos.servers.update(server.id, {
+          type: server.type,
+          command: server.command,
+          args: [...server.args],
+          env: { ...server.env },
+          secretEnvKeys: [...server.secretEnvKeys],
+          tags: [...server.tags],
+          notes: server.notes,
+          enabled: server.enabled,
+          clientOverrides: { ...server.clientOverrides },
+        })
+        break
+      }
+      case 'rule': {
+        const rule = chosenValue as AiRule
+        repos.rules.update(rule.id, {
+          description: rule.description,
+          content: rule.content,
+          category: rule.category,
+          tags: [...rule.tags],
+          priority: rule.priority,
+          scope: rule.scope,
+          ...(rule.projectPath !== undefined && { projectPath: rule.projectPath }),
+          fileGlobs: [...rule.fileGlobs],
+          alwaysApply: rule.alwaysApply,
+          enabled: rule.enabled,
+          clientOverrides: { ...rule.clientOverrides },
+          tokenEstimate: rule.tokenEstimate,
+        })
+        break
+      }
+      case 'profile': {
+        const profile = chosenValue as Profile
+        repos.profiles.update(profile.id, {
+          description: profile.description,
+          icon: profile.icon,
+          color: profile.color,
+          ...(profile.parentProfileId !== undefined && {
+            parentProfileId: profile.parentProfileId,
+          }),
+          serverOverrides: profile.serverOverrides,
+          ruleOverrides: profile.ruleOverrides,
+        })
+        break
+      }
+      case 'install-intent': {
+        const intent = chosenValue as SyncedInstallIntent
+        repos.installIntents.upsert(intent)
+        break
+      }
+      default:
+        throw new Error(`Unknown entity type: ${entityType}`)
+    }
+
+    // Mark conflict as resolved
+    repos.syncConflicts.markResolved(conflictId)
   }
 
   /**

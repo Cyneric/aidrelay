@@ -158,7 +158,26 @@ describe('ClientCard', () => {
     await user.click(screen.getByTestId('client-more-actions-cursor'))
     fireEvent.click(getEnabledByTestId('client-reveal-config-path-cursor'))
 
-    await waitFor(() => expect(filesRevealMock).toHaveBeenCalledWith('C:/cursor/settings.json'))
+    await waitFor(() => {
+      expect(filesRevealMock).toHaveBeenCalledTimes(1)
+      expect(filesRevealMock).toHaveBeenCalledWith('C:/cursor/settings.json')
+    })
+  })
+
+  it('copies first config path once from overflow menu', async () => {
+    const user = userEvent.setup()
+    const writeTextSpy = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue(undefined)
+    renderWithProviders(
+      <ClientCard client={buildClient(1)} onSync={vi.fn()} onCreateConfig={vi.fn()} />,
+    )
+
+    await user.click(screen.getByTestId('client-more-actions-cursor'))
+    await user.click(getEnabledByTestId('client-copy-config-path-cursor'))
+
+    await waitFor(() => {
+      expect(writeTextSpy).toHaveBeenCalledTimes(1)
+      expect(writeTextSpy).toHaveBeenCalledWith('C:/cursor/settings.json')
+    })
   })
 
   it('shows an error toast when reveal in explorer fails', async () => {

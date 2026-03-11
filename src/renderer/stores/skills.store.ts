@@ -22,7 +22,21 @@ interface SkillsState {
   conflicts: SkillSyncConflict[]
   migrationPreview: SkillMigrationPreview | null
   loading: boolean
+  loadingInstalled: boolean
+  loadingCurated: boolean
+  loadingConflicts: boolean
+  loadingMigrationPreview: boolean
+  installingSkillSlug: string | null
+  creatingSkill: boolean
+  deletingSkillKey: string | null
+  togglingSkillKey: string | null
   error: string | null
+  getSectionCounts: () => {
+    discover: number
+    installed: number
+    conflicts: number
+    migration: number
+  }
   loadInstalled: () => Promise<void>
   loadCurated: () => Promise<void>
   loadConflicts: () => Promise<void>
@@ -46,37 +60,56 @@ export const useSkillsStore = create<SkillsState>((set, get) => ({
   conflicts: [],
   migrationPreview: null,
   loading: false,
+  loadingInstalled: false,
+  loadingCurated: false,
+  loadingConflicts: false,
+  loadingMigrationPreview: false,
+  installingSkillSlug: null,
+  creatingSkill: false,
+  deletingSkillKey: null,
+  togglingSkillKey: null,
   error: null,
 
+  getSectionCounts: () => {
+    const { curated, installed, conflicts, migrationPreview } = get()
+    return {
+      discover: curated.length,
+      installed: installed.length,
+      conflicts: conflicts.length,
+      migration: migrationPreview?.items.length ?? 0,
+    }
+  },
+
   loadInstalled: async () => {
-    set({ loading: true, error: null })
+    set({ loading: true, loadingInstalled: true, error: null })
     try {
       const installed = await skillsService.listInstalled()
-      set({ installed, loading: false })
+      set({ installed, loading: false, loadingInstalled: false })
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to load installed skills'
-      set({ error: message, loading: false })
+      set({ error: message, loading: false, loadingInstalled: false })
     }
   },
 
   loadCurated: async () => {
-    set({ loading: true, error: null })
+    set({ loading: true, loadingCurated: true, error: null })
     try {
       const curated = await skillsService.listCurated()
-      set({ curated, loading: false })
+      set({ curated, loading: false, loadingCurated: false })
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to load curated skills'
-      set({ error: message, loading: false })
+      set({ error: message, loading: false, loadingCurated: false })
     }
   },
 
   loadConflicts: async () => {
+    set({ loadingConflicts: true })
     try {
       const conflicts = await skillsService.listSyncConflicts()
-      set({ conflicts })
+      set({ conflicts, loadingConflicts: false })
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to load skill conflicts'
-      set({ error: message })
+      set({ error: message, loadingConflicts: false })
     }
   },
 
@@ -84,6 +117,7 @@ export const useSkillsStore = create<SkillsState>((set, get) => ({
     skillsService.prepareInstall(skillName, scope, projectPath),
 
   installCurated: async (input) => {
+    set({ installingSkillSlug: input.skillName })
     try {
       await skillsService.installCurated(input)
       await get().loadInstalled()
@@ -91,10 +125,14 @@ export const useSkillsStore = create<SkillsState>((set, get) => ({
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to install skill'
       toast.error(message)
+      throw err
+    } finally {
+      set({ installingSkillSlug: null })
     }
   },
 
   create: async (input) => {
+    set({ creatingSkill: true })
     try {
       await skillsService.create(input)
       await get().loadInstalled()
@@ -102,10 +140,15 @@ export const useSkillsStore = create<SkillsState>((set, get) => ({
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to create skill'
       toast.error(message)
+      throw err
+    } finally {
+      set({ creatingSkill: false })
     }
   },
 
   delete: async (input) => {
+    const key = `${input.scope}:${input.projectPath ?? 'user'}:${input.skillName}`
+    set({ deletingSkillKey: key })
     try {
       await skillsService.delete(input)
       await get().loadInstalled()
@@ -113,26 +156,35 @@ export const useSkillsStore = create<SkillsState>((set, get) => ({
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to delete skill'
       toast.error(message)
+      throw err
+    } finally {
+      set({ deletingSkillKey: null })
     }
   },
 
   setEnabled: async (input) => {
+    const key = `${input.scope}:${input.projectPath ?? 'user'}:${input.skillName}`
+    set({ togglingSkillKey: key })
     try {
       await skillsService.setEnabled(input)
       await get().loadInstalled()
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to update skill state'
       toast.error(message)
+      throw err
+    } finally {
+      set({ togglingSkillKey: null })
     }
   },
 
   loadMigrationPreview: async () => {
+    set({ loadingMigrationPreview: true })
     try {
       const migrationPreview = await skillsService.migrateLegacyPreview()
-      set({ migrationPreview })
+      set({ migrationPreview, loadingMigrationPreview: false })
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to load migration preview'
-      set({ error: message })
+      set({ error: message, loadingMigrationPreview: false })
     }
   },
 
@@ -145,6 +197,7 @@ export const useSkillsStore = create<SkillsState>((set, get) => ({
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to apply migration'
       toast.error(message)
+      throw err
     }
   },
 
@@ -156,6 +209,7 @@ export const useSkillsStore = create<SkillsState>((set, get) => ({
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to resolve skill conflict'
       toast.error(message)
+      throw err
     }
   },
 }))
