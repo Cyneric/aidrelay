@@ -24,7 +24,6 @@ import type {
 import { getDatabase } from '@main/db/connection'
 import { ServersRepo } from '@main/db/servers.repo'
 import { ActivityLogRepo } from '@main/db/activity-log.repo'
-import { checkGate } from '@main/licensing/feature-gates'
 import { storeSecret } from '@main/secrets/keytar.service'
 import { toSecretHeaderAccountKey } from '@main/secrets/secret-keys'
 import { prepareRegistryInstallPlan, searchRegistry } from '@main/registry/providers'
@@ -70,24 +69,7 @@ export const registerRegistryIpc = (): void => {
         `[ipc] registry:install provider="${request.provider}" server="${request.serverId}" option="${request.optionId}"`,
       )
 
-      // Install can be tier-gated by config (enabled for Free in current plan).
-      const allowed = checkGate('registryInstall')
-      if (!allowed) {
-        return Promise.reject(new Error('Registry install requires aidrelay Pro.'))
-      }
-
       const { servers, log: logRepo } = createRepos()
-
-      // Enforce the per-tier server limit.
-      const maxServers = checkGate('maxServers')
-      const currentCount = servers.findAll().length
-      if (currentCount >= maxServers) {
-        return Promise.reject(
-          new Error(
-            `Server limit reached (${maxServers}). Upgrade to aidrelay Pro for unlimited servers.`,
-          ),
-        )
-      }
 
       const plan = await prepareRegistryInstallPlan(request.provider, request.serverId)
       const resolved = resolveRegistryInstallRequest(plan, request)

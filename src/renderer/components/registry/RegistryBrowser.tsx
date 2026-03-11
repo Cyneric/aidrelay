@@ -9,14 +9,12 @@
  *
  * @description Search browser for the Smithery MCP server registry. Renders a
  * debounced search input and a card grid of results. Loading, empty, and error
- * states are handled gracefully. Install actions are delegated to
- * RegistryServerCard which enforces the Pro feature gate.
+ * states are handled gracefully.
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Search } from 'lucide-react'
-import { useFeatureGate } from '@/lib/useFeatureGate'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { RegistryServerCard } from './RegistryServerCard'
@@ -31,7 +29,6 @@ type AvailabilityFilter = 'all' | 'deployable' | 'hosted'
  */
 const RegistryBrowser = () => {
   const { t } = useTranslation()
-  const canInstall = useFeatureGate('registryInstall')
   const [query, setQuery] = useState('')
   const [provider, setProvider] = useState<RegistryProvider>('smithery')
   const [availabilityFilter, setAvailabilityFilter] = useState<AvailabilityFilter>('all')
@@ -171,7 +168,7 @@ const RegistryBrowser = () => {
           data-testid="registry-results"
         >
           {filteredResults.map((server) => (
-            <RegistryServerCard key={server.id} server={server} canInstall={canInstall} />
+            <RegistryServerCard key={server.id} server={server} />
           ))}
         </div>
       )}

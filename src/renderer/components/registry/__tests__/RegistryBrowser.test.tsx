@@ -16,10 +16,6 @@ import userEvent from '@testing-library/user-event'
 import { RegistryBrowser } from '../RegistryBrowser'
 import type { RegistryServer } from '@shared/channels'
 
-vi.mock('@/lib/useFeatureGate', () => ({
-  useFeatureGate: () => true,
-}))
-
 vi.mock('../RegistryServerCard', () => ({
   RegistryServerCard: ({
     server,

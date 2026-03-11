@@ -30,7 +30,6 @@ import type {
   SyncResult,
   SyncPreviewResult,
   SyncAllPreviewResult,
-  LicenseStatus,
   ValidationResult,
   ValidationResultByClientId,
   GitSyncStatus,
@@ -469,22 +468,6 @@ export interface ShowOpenDialogResult {
 }
 
 /**
- * Feature gates that control Pro-tier functionality.
- */
-export interface FeatureGates {
-  readonly maxServers: number
-  readonly maxRules: number
-  readonly maxProfiles: number
-  readonly gitSync: boolean
-  readonly serverTesting: boolean
-  readonly registryInstall: boolean
-  readonly stackExport: boolean
-  readonly tokenBudgetDetailed: boolean
-  readonly activityLogDays: number
-  readonly ruleTemplates: boolean
-}
-
-/**
  * Input payload for resetting selected application setting categories.
  */
 export interface SettingsResetInput {
@@ -501,7 +484,6 @@ export interface SettingsResetResult {
   readonly resetKeys: readonly string[]
   readonly disconnectedGitSync: boolean
   readonly clearedAllSecrets: boolean
-  readonly clearedLicenseCache: boolean
   readonly databaseReset: boolean
   readonly deletedPaths: readonly string[]
   readonly restartTriggered: boolean
@@ -611,12 +593,6 @@ export interface IpcChannels {
   // Stacks
   'stacks:export': (serverIds: string[], ruleIds: string[], name: string) => Promise<string>
   'stacks:import': (json: string) => Promise<ImportResult>
-
-  // Licensing
-  'license:activate': (key: string) => Promise<LicenseStatus>
-  'license:deactivate': () => Promise<void>
-  'license:status': () => Promise<LicenseStatus>
-  'license:feature-gates': () => Promise<FeatureGates>
 
   // Rules
   'rules:list': () => Promise<AiRule[]>

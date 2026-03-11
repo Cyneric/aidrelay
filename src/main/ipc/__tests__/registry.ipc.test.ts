@@ -7,8 +7,8 @@
  * @author Christian Blank <christianblank91@protonmail.com>
  * @copyright 2026
  *
- * @description Unit tests for registry IPC handlers. The registry providers,
- * database repos, and feature gates are all mocked so tests run in isolation.
+ * @description Unit tests for registry IPC handlers. The registry providers
+ * and database repos are mocked so tests run in isolation.
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
@@ -28,14 +28,6 @@ vi.mock('electron-log', () => ({
 
 vi.mock('@main/db/connection', () => ({ getDatabase: vi.fn() }))
 
-vi.mock('@main/licensing/feature-gates', () => ({
-  checkGate: vi.fn().mockImplementation((key: string) => {
-    if (key === 'registryInstall') return true
-    if (key === 'maxServers') return Infinity
-    return true
-  }),
-}))
-
 vi.mock('@main/secrets/keytar.service', () => ({
   storeSecret: vi.fn().mockResolvedValue(undefined),
 }))
@@ -48,7 +40,6 @@ vi.mock('@main/registry/providers', () => ({
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 import { ipcMain } from 'electron'
-import { checkGate } from '@main/licensing/feature-gates'
 import { searchRegistry, prepareRegistryInstallPlan } from '@main/registry/providers'
 import { registerRegistryIpc } from '../registry.ipc'
 
@@ -87,11 +78,6 @@ describe('registry IPC handlers', () => {
     vi.clearAllMocks()
     const db = createTestDb()
     vi.mocked(getDatabase).mockReturnValue(db)
-    vi.mocked(checkGate).mockImplementation((key: string) => {
-      if (key === 'registryInstall') return true
-      if (key === 'maxServers') return Infinity
-      return true
-    })
     vi.mocked(prepareRegistryInstallPlan).mockImplementation((_provider, serverId) =>
       Promise.resolve(makeStdioPlan(serverId)),
     )
@@ -206,42 +192,6 @@ describe('registry IPC handlers', () => {
         command: 'npx',
         args: ['-y', '@acme/fallback'],
       })
-    })
-
-    it('throws when the registryInstall gate is false', async () => {
-      vi.mocked(checkGate).mockImplementation((key: string) => {
-        if (key === 'registryInstall') return false
-        if (key === 'maxServers') return Infinity
-        return true
-      })
-
-      const request: RegistryInstallRequest = {
-        provider: 'smithery',
-        serverId: '@some/server',
-        optionId: 'smithery-stdio',
-        confirmed: true,
-      }
-
-      const handler = getHandler('registry:install')
-      await expect(handler(null, request)).rejects.toThrow('Pro')
-    })
-
-    it('throws when the server limit is reached', async () => {
-      vi.mocked(checkGate).mockImplementation((key: string) => {
-        if (key === 'registryInstall') return true
-        if (key === 'maxServers') return 0
-        return true
-      })
-
-      const request: RegistryInstallRequest = {
-        provider: 'smithery',
-        serverId: '@some/server',
-        optionId: 'smithery-stdio',
-        confirmed: true,
-      }
-
-      const handler = getHandler('registry:install')
-      await expect(handler(null, request)).rejects.toThrow('limit')
     })
   })
 })

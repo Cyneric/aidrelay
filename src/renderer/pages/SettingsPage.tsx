@@ -22,7 +22,6 @@ import { useTranslation } from 'react-i18next'
 import {
   Save,
   RotateCcw,
-  Key,
   Globe,
   Github,
   Info,
@@ -58,14 +57,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { useLicense } from '@/lib/useLicense'
-import { useFeatureGate } from '@/lib/useFeatureGate'
 import { useTheme, type Theme } from '@/lib/useTheme'
 import { useSettingsSections } from '@/hooks/useSettingsSections'
 import { DEFAULT_LANGUAGE, normalizeLanguage, type SupportedLanguage } from '@/i18n/language'
 import { appService } from '@/services/app.service'
 import { settingsService } from '@/services/settings.service'
-import { UpgradePrompt } from '@/components/common/UpgradePrompt'
 import type { OssAttribution } from '@shared/types'
 
 // ─── Validation Schemas ───────────────────────────────────────────────────────
@@ -212,11 +208,6 @@ const createGitRemoteSchema = (t: (key: string) => string) =>
       }
     })
 
-const licenseSchema = z.object({
-  licenseKey: z.string().min(1, 'License key is required'),
-})
-
-type LicenseForm = z.infer<typeof licenseSchema>
 const VISUAL_STUDIO_CONFIG_SETTING_KEY = 'clients.visualStudio.configPath'
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -252,97 +243,11 @@ const Section = ({
   </Card>
 )
 
-// ─── Licensing Section ────────────────────────────────────────────────────────
-
-const LicensingSection = () => {
-  const { t } = useTranslation()
-  const { status, activating, activate, deactivate } = useLicense()
-
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-    reset,
-  } = useForm<LicenseForm>({ resolver: zodResolver(licenseSchema) })
-
-  const onActivate = handleSubmit(async ({ licenseKey }) => {
-    await activate(licenseKey)
-    reset()
-  })
-
-  return (
-    <Section
-      title={t('settings.licensingTitle')}
-      description={t('settings.licensingDescription')}
-      icon={Key}
-    >
-      {status.valid && status.tier === 'pro' ? (
-        <div className="space-y-3" data-testid="license-active">
-          <div className="flex items-center gap-2">
-            <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800 dark:bg-green-900 dark:text-green-200">
-              {t('license.proActive')}
-            </span>
-            {status.expiresAt && (
-              <span className="text-xs text-muted-foreground">
-                {t('license.expires', { date: new Date(status.expiresAt).toLocaleDateString() })}
-              </span>
-            )}
-          </div>
-          <Button
-            type="button"
-            variant="link"
-            onClick={() => void deactivate()}
-            className="h-auto p-0 text-sm text-destructive underline hover:no-underline"
-            data-testid="btn-deactivate-license"
-          >
-            {t('license.deactivateButton')}
-          </Button>
-        </div>
-      ) : (
-        <form
-          onSubmit={(e) => void onActivate(e)}
-          className="flex gap-2"
-          data-testid="license-form"
-        >
-          <div className="flex-1">
-            <Input
-              {...register('licenseKey')}
-              type="text"
-              placeholder={t('license.keyPlaceholder')}
-              aria-label={t('license.keyLabel')}
-              data-testid="input-license-key"
-            />
-            {errors.licenseKey && (
-              <p className="mt-1 text-xs text-destructive" role="alert">
-                {errors.licenseKey.message}
-              </p>
-            )}
-          </div>
-          <Button type="submit" disabled={activating} data-testid="btn-activate-license">
-            {activating ? t('license.activating') : t('license.activate')}
-          </Button>
-        </form>
-      )}
-      <p className="mt-3 text-xs text-muted-foreground">
-        {t('license.freeTierNote')}{' '}
-        <a
-          href="https://aidrelay.dev/pricing"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="underline hover:no-underline"
-        >
-          {t('license.viewProFeatures')}
-        </a>
-      </p>
-    </Section>
-  )
-}
-
 // ─── Git Remote Section ───────────────────────────────────────────────────────
 
 const GitRemoteSection = () => {
   const { t } = useTranslation()
-  const canGitSync = useFeatureGate('gitSync')
+  const canGitSync = true
   const [guideOpen, setGuideOpen] = useState(false)
   const [advancedOpen, setAdvancedOpen] = useState(false)
   const [isConnected, setIsConnected] = useState(false)
@@ -645,15 +550,6 @@ const GitRemoteSection = () => {
       description={t('settings.gitSyncDescription')}
       icon={Globe}
     >
-      {!canGitSync && (
-        <div className="mb-3" data-testid="git-sync-upgrade-prompt">
-          <UpgradePrompt
-            feature={t('settings.gitSyncTitle')}
-            description={t('settings.gitSyncReadOnlyDescription')}
-          />
-        </div>
-      )}
-
       <Button
         type="button"
         variant="link"
@@ -1583,7 +1479,6 @@ const SettingsPage = () => {
   const sections = useSettingsSections([
     GeneralSection,
     ClientPathsSection,
-    LicensingSection,
     GitRemoteSection,
     AboutSection,
     DangerZoneSection,

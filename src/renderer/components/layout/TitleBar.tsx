@@ -16,9 +16,7 @@
 
 import { useEffect, useState } from 'react'
 import { Minus, Square, Copy, X } from 'lucide-react'
-import { useLicense } from '@/lib/useLicense'
 import { useTheme } from '@/lib/useTheme'
-import { cn } from '@/lib/utils'
 import logoDark from '../../assets/branding/logo-dark.png'
 import logoLight from '../../assets/branding/logo-light.png'
 import '../../lib/electron.d'
@@ -31,9 +29,7 @@ import '../../lib/electron.d'
 const TitleBar = () => {
   const [isMaximized, setIsMaximized] = useState(false)
   const { effectiveTheme } = useTheme()
-  const { status, loading } = useLicense()
   const titleLogo = effectiveTheme === 'dark' ? logoDark : logoLight
-  const isPro = status.tier === 'pro' && status.valid
 
   useEffect(() => {
     const cleanup = window.api.onMaximizeChanged(({ isMaximized: maximized }) => {
@@ -57,29 +53,6 @@ const TitleBar = () => {
           data-testid="title-bar-logo"
         />
       </div>
-
-      {!loading && (
-        <div
-          className="pointer-events-none absolute left-2 top-full z-20 translate-y-1.5"
-          data-testid="plan-bookmark"
-        >
-          <span
-            className={cn(
-              'pointer-events-auto inline-flex min-w-12 items-center justify-center rounded-full',
-              'border px-2.5 py-0.5 text-[10px] font-semibold shadow-md backdrop-blur-[1px]',
-              'transition-all duration-150 ease-out hover:-translate-y-px hover:brightness-105',
-              isPro
-                ? 'border-amber-300/65 bg-amber-100/95 text-amber-800 dark:border-amber-500/55 dark:bg-amber-900/60 dark:text-amber-300'
-                : 'border-border/80 bg-muted/95 text-muted-foreground',
-            )}
-            style={{ WebkitAppRegion: 'no-drag' }}
-            aria-label={`Current plan: ${isPro ? 'Pro' : 'Free'}`}
-            data-testid="plan-badge"
-          >
-            {isPro ? 'Pro' : 'Free'}
-          </span>
-        </div>
-      )}
 
       <div
         className="flex h-full"

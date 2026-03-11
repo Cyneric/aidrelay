@@ -8,8 +8,7 @@
  * @copyright 2026
  *
  * @description Registry browser page. Allows users to search the Smithery MCP
- * server registry and install servers directly into aidrelay. One-click
- * install is a Pro feature; browsing is available to all tiers.
+ * server registry and install servers directly into aidrelay.
  */
 
 import { useEffect } from 'react'

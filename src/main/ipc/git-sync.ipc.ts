@@ -15,7 +15,6 @@
 import { ipcMain } from 'electron'
 import log from 'electron-log'
 import { gitSyncService } from '@main/git-sync/git-sync.service'
-import { checkGate } from '@main/licensing/feature-gates'
 import type {
   GitSyncStatus,
   GitPushResult,
@@ -23,20 +22,6 @@ import type {
   GitRemoteTestResult,
 } from '@shared/types'
 import type { ManualGitConfig } from '@shared/types'
-
-// ─── Gate Helper ──────────────────────────────────────────────────────────────
-
-/**
- * Throws a user-friendly error when the current license tier does not include
- * git sync. Called at the top of every write/connect handler.
- *
- * @throws {Error} When the `gitSync` feature gate is disabled.
- */
-const requireGitSyncGate = (): void => {
-  if (!checkGate('gitSync')) {
-    throw new Error('Git sync requires an aidrelay Pro subscription.')
-  }
-}
 
 // ─── Handler Registration ─────────────────────────────────────────────────────
 
@@ -54,7 +39,6 @@ export const registerGitSyncIpc = (): void => {
   // ── git-sync:connect-github ───────────────────────────────────────────────
   ipcMain.handle('git-sync:connect-github', async (): Promise<GitSyncStatus> => {
     log.debug('[ipc] git-sync:connect-github')
-    requireGitSyncGate()
     return gitSyncService.connectGitHub()
   })
 
@@ -63,7 +47,6 @@ export const registerGitSyncIpc = (): void => {
     'git-sync:connect-manual',
     async (_event, config: ManualGitConfig): Promise<GitSyncStatus> => {
       log.debug(`[ipc] git-sync:connect-manual ${config.remoteUrl}`)
-      requireGitSyncGate()
       return gitSyncService.connectManual(config)
     },
   )
@@ -73,7 +56,6 @@ export const registerGitSyncIpc = (): void => {
     'git-sync:test-remote',
     async (_event, config: ManualGitConfig): Promise<GitRemoteTestResult> => {
       log.debug(`[ipc] git-sync:test-remote ${config.remoteUrl}`)
-      requireGitSyncGate()
       return gitSyncService.testRemote(config)
     },
   )
@@ -81,21 +63,18 @@ export const registerGitSyncIpc = (): void => {
   // ── git-sync:disconnect ───────────────────────────────────────────────────
   ipcMain.handle('git-sync:disconnect', async (): Promise<void> => {
     log.debug('[ipc] git-sync:disconnect')
-    requireGitSyncGate()
     return gitSyncService.disconnect()
   })
 
   // ── git-sync:push ─────────────────────────────────────────────────────────
   ipcMain.handle('git-sync:push', async (): Promise<GitPushResult> => {
     log.debug('[ipc] git-sync:push')
-    requireGitSyncGate()
     return gitSyncService.push()
   })
 
   // ── git-sync:pull ─────────────────────────────────────────────────────────
   ipcMain.handle('git-sync:pull', async (): Promise<GitPullResult> => {
     log.debug('[ipc] git-sync:pull')
-    requireGitSyncGate()
     return gitSyncService.pull()
   })
 

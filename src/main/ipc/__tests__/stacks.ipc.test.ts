@@ -7,9 +7,9 @@
  * @author Christian Blank <christianblank91@protonmail.com>
  * @copyright 2026
  *
- * @description Unit tests for stacks IPC handlers. DB repos and feature gates
- * are backed by an in-memory SQLite database so tests verify real persistence
- * behavior without touching the filesystem.
+ * @description Unit tests for stacks IPC handlers. DB repos are backed by an
+ * in-memory SQLite database so tests verify real persistence behavior without
+ * touching the filesystem.
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
@@ -29,17 +29,9 @@ vi.mock('electron-log', () => ({
 
 vi.mock('@main/db/connection', () => ({ getDatabase: vi.fn() }))
 
-vi.mock('@main/licensing/feature-gates', () => ({
-  checkGate: vi.fn().mockImplementation((key: string) => {
-    if (key === 'stackExport') return true
-    return true
-  }),
-}))
-
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 import { ipcMain } from 'electron'
-import { checkGate } from '@main/licensing/feature-gates'
 import { registerStacksIpc } from '../stacks.ipc'
 
 type IpcHandler = (_event: unknown, ...args: unknown[]) => unknown
@@ -106,11 +98,6 @@ describe('stacks IPC handlers', () => {
     vi.clearAllMocks()
     const db = createTestDb()
     vi.mocked(getDatabase).mockReturnValue(db)
-    vi.mocked(checkGate).mockImplementation((key: string) => {
-      if (key === 'stackExport') return true
-      if (key === 'maxServers') return Infinity
-      return true
-    })
     registerStacksIpc()
   })
 
@@ -126,13 +113,6 @@ describe('stacks IPC handlers', () => {
       expect(stack.servers).toEqual([])
       expect(stack.rules).toEqual([])
       expect(typeof stack.exportedAt).toBe('string')
-    })
-
-    it('throws when the stackExport gate is false', async () => {
-      vi.mocked(checkGate).mockReturnValue(false)
-
-      const handler = getHandler('stacks:export')
-      await expect(handler(null, [], [], 'Stack')).rejects.toThrow('Pro')
     })
   })
 

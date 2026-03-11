@@ -15,21 +15,6 @@ import { ipcMain } from 'electron'
 import log from 'electron-log'
 import type { PendingSetup, SyncConflict } from '@shared/types'
 import { crossDeviceSyncService } from '@main/sync/cross-device-sync.service'
-import { checkGate } from '@main/licensing/feature-gates'
-
-// ─── Gate Helper ──────────────────────────────────────────────────────────────
-
-/**
- * Throws a user-friendly error when the current license tier does not include
- * cross-device sync. Called at the top of every write/connect handler.
- *
- * @throws {Error} When the `crossDeviceSync` feature gate is disabled.
- */
-const requireGitSyncGate = (): void => {
-  if (!checkGate('gitSync')) {
-    throw new Error('Git sync requires an aidrelay Pro subscription.')
-  }
-}
 
 // ─── Handler Registration ─────────────────────────────────────────────────────
 
@@ -41,21 +26,18 @@ export const registerSyncIpc = (): void => {
   // ── sync:list-pending ───────────────────────────────────────────────────────
   ipcMain.handle('sync:list-pending', async (): Promise<PendingSetup[]> => {
     log.debug('[ipc] sync:list-pending')
-    requireGitSyncGate()
     return crossDeviceSyncService.listPending()
   })
 
   // ── sync:list-conflicts ──────────────────────────────────────────────────────
   ipcMain.handle('sync:list-conflicts', async (): Promise<SyncConflict[]> => {
     log.debug('[ipc] sync:list-conflicts')
-    requireGitSyncGate()
     return crossDeviceSyncService.listConflicts()
   })
 
   // ── sync:apply-pending ──────────────────────────────────────────────────────
   ipcMain.handle('sync:apply-pending', async (_event, serverId: string): Promise<void> => {
     log.debug(`[ipc] sync:apply-pending ${serverId}`)
-    requireGitSyncGate()
     // TODO: Implement pending setup application
     await Promise.resolve()
     throw new Error('Not implemented')
@@ -64,8 +46,6 @@ export const registerSyncIpc = (): void => {
   // ── sync:auto-pull ──────────────────────────────────────────────────────────
   ipcMain.handle('sync:auto-pull', async (): Promise<void> => {
     log.debug('[ipc] sync:auto-pull')
-    requireGitSyncGate()
-
     await crossDeviceSyncService.autoPull()
   })
 
@@ -74,7 +54,6 @@ export const registerSyncIpc = (): void => {
     'sync:resolve-conflict',
     async (_event, conflictId: string, resolution: 'local' | 'remote'): Promise<void> => {
       log.debug(`[ipc] sync:resolve-conflict ${conflictId} ${resolution}`)
-      requireGitSyncGate()
       await crossDeviceSyncService.resolveConflict(conflictId, resolution)
     },
   )
@@ -82,7 +61,6 @@ export const registerSyncIpc = (): void => {
   // ── sync:push-review ────────────────────────────────────────────────────────
   ipcMain.handle('sync:push-review', async (): Promise<SyncConflict[]> => {
     log.debug('[ipc] sync:push-review')
-    requireGitSyncGate()
     return crossDeviceSyncService.pushReview()
   })
 

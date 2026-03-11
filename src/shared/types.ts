@@ -248,24 +248,6 @@ export interface Profile {
   readonly updatedAt: string
 }
 
-// ─── Licensing Types ──────────────────────────────────────────────────────────
-
-/**
- * Subscription tier for the application.
- * Free is genuinely useful; Pro unlocks advanced features.
- */
-export type PlanTier = 'free' | 'pro'
-
-/**
- * Current license status cached from the last license-provider validation.
- */
-export interface LicenseStatus {
-  readonly tier: PlanTier
-  readonly valid: boolean
-  readonly expiresAt?: string
-  readonly lastValidatedAt: string
-}
-
 /**
  * A single OSS attribution record shown in Settings -> About.
  */

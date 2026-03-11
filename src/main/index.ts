@@ -22,7 +22,6 @@ import { fileWatcherService } from './sync/file-watcher.service'
 import { trayService } from './tray/tray.service'
 import { initUpdater } from './updater/updater.service'
 import { markStartupComplete, setStartupError, setStartupProgress } from './startup/startup-state'
-import { checkGate } from '@main/licensing/feature-gates'
 import { crossDeviceSyncService } from '@main/sync/cross-device-sync.service'
 
 log.transports.file.level = 'info'
@@ -129,13 +128,11 @@ const runStartup = async (): Promise<void> => {
   await fileWatcherService.start()
   initUpdater()
 
-  if (checkGate('gitSync')) {
-    setStartupProgress(95, 'Checking for remote updates...')
-    try {
-      await crossDeviceSyncService.autoPull()
-    } catch (err) {
-      log.error('[startup] auto-pull failed:', err)
-    }
+  setStartupProgress(95, 'Checking for remote updates...')
+  try {
+    await crossDeviceSyncService.autoPull()
+  } catch (err) {
+    log.error('[startup] auto-pull failed:', err)
   }
 
   setStartupProgress(100, 'Ready.')

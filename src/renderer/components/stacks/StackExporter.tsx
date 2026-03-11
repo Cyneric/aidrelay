@@ -8,8 +8,7 @@
  * @copyright 2026
  *
  * @description Stack export UI. Lets users select servers and rules by
- * checkbox, provide a bundle name, and download a portable .json file. The
- * export action is gated behind the Pro stackExport feature flag.
+ * checkbox, provide a bundle name, and download a portable .json file.
  */
 
 import { useState, useEffect, useCallback } from 'react'
@@ -24,7 +23,6 @@ import { Label } from '@/components/ui/label'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useServersStore } from '@/stores/servers.store'
 import { useRulesStore } from '@/stores/rules.store'
-import { useFeatureGate } from '@/lib/useFeatureGate'
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -33,7 +31,7 @@ import { useFeatureGate } from '@/lib/useFeatureGate'
  */
 const StackExporter = () => {
   const { t } = useTranslation()
-  const canExport = useFeatureGate('stackExport')
+  const canExport = true
   const { servers, load: loadServers } = useServersStore()
   const { rules, load: loadRules } = useRulesStore()
 
@@ -104,12 +102,6 @@ const StackExporter = () => {
   return (
     <div className="flex flex-col gap-5" data-testid="stack-exporter">
       <h2 className="text-base font-semibold">{t('stacks.exportTitle')}</h2>
-
-      {!canExport && (
-        <p className="text-sm text-muted-foreground rounded-md border border-border bg-muted/40 px-4 py-3">
-          {t('stacks.exportProGate')}
-        </p>
-      )}
 
       {/* Stack name */}
       <div className="flex flex-col gap-1.5">
@@ -204,9 +196,7 @@ const StackExporter = () => {
             {exporting ? t('stacks.exportingButton') : t('stacks.exportButton')}
           </Button>
         </TooltipTrigger>
-        <TooltipContent>
-          {!canExport ? t('stacks.exportUpgradeTooltip') : t('stacks.exportTooltip')}
-        </TooltipContent>
+        <TooltipContent>{t('stacks.exportTooltip')}</TooltipContent>
       </Tooltip>
     </div>
   )

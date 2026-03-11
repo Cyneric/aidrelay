@@ -156,10 +156,6 @@ vi.mock('@/hooks/useServersActions', () => ({
   }),
 }))
 
-vi.mock('@/lib/useFeatureGate', () => ({
-  useFeatureGate: () => true,
-}))
-
 describe('ServersPage command column', () => {
   beforeEach(() => {
     vi.clearAllMocks()
