@@ -282,10 +282,21 @@ export class SyncService {
       const allServers = this.serversRepo.findAll()
       const managedMap = await buildManagedMap(allServers, clientId)
       const existingServers = await adapter.read(configPath)
-      const managedNames = new Set(Object.keys(managedMap))
+      const ignoredNames = new Set(
+        allServers
+          .filter(
+            (server) =>
+              server.enabled === true && server.clientOverrides[clientId]?.enabled === false,
+          )
+          .map((server) => server.name),
+      )
+      const writableManagedNames = new Set<string>(Object.keys(managedMap))
+      const managedNames = new Set<string>([...writableManagedNames, ...ignoredNames])
       const unmanagedEntries: Record<string, McpServerConfig> = {}
       for (const [name, config] of Object.entries(existingServers)) {
-        if (!managedNames.has(name)) {
+        // Keep ignored managed entries unchanged in the preview merge,
+        // because sync() preserves them in the final config.
+        if (!writableManagedNames.has(name)) {
           unmanagedEntries[name] = config
         }
       }
@@ -299,7 +310,12 @@ export class SyncService {
         throw new Error(`Merged config failed validation (step 5): ${String(err)}`)
       }
 
-      const items = computeSyncPreviewItems(existingServers, mergedServers, managedNames)
+      const items = computeSyncPreviewItems(
+        existingServers,
+        mergedServers,
+        managedNames,
+        ignoredNames,
+      )
 
       log.info(`[sync] preview completed for ${clientId}: ${items.length} item(s)`)
 

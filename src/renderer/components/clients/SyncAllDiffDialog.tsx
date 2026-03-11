@@ -83,6 +83,7 @@ const SyncAllDiffDialog = ({
       removed: 0,
       noOp: 0,
       preserved: 0,
+      ignored: 0,
     }
     clientPreviews.forEach(({ preview: clientPreview }) => {
       clientPreview.items.forEach((item) => {
@@ -101,6 +102,9 @@ const SyncAllDiffDialog = ({
             break
           case 'preserved_unmanaged':
             summary.preserved += 1
+            break
+          case 'ignored':
+            summary.ignored += 1
             break
         }
       })
@@ -137,6 +141,9 @@ const SyncAllDiffDialog = ({
           <Badge variant="secondary" data-testid="sync-all-preview-summary-preserved">
             {t('dashboard.syncPreviewSummaryPreserved', { count: totalSummary.preserved })}
           </Badge>
+          <Badge variant="outline" data-testid="sync-all-preview-summary-ignored">
+            {t('dashboard.syncPreviewSummaryIgnored', { count: totalSummary.ignored })}
+          </Badge>
           <Badge variant="outline" data-testid="sync-all-preview-summary-noop">
             {t('dashboard.syncPreviewSummaryNoOp', { count: totalSummary.noOp })}
           </Badge>
@@ -144,6 +151,10 @@ const SyncAllDiffDialog = ({
             {t('dashboard.syncPreviewFilesToChange', { count: clientPreviews.length })}
           </Badge>
         </div>
+
+        <p className="text-xs text-muted-foreground" data-testid="sync-all-preview-ignore-note">
+          {t('dashboard.syncPreviewIgnoredNote')}
+        </p>
 
         <Tabs defaultValue={clientPreviews[0]?.clientId ?? ''} className="flex-1 flex flex-col">
           <TabsList className="w-full justify-start">
@@ -202,7 +213,9 @@ const SyncAllDiffDialog = ({
                                 ? 'destructive'
                                 : item.action === 'preserved_unmanaged'
                                   ? 'outline'
-                                  : 'secondary'
+                                  : item.action === 'ignored'
+                                    ? 'outline'
+                                    : 'secondary'
                           }
                         >
                           {t(`dashboard.syncPreviewAction.${item.action}`)}

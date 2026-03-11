@@ -48,7 +48,15 @@ describe('SyncAllDiffDialog', () => {
             cursor: {
               clientId: 'cursor',
               configPath: 'C:\\Users\\tester\\.cursor\\mcp.json',
-              items: [],
+              items: [
+                {
+                  name: 'ignored-server',
+                  source: 'modified',
+                  action: 'ignored',
+                  before: { command: 'python' },
+                  after: { command: 'python' },
+                },
+              ],
             },
             'codex-cli': {
               clientId: 'codex-cli',
@@ -63,6 +71,8 @@ describe('SyncAllDiffDialog', () => {
     expect(screen.getByTestId('sync-all-preview-summary-files')).toHaveTextContent(
       '2 files to be changed',
     )
+    expect(screen.getByTestId('sync-all-preview-summary-ignored')).toHaveTextContent('1 ignored')
+    expect(screen.getByTestId('sync-all-preview-ignore-note')).toBeInTheDocument()
     expect(screen.getByTestId('sync-all-preview-config-path-cursor-reveal')).toBeInTheDocument()
     fireEvent.click(screen.getByTestId('sync-all-preview-config-path-copy-cursor'))
     await waitFor(() =>

@@ -32,6 +32,7 @@ import {
   Download,
   Trash2,
   FolderInput,
+  SlidersHorizontal,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -48,6 +49,7 @@ import { ClientIcon } from '@/components/common/icons/ClientIcon'
 import { CreateConfigConfirmDialog } from '@/components/clients/CreateConfigConfirmDialog'
 import { SyncDiffDialog } from '@/components/clients/SyncDiffDialog'
 import { SyncAllDiffDialog } from '@/components/clients/SyncAllDiffDialog'
+import { ManageSyncItemsDialog } from '@/components/clients/ManageSyncItemsDialog'
 import {
   InstallClientDialog,
   type InstallDialogPhase,
@@ -58,6 +60,7 @@ import { PathWithActions } from '@/components/common/PathWithActions'
 import { isConfigCreationRequiredError } from '@/lib/sync-errors'
 import { useClientsStore } from '@/stores/clients.store'
 import { clientsService } from '@/services/clients.service'
+import { serversService } from '@/services/servers.service'
 import { dialogService } from '@/services/dialog.service'
 import type { ClientInstallProgressPayload } from '@shared/channels'
 import type {
@@ -68,6 +71,7 @@ import type {
   SyncResult,
   SyncPreviewResult,
   SyncAllPreviewResult,
+  McpServer,
 } from '@shared/types'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -110,6 +114,7 @@ interface RowProps {
   readonly onClearManualPath: (id: ClientStatus['id']) => void
   readonly onCreateConfig: (id: ClientStatus['id']) => void
   readonly onValidate: (id: ClientStatus['id']) => void
+  readonly onManageSyncItems: (id: ClientStatus['id']) => void
 }
 
 /**
@@ -129,6 +134,7 @@ const ClientRow = ({
   onClearManualPath,
   onCreateConfig,
   onValidate,
+  onManageSyncItems,
 }: Readonly<RowProps>) => {
   const { t } = useTranslation()
   const metaBase = SYNC_STATUS_KEYS[client.syncStatus]
@@ -327,6 +333,22 @@ const ClientRow = ({
             <span className="inline-flex size-6" aria-hidden="true" />
           )}
 
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon-xs"
+                onClick={() => onManageSyncItems(client.id)}
+                aria-label={t('clients.manageSyncItemsAria', { name: client.displayName })}
+                data-testid={`btn-manage-sync-items-${client.id}`}
+              >
+                <SlidersHorizontal size={11} aria-hidden="true" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{t('clients.manageSyncItemsTooltip')}</TooltipContent>
+          </Tooltip>
+
           {showInstall ? (
             <Tooltip>
               <TooltipTrigger asChild>
@@ -508,6 +530,10 @@ const ClientsPage = () => {
   const [installDialogPhase, setInstallDialogPhase] = useState<InstallDialogPhase>('confirm')
   const [installProgressValue, setInstallProgressValue] = useState(0)
   const [installStepText, setInstallStepText] = useState('')
+  const [manageSyncClientId, setManageSyncClientId] = useState<ClientStatus['id'] | null>(null)
+  const [manageSyncServers, setManageSyncServers] = useState<McpServer[]>([])
+  const [manageSyncLoading, setManageSyncLoading] = useState(false)
+  const [manageSyncUpdatingServerId, setManageSyncUpdatingServerId] = useState<string | null>(null)
   const [installTimeline, setInstallTimeline] = useState<InstallTimelineEntry[]>([])
   const [installResult, setInstallResult] = useState<ClientInstallResult | undefined>(undefined)
   const [installErrorMessage, setInstallErrorMessage] = useState<string | undefined>(undefined)
@@ -897,6 +923,48 @@ const ClientsPage = () => {
     }
   }, [installClient, installDialogPhase, installResult?.docsUrl, resetInstallDialogState])
 
+  const handleOpenManageSyncItems = useCallback(
+    async (clientId: ClientStatus['id']) => {
+      setManageSyncClientId(clientId)
+      setManageSyncLoading(true)
+      setManageSyncServers([])
+      try {
+        const servers = await serversService.list()
+        setManageSyncServers(servers)
+      } catch (err) {
+        const message = err instanceof Error ? err.message : t('common.error')
+        toast.error(message)
+      } finally {
+        setManageSyncLoading(false)
+      }
+    },
+    [t],
+  )
+
+  const handleToggleManageSyncItem = useCallback(
+    async (serverId: string, enabled: boolean) => {
+      if (!manageSyncClientId) return
+      setManageSyncUpdatingServerId(serverId)
+      try {
+        const updated = await serversService.update(serverId, {
+          clientOverrides: { [manageSyncClientId]: { enabled } },
+        })
+        setManageSyncServers((prev) =>
+          prev.map((server) => (server.id === serverId ? updated : server)),
+        )
+        toast.success(t('clients.manageSyncItemsUpdated', { server: updated.name }))
+      } catch (err) {
+        const message = err instanceof Error ? err.message : t('common.error')
+        toast.error(message)
+      } finally {
+        setManageSyncUpdatingServerId(null)
+      }
+    },
+    [manageSyncClientId, t],
+  )
+
+  const manageSyncClient = clients.find((client) => client.id === manageSyncClientId) ?? null
+
   return (
     <main className="flex flex-col gap-6" data-testid="clients-page">
       <CreateConfigConfirmDialog
@@ -942,6 +1010,21 @@ const ClientsPage = () => {
           setSyncAllPreviewResult(null)
         }}
         onConfirm={() => void handleConfirmSyncAll()}
+      />
+      <ManageSyncItemsDialog
+        open={manageSyncClient !== null}
+        clientId={manageSyncClient?.id ?? 'cursor'}
+        clientName={manageSyncClient?.displayName ?? ''}
+        loading={manageSyncLoading}
+        servers={manageSyncServers}
+        updatingServerId={manageSyncUpdatingServerId}
+        onToggle={(serverId, enabled) => void handleToggleManageSyncItem(serverId, enabled)}
+        onClose={() => {
+          setManageSyncClientId(null)
+          setManageSyncServers([])
+          setManageSyncLoading(false)
+          setManageSyncUpdatingServerId(null)
+        }}
       />
 
       <div className="flex items-start justify-between">
@@ -1053,6 +1136,7 @@ const ClientsPage = () => {
                     onClearManualPath={(id) => void handleClearManualPath(id)}
                     onCreateConfig={(id) => setCreateConfigClientId(id)}
                     onValidate={(id) => void handleValidate(id)}
+                    onManageSyncItems={(id) => void handleOpenManageSyncItems(id)}
                   />
                 ))}
           </TableBody>

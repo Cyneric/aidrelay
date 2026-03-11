@@ -73,6 +73,7 @@ const SyncDiffDialog = ({
       removed: items.filter((item) => item.action === 'removed').length,
       noOp: items.filter((item) => item.action === 'no-op').length,
       preserved: items.filter((item) => item.action === 'preserved_unmanaged').length,
+      ignored: items.filter((item) => item.action === 'ignored').length,
     }
   }, [preview?.items])
 
@@ -105,10 +106,17 @@ const SyncDiffDialog = ({
           <Badge variant="secondary" data-testid="sync-preview-summary-preserved">
             {t('dashboard.syncPreviewSummaryPreserved', { count: summary.preserved })}
           </Badge>
+          <Badge variant="outline" data-testid="sync-preview-summary-ignored">
+            {t('dashboard.syncPreviewSummaryIgnored', { count: summary.ignored })}
+          </Badge>
           <Badge variant="outline" data-testid="sync-preview-summary-noop">
             {t('dashboard.syncPreviewSummaryNoOp', { count: summary.noOp })}
           </Badge>
         </div>
+
+        <p className="text-xs text-muted-foreground" data-testid="sync-preview-ignore-note">
+          {t('dashboard.syncPreviewIgnoredNote')}
+        </p>
 
         <section className="rounded-md border border-border/70 bg-surface-2 p-3">
           <p className="text-xs font-semibold uppercase tracking-wide text-text-secondary">
@@ -156,7 +164,9 @@ const SyncDiffDialog = ({
                             ? 'destructive'
                             : item.action === 'preserved_unmanaged'
                               ? 'outline'
-                              : 'secondary'
+                              : item.action === 'ignored'
+                                ? 'outline'
+                                : 'secondary'
                       }
                     >
                       {t(`dashboard.syncPreviewAction.${item.action}`)}

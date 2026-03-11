@@ -336,7 +336,13 @@ export interface ConfigImportResult {
 /**
  * Extended action set for sync preview (includes preserved unmanaged servers).
  */
-export type SyncPreviewAction = 'create' | 'overwrite' | 'no-op' | 'preserved_unmanaged' | 'removed'
+export type SyncPreviewAction =
+  | 'create'
+  | 'overwrite'
+  | 'no-op'
+  | 'preserved_unmanaged'
+  | 'ignored'
+  | 'removed'
 
 /**
  * Diff preview row for one server name during sync.

@@ -196,4 +196,64 @@ describe('SyncService', () => {
     const servers = written['mcpServers'] as Record<string, unknown>
     expect(Object.keys(servers)).not.toContain('disabled')
   })
+
+  it('keeps ignored per-client server entries unchanged during sync', async () => {
+    const server = serversRepo.create({
+      name: 'ignored-server',
+      type: 'stdio',
+      command: 'npx',
+      args: ['-y', '@new/value'],
+    })
+    serversRepo.update(server.id, { clientOverrides: { cursor: { enabled: false } } })
+
+    const configPath = join(tmpDir, 'mcp.json')
+    writeFileSync(
+      configPath,
+      JSON.stringify({
+        mcpServers: {
+          'ignored-server': {
+            command: 'python',
+            args: ['legacy.py'],
+          },
+        },
+      }),
+      'utf-8',
+    )
+
+    const result = await syncService.sync(makeAdapter(), configPath)
+    expect(result.success).toBe(true)
+
+    const written = JSON.parse(readFileSync(configPath, 'utf-8')) as Record<string, unknown>
+    const servers = written['mcpServers'] as Record<string, { command: string; args?: string[] }>
+    expect(servers['ignored-server']).toEqual({
+      command: 'python',
+      args: ['legacy.py'],
+    })
+  })
+
+  it('marks ignored managed entries as ignored in preview', async () => {
+    const server = serversRepo.create({
+      name: 'ignored-preview',
+      type: 'stdio',
+      command: 'npx',
+    })
+    serversRepo.update(server.id, { clientOverrides: { cursor: { enabled: false } } })
+
+    const configPath = join(tmpDir, 'mcp.json')
+    writeFileSync(
+      configPath,
+      JSON.stringify({
+        mcpServers: {
+          'ignored-preview': {
+            command: 'npx',
+          },
+        },
+      }),
+      'utf-8',
+    )
+
+    const preview = await syncService.previewSync(makeAdapter(), configPath)
+    const ignoredItem = preview.items.find((item) => item.name === 'ignored-preview')
+    expect(ignoredItem?.action).toBe('ignored')
+  })
 })

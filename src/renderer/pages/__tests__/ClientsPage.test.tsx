@@ -5,6 +5,7 @@ import { ClientsPage } from '../ClientsPage'
 import type {
   ClientInstallResult,
   ClientStatus,
+  McpServer,
   SyncAllPreviewResult,
   SyncResult,
 } from '@shared/types'
@@ -24,11 +25,38 @@ const showOpenDialogMock = vi.fn<() => Promise<{ canceled: boolean; filePaths: s
 const setManualPathMock =
   vi.fn<(id: string, path: string) => Promise<{ valid: boolean; errors: string[] }>>()
 const clearManualPathMock = vi.fn<(id: string) => Promise<void>>()
+const serversListMock = vi.fn<() => Promise<McpServer[]>>()
+const serversUpdateMock = vi.fn<(id: string, updates: unknown) => Promise<McpServer>>()
 const onInstallProgressMock =
   vi.fn<(handler: (payload: ClientInstallProgressPayload) => void) => () => void>()
 let installProgressHandler: ((payload: ClientInstallProgressPayload) => void) | null = null
 
 let clientsFixture: ClientStatus[] = []
+const makeMockServer = (overrides: Partial<McpServer> = {}): McpServer => ({
+  id: 'server-1',
+  name: 'filesystem',
+  type: 'stdio',
+  command: 'npx',
+  args: [],
+  env: {},
+  secretEnvKeys: [],
+  headers: {},
+  secretHeaderKeys: [],
+  enabled: true,
+  clientOverrides: {} as McpServer['clientOverrides'],
+  tags: [],
+  notes: '',
+  createdAt: '2026-03-10T12:00:00.000Z',
+  updatedAt: '2026-03-10T12:00:00.000Z',
+  recipeId: '',
+  recipeVersion: '',
+  setupStatus: 'ready',
+  lastInstallResult: {},
+  lastInstallTimestamp: '',
+  installPolicy: 'manual',
+  normalizedLaunchConfig: {},
+  ...overrides,
+})
 
 const toastSuccessMock = vi.fn<(message?: unknown) => void>()
 const toastWarningMock = vi.fn<(message?: unknown) => void>()
@@ -112,6 +140,19 @@ describe('ClientsPage sync-all reporting', () => {
     showOpenDialogMock.mockResolvedValue({ canceled: true, filePaths: [] })
     setManualPathMock.mockResolvedValue({ valid: true, errors: [] })
     clearManualPathMock.mockResolvedValue()
+    serversListMock.mockResolvedValue([makeMockServer()])
+    serversUpdateMock.mockImplementation((id, updates) => {
+      const rawOverrides = (updates as { clientOverrides?: Record<string, { enabled: boolean }> })
+        .clientOverrides
+      return Promise.resolve(
+        makeMockServer({
+          id,
+          clientOverrides:
+            (rawOverrides as McpServer['clientOverrides'] | undefined) ??
+            ({ cursor: { enabled: false } } as McpServer['clientOverrides']),
+        }),
+      )
+    })
 
     Object.defineProperty(window, 'api', {
       value: {
@@ -124,6 +165,8 @@ describe('ClientsPage sync-all reporting', () => {
         showOpenDialog: showOpenDialogMock,
         clientsSetManualConfigPath: setManualPathMock,
         clientsClearManualConfigPath: clearManualPathMock,
+        serversList: serversListMock,
+        serversUpdate: serversUpdateMock,
         onClientInstallProgress: onInstallProgressMock,
       },
       writable: true,
@@ -531,6 +574,23 @@ describe('ClientsPage sync-all reporting', () => {
     fireEvent.click(screen.getByTestId('install-dialog-done'))
     await waitFor(() =>
       expect(screen.queryByTestId('install-client-dialog')).not.toBeInTheDocument(),
+    )
+  })
+
+  it('opens manage sync items dialog and updates per-client ignore toggle', async () => {
+    renderWithProviders(<ClientsPage />)
+
+    fireEvent.click(screen.getByTestId('btn-manage-sync-items-cursor'))
+
+    expect(await screen.findByTestId('manage-sync-items-dialog')).toBeInTheDocument()
+    await waitFor(() => expect(serversListMock).toHaveBeenCalledTimes(1))
+
+    fireEvent.click(screen.getByTestId('manage-sync-toggle-server-1'))
+
+    await waitFor(() =>
+      expect(serversUpdateMock).toHaveBeenCalledWith('server-1', {
+        clientOverrides: { cursor: { enabled: false } },
+      }),
     )
   })
 
