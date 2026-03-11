@@ -9,13 +9,10 @@ import { fireEvent, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import i18n from '@/i18n'
 import { renderWithProviders } from '@/test-utils'
-import { FREE_GATES, PRO_GATES } from '@shared/feature-gates'
-import { invalidateGateCache } from '@/lib/useFeatureGate'
 import { SettingsPage } from '../SettingsPage'
 
 const settingsGetMock = vi.fn<(key: string) => Promise<unknown>>()
 const settingsSetMock = vi.fn<(key: string, value: unknown) => Promise<void>>()
-const licenseFeatureGatesMock = vi.fn<() => Promise<typeof PRO_GATES>>()
 const gitSyncStatusMock = vi.fn<() => Promise<{ connected: boolean }>>()
 const gitSyncConnectGitHubMock = vi.fn<() => Promise<{ connected: boolean }>>()
 const gitSyncConnectManualMock = vi.fn<(input: unknown) => Promise<{ connected: boolean }>>()
@@ -94,24 +91,13 @@ vi.mock('@/lib/useTheme', () => ({
   }),
 }))
 
-vi.mock('@/lib/useLicense', () => ({
-  useLicense: () => ({
-    status: { tier: 'free', valid: false, lastValidatedAt: new Date().toISOString() },
-    activating: false,
-    activate: vi.fn(),
-    deactivate: vi.fn(),
-  }),
-}))
-
 beforeEach(async () => {
   vi.clearAllMocks()
-  invalidateGateCache()
   localStorage.removeItem('language')
   await i18n.changeLanguage('en')
 
   settingsGetMock.mockResolvedValue(undefined)
   settingsSetMock.mockResolvedValue()
-  licenseFeatureGatesMock.mockResolvedValue(PRO_GATES)
   gitSyncStatusMock.mockResolvedValue({ connected: false })
   gitSyncConnectGitHubMock.mockResolvedValue({ connected: true })
   gitSyncConnectManualMock.mockResolvedValue({ connected: true })
@@ -155,7 +141,6 @@ beforeEach(async () => {
     resetKeys: ['theme', 'language'],
     disconnectedGitSync: false,
     clearedAllSecrets: false,
-    clearedLicenseCache: false,
     databaseReset: false,
     deletedPaths: [],
     restartTriggered: false,
@@ -166,7 +151,6 @@ beforeEach(async () => {
       settingsGet: settingsGetMock,
       settingsSet: settingsSetMock,
       settingsReset: settingsResetMock,
-      licenseFeatureGates: licenseFeatureGatesMock,
       gitSyncStatus: gitSyncStatusMock,
       gitSyncConnectGitHub: gitSyncConnectGitHubMock,
       gitSyncConnectManual: gitSyncConnectManualMock,
@@ -704,22 +688,5 @@ describe('SettingsPage git remote URL handling', () => {
     })
 
     await waitFor(() => expect(pullButton).not.toBeDisabled())
-  })
-
-  it('renders read-only upgrade UX for free tier and disables sync actions', async () => {
-    const user = userEvent.setup()
-    invalidateGateCache()
-    licenseFeatureGatesMock.mockResolvedValueOnce(FREE_GATES)
-
-    renderWithProviders(<SettingsPage />)
-
-    expect(screen.getByTestId('git-sync-upgrade-prompt')).toBeInTheDocument()
-    expect(screen.getByTestId('btn-connect-github-oauth')).toBeDisabled()
-    expect(screen.getByTestId('btn-git-sync-pull')).toBeDisabled()
-    expect(screen.getByTestId('btn-git-sync-push')).toBeDisabled()
-    expect(screen.getByTestId('btn-git-sync-disconnect')).toBeDisabled()
-
-    await user.click(screen.getByTestId('btn-connect-github-oauth'))
-    expect(gitSyncConnectGitHubMock).not.toHaveBeenCalled()
   })
 })

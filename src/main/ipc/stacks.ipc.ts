@@ -21,7 +21,6 @@ import { getDatabase } from '@main/db/connection'
 import { ServersRepo } from '@main/db/servers.repo'
 import { RulesRepo } from '@main/db/rules.repo'
 import { ActivityLogRepo } from '@main/db/activity-log.repo'
-import { checkGate } from '@main/licensing/feature-gates'
 
 // ─── Stack Format Version ─────────────────────────────────────────────────────
 
@@ -105,11 +104,6 @@ export const registerStacksIpc = (): void => {
       log.debug(
         `[ipc] stacks:export "${name}" (${serverIds.length} servers, ${ruleIds.length} rules)`,
       )
-
-      const allowed = checkGate('stackExport')
-      if (!allowed) {
-        return Promise.reject(new Error('Stack export requires aidrelay Pro.'))
-      }
 
       const { servers, rules, log: logRepo } = createRepos()
 

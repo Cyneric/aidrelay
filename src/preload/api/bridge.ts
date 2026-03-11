@@ -7,7 +7,6 @@ import { createEventsApi } from './events.api'
 import { createFilesApi } from './files.api'
 import { createGitSyncApi } from './git-sync.api'
 import { createInstallerApi } from './installer.api'
-import { createLicenseApi } from './license.api'
 import { createLogApi } from './log.api'
 import { createDiagnosticsApi } from './diagnostics.api'
 import { createSyncApi } from './sync.api'
@@ -29,7 +28,6 @@ export const createApi = (ipcRenderer: IpcRendererLike) => ({
   ...createSkillsApi(ipcRenderer),
   ...createProfilesApi(ipcRenderer),
   ...createSecretsApi(ipcRenderer),
-  ...createLicenseApi(ipcRenderer),
   ...createLogApi(ipcRenderer),
   ...createDiagnosticsApi(ipcRenderer),
   ...createGitSyncApi(ipcRenderer),

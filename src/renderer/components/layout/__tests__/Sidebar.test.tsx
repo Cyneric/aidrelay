@@ -7,9 +7,8 @@
  * @author Christian Blank <aidrelay@proton.me>
  * @copyright 2026
  *
- * @description Unit tests for the Sidebar component. Verifies that the plan
- * tier badge renders correctly for Free and Pro license states, and that
- * navigation links are present.
+ * @description Unit tests for the Sidebar component. Verifies navigation and
+ * active profile rendering behavior.
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'

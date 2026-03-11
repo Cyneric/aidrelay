@@ -9,7 +9,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const {
   mockDisconnect,
   mockDeleteAllServiceSecrets,
-  mockClearLocalLicenseCache,
   mockCreateProfile,
   mockSetActive,
   mockExistsSync,
@@ -19,7 +18,6 @@ const {
 } = vi.hoisted(() => ({
   mockDisconnect: vi.fn<() => Promise<void>>(() => Promise.resolve()),
   mockDeleteAllServiceSecrets: vi.fn<() => Promise<void>>(() => Promise.resolve()),
-  mockClearLocalLicenseCache: vi.fn(),
   mockCreateProfile: vi.fn(() => ({ id: 'p-default' })),
   mockSetActive: vi.fn(),
   mockExistsSync: vi.fn(() => true),
@@ -49,10 +47,6 @@ vi.mock('@main/git-sync/git-sync.service', () => ({
 
 vi.mock('@main/secrets/keytar.service', () => ({
   deleteAllServiceSecrets: mockDeleteAllServiceSecrets,
-}))
-
-vi.mock('@main/licensing/licensing.service', () => ({
-  clearLocalLicenseCache: mockClearLocalLicenseCache,
 }))
 
 vi.mock('@main/db/profiles.repo', () => ({
@@ -88,7 +82,6 @@ describe('runFactoryReset', () => {
 
     expect(mockDisconnect).toHaveBeenCalledTimes(1)
     expect(mockDeleteAllServiceSecrets).toHaveBeenCalledTimes(1)
-    expect(mockClearLocalLicenseCache).toHaveBeenCalledTimes(1)
 
     expect(preparedSql).toEqual(
       expect.arrayContaining([
@@ -106,7 +99,6 @@ describe('runFactoryReset', () => {
 
     expect(result.databaseReset).toBe(true)
     expect(result.clearedAllSecrets).toBe(true)
-    expect(result.clearedLicenseCache).toBe(true)
     expect(result.disconnectedGitSync).toBe(true)
     expect(result.deletedPaths).toHaveLength(1)
     expect(result.deletedPaths[0]).toContain('backups')

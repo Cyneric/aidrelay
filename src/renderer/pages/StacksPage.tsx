@@ -8,7 +8,7 @@
  * @copyright 2026
  *
  * @description Stacks page for importing and exporting portable MCP server +
- * AI rule bundles. The export section is Pro-gated; importing is free.
+ * AI rule bundles.
  */
 
 import { useTranslation } from 'react-i18next'
@@ -18,7 +18,7 @@ import { StackImporter } from '@/components/stacks/StackImporter'
 // ─── Component ────────────────────────────────────────────────────────────────
 
 /**
- * Top-level stacks page with an export section (Pro) and an import section (free).
+ * Top-level stacks page with export and import sections.
  */
 const StacksPage = () => {
   const { t } = useTranslation()

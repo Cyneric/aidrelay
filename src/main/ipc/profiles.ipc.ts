@@ -38,7 +38,6 @@ import { BackupService } from '@main/sync/backup.service'
 import { SyncService } from '@main/sync/sync.service'
 import { RulesSyncService } from '@main/rules/rules-sync.service'
 import { ADAPTERS, ADAPTER_IDS } from '@main/clients/registry'
-import { checkGate } from '@main/licensing/feature-gates'
 
 // ─── Service Factory ──────────────────────────────────────────────────────────
 
@@ -91,15 +90,6 @@ export const registerProfilesIpc = (): void => {
   ipcMain.handle('profiles:create', (_event, input: CreateProfileInput): Profile => {
     log.debug(`[ipc] profiles:create "${input.name}"`)
     const { profiles, log: logRepo } = createRepos()
-
-    // Enforce the per-tier profile limit before creating.
-    const maxProfiles = checkGate('maxProfiles')
-    const currentCount = profiles.findAll().length
-    if (currentCount >= maxProfiles) {
-      throw new Error(
-        `Profile limit reached (${maxProfiles}). Upgrade to aidrelay Pro for unlimited profiles.`,
-      )
-    }
 
     const profile = profiles.create(input)
     logRepo.insert({ action: 'profile.created', details: { profileName: profile.name } })

@@ -12,7 +12,6 @@ import log from 'electron-log'
 import { getDatabase } from '@main/db/connection'
 import { ProfilesRepo } from '@main/db/profiles.repo'
 import { gitSyncService } from '@main/git-sync/git-sync.service'
-import { clearLocalLicenseCache } from '@main/licensing/licensing.service'
 import { deleteAllServiceSecrets } from '@main/secrets/keytar.service'
 
 /**
@@ -23,13 +22,11 @@ import { deleteAllServiceSecrets } from '@main/secrets/keytar.service'
 export const runFactoryReset = async (): Promise<{
   disconnectedGitSync: boolean
   clearedAllSecrets: boolean
-  clearedLicenseCache: boolean
   databaseReset: boolean
   deletedPaths: string[]
 }> => {
   let disconnectedGitSync = false
   let clearedAllSecrets = false
-  let clearedLicenseCache = false
   let databaseReset = false
   const deletedPaths: string[] = []
 
@@ -41,11 +38,7 @@ export const runFactoryReset = async (): Promise<{
   await deleteAllServiceSecrets()
   clearedAllSecrets = true
 
-  // 3) Clear encrypted local license cache (no API call).
-  clearLocalLicenseCache()
-  clearedLicenseCache = true
-
-  // 4) Purge DB tables and re-seed default profile.
+  // 3) Purge DB tables and re-seed default profile.
   const db = getDatabase()
   const profilesRepo = new ProfilesRepo(db)
   const resetDb = db.transaction(() => {
@@ -63,7 +56,7 @@ export const runFactoryReset = async (): Promise<{
   profilesRepo.setActive(defaultProfile.id)
   databaseReset = true
 
-  // 5) Remove app-owned backup artifacts from userData.
+  // 4) Remove app-owned backup artifacts from userData.
   const backupDir = join(app.getPath('userData'), 'backups')
   if (existsSync(backupDir)) {
     rmSync(backupDir, { recursive: true, force: true })
@@ -74,7 +67,6 @@ export const runFactoryReset = async (): Promise<{
   return {
     disconnectedGitSync,
     clearedAllSecrets,
-    clearedLicenseCache,
     databaseReset,
     deletedPaths,
   }

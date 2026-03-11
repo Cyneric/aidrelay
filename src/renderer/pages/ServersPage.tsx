@@ -66,7 +66,6 @@ import { ToggleMatrix } from '@/components/servers/ToggleMatrix'
 import { ConfirmActionDialog } from '@/components/common/ConfirmActionDialog'
 import { useServersStore } from '@/stores/servers.store'
 import { useClientsStore } from '@/stores/clients.store'
-import { useFeatureGate } from '@/lib/useFeatureGate'
 import { useServersActions } from '@/hooks/useServersActions'
 import {
   useServerSetupStatuses,
@@ -129,7 +128,7 @@ const ServersPage = () => {
   const serverIds = useMemo(() => servers.map((s) => s.id), [serverIdKey]) // eslint-disable-line react-hooks/exhaustive-deps
   const { statuses } = useServerSetupStatuses(serverIds)
   const { clients, detectAll } = useClientsStore()
-  const serverTestingEnabled = useFeatureGate('serverTesting')
+  const serverTestingEnabled = true
   const { t } = useTranslation()
   const [sorting, setSorting] = useState<SortingState>([])
   const [globalFilter, setGlobalFilter] = useState('')
@@ -435,11 +434,7 @@ const ServersPage = () => {
                 )}
               </Button>
             </TooltipTrigger>
-            <TooltipContent>
-              {serverTestingEnabled
-                ? t('servers.testTooltip', { name: row.original.name })
-                : t('servers.testUpgradeTooltip')}
-            </TooltipContent>
+            <TooltipContent>{t('servers.testTooltip', { name: row.original.name })}</TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>

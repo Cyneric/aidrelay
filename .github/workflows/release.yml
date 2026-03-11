@@ -42,7 +42,6 @@ jobs:
           # a Windows Authenticode certificate is available.
           # CSC_LINK: ${{ secrets.CSC_LINK }}
           # CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
-          LICENSE_STORE_ID: ${{ secrets.LICENSE_STORE_ID }}
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4

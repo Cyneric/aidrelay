@@ -24,7 +24,6 @@ import type {
 import { getDatabase } from '@main/db/connection'
 import { ServersRepo } from '@main/db/servers.repo'
 import { ActivityLogRepo } from '@main/db/activity-log.repo'
-import { checkGate } from '@main/licensing/feature-gates'
 import { serverTester } from '@main/testing/server-tester.service'
 import { ADAPTERS, ADAPTER_IDS } from '@main/clients/registry'
 
@@ -98,15 +97,6 @@ export const registerServersIpc = (): void => {
     log.debug(`[ipc] servers:create "${input.name}"`)
     const { servers, log: logRepo } = createRepos()
 
-    // Enforce the per-tier server limit before creating.
-    const maxServers = checkGate('maxServers')
-    const currentCount = servers.findAll().length
-    if (currentCount >= maxServers) {
-      throw new Error(
-        `Server limit reached (${maxServers}). Upgrade to aidrelay Pro for unlimited servers.`,
-      )
-    }
-
     const server = servers.create(input)
     logRepo.insert({
       action: 'server.created',
@@ -170,16 +160,10 @@ export const registerServersIpc = (): void => {
 
     let imported = 0
     let skipped = 0
-    const maxServers = checkGate('maxServers')
-
     for (const [name, config] of collected) {
       if (existingNames.has(name)) {
         skipped++
         continue
-      }
-      if (servers.findAll().length >= maxServers) {
-        errors.push(`Server limit reached (${maxServers}). Skipped remaining imports.`)
-        break
       }
 
       const input = configToCreateInput(name, config)
@@ -210,11 +194,6 @@ export const registerServersIpc = (): void => {
   // ── servers:test ──────────────────────────────────────────────────────────
   ipcMain.handle('servers:test', async (_event, id: string): Promise<TestResult> => {
     log.debug(`[ipc] servers:test ${id}`)
-
-    const allowed = checkGate('serverTesting')
-    if (!allowed) {
-      throw new Error('Server connection testing requires aidrelay Pro.')
-    }
 
     const { servers } = createRepos()
     const server = servers.findById(id)

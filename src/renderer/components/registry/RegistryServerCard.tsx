@@ -9,7 +9,7 @@
  *
  * @description Card component for a single Smithery registry search result.
  * Shows the server display name, description, source badge, verified status,
- * use count, and an Install button that is gated behind the Pro feature flag.
+ * use count, and an Install button.
  */
 
 import { useState } from 'react'
@@ -27,18 +27,15 @@ import type { RegistryProvider, RegistryServer } from '@shared/channels'
 
 interface RegistryServerCardProps {
   readonly server: RegistryServer
-  /** Whether the Pro registryInstall feature gate is enabled. */
-  readonly canInstall: boolean
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 /**
  * Displays a single registry server result with install functionality.
- * The Install button is disabled when the feature gate is not active or while
- * an installation request is in-flight.
+ * The Install button is disabled while an installation request is in-flight.
  */
-const RegistryServerCard = ({ server, canInstall }: RegistryServerCardProps) => {
+const RegistryServerCard = ({ server }: RegistryServerCardProps) => {
   const { t } = useTranslation()
   const { load } = useServersStore()
   const [installing, setInstalling] = useState(false)
@@ -78,14 +75,8 @@ const RegistryServerCard = ({ server, canInstall }: RegistryServerCardProps) => 
     }
   }
 
-  const installDisabled = !canInstall || installing
-
-  let installTooltip: string
-  if (!canInstall) {
-    installTooltip = 'Upgrade to Pro to install from registry'
-  } else {
-    installTooltip = `Install ${server.displayName}`
-  }
+  const installDisabled = installing
+  const installTooltip = `Install ${server.displayName}`
 
   let infoUrl: string | null = null
   if (server.source === 'smithery') {

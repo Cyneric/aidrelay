@@ -20,7 +20,6 @@ const { handlers, store, mockDisconnect, mockRelaunch, mockExit, mockRunFactoryR
       () => Promise<{
         disconnectedGitSync: boolean
         clearedAllSecrets: boolean
-        clearedLicenseCache: boolean
         databaseReset: boolean
         deletedPaths: string[]
       }>
@@ -28,7 +27,6 @@ const { handlers, store, mockDisconnect, mockRelaunch, mockExit, mockRunFactoryR
       Promise.resolve({
         disconnectedGitSync: true,
         clearedAllSecrets: true,
-        clearedLicenseCache: true,
         databaseReset: true,
         deletedPaths: ['C:\\Users\\test\\AppData\\Roaming\\aidrelay\\backups'],
       }),

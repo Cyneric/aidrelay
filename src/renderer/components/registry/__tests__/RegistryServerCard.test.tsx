@@ -7,8 +7,8 @@
  * @author Christian Blank <aidrelay@proton.me>
  * @copyright 2026
  *
- * @description Unit tests for RegistryServerCard. Verifies install-button
- * gating behavior for Pro vs. non-Pro users, including remote entries.
+ * @description Unit tests for RegistryServerCard, including availability badges
+ * and provider links.
  */
 
 import { describe, it, expect, vi } from 'vitest'
@@ -49,19 +49,13 @@ const officialServer: RegistryServer = {
 }
 
 describe('RegistryServerCard', () => {
-  it('keeps remote install enabled when Pro gate is active', () => {
-    renderWithProviders(<RegistryServerCard server={remoteServer} canInstall />)
+  it('keeps remote install enabled', () => {
+    renderWithProviders(<RegistryServerCard server={remoteServer} />)
 
     expect(screen.getByTestId('registry-install-@acme/remote-server')).toBeEnabled()
     expect(screen.getByTestId('registry-availability-badge-@acme/remote-server')).toHaveTextContent(
       'Hosted',
     )
-  })
-
-  it('disables install when Pro gate is inactive', () => {
-    renderWithProviders(<RegistryServerCard server={remoteServer} canInstall={false} />)
-
-    expect(screen.getByTestId('registry-install-@acme/remote-server')).toBeDisabled()
   })
 
   it('shows deployable badge for non-hosted registry entries', () => {
@@ -73,7 +67,6 @@ describe('RegistryServerCard', () => {
           displayName: 'Deployable Server',
           remote: false,
         }}
-        canInstall
       />,
     )
 
@@ -83,7 +76,7 @@ describe('RegistryServerCard', () => {
   })
 
   it('renders a provider link for Smithery entries', () => {
-    renderWithProviders(<RegistryServerCard server={remoteServer} canInstall />)
+    renderWithProviders(<RegistryServerCard server={remoteServer} />)
 
     const moreInfo = screen.getByTestId('registry-more-info-@acme/remote-server')
     expect(moreInfo).toHaveAttribute('href', 'https://smithery.ai/server/%40acme%2Fremote-server')
@@ -92,7 +85,7 @@ describe('RegistryServerCard', () => {
   })
 
   it('renders a provider link for Official registry entries', () => {
-    renderWithProviders(<RegistryServerCard server={officialServer} canInstall />)
+    renderWithProviders(<RegistryServerCard server={officialServer} />)
 
     expect(screen.getByTestId('registry-more-info-acme/official-server')).toHaveAttribute(
       'href',

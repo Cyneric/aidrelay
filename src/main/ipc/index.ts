@@ -21,7 +21,6 @@ import { registerDiagnosticsIpc } from './diagnostics.ipc'
 import { registerRulesIpc } from './rules.ipc'
 import { registerProfilesIpc } from './profiles.ipc'
 import { registerSecretsIpc } from './secrets.ipc'
-import { registerLicenseIpc } from './license.ipc'
 import { registerGitSyncIpc } from './git-sync.ipc'
 import { registerSyncIpc } from './sync.ipc'
 import { registerRegistryIpc } from './registry.ipc'
@@ -48,7 +47,6 @@ export const registerIpcHandlers = (): void => {
   registerDiagnosticsIpc()
   registerRulesIpc()
   registerProfilesIpc()
-  registerLicenseIpc()
   registerGitSyncIpc()
   registerSyncIpc()
   registerRegistryIpc()
