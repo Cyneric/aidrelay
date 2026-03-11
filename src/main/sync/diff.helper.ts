@@ -12,6 +12,7 @@
  *   - 'create' — server in merged map, not in existing map (managed)
  *   - 'overwrite' — server in both maps, normalized config differs (managed)
  *   - 'no‑op' — server identical (managed)
+ *   - 'ignored' — server is managed but ignored for this client via override
  *   - 'preserved_unmanaged' — server exists in both maps, identical, and NOT managed by aidrelay
  *   - 'removed' — server exists in existing map, missing from merged (managed disabled)
  */
@@ -50,12 +51,14 @@ const isSameConfig = (a: McpServerConfig | null, b: McpServerConfig | null): boo
  * @param existing - Server map read from the client config file.
  * @param merged - Server map that would be written (managed + preserved unmanaged).
  * @param managedNames - Set of server names that are managed by aidrelay.
+ * @param ignoredNames - Set of server names ignored for this client.
  * @returns Array of preview items, sorted by name.
  */
 export const computeSyncPreviewItems = (
   existing: McpServerMap,
   merged: McpServerMap,
   managedNames: Set<string>,
+  ignoredNames: Set<string>,
 ): SyncPreviewItem[] => {
   const allNames = new Set<string>([...Object.keys(existing), ...Object.keys(merged)])
   const items: SyncPreviewItem[] = []
@@ -78,7 +81,11 @@ export const computeSyncPreviewItems = (
       source = 'removed'
     } else if (before !== null && after !== null) {
       if (isSameConfig(before, after)) {
-        action = isManaged ? 'no-op' : 'preserved_unmanaged'
+        if (isManaged && ignoredNames.has(name)) {
+          action = 'ignored'
+        } else {
+          action = isManaged ? 'no-op' : 'preserved_unmanaged'
+        }
       } else {
         action = 'overwrite'
       }

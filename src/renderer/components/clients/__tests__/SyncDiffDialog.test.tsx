@@ -66,4 +66,32 @@ describe('SyncDiffDialog', () => {
       expect(filesRevealMock).toHaveBeenCalledWith('C:\\Users\\tester\\.codex\\config.json'),
     )
   })
+
+  it('shows ignored summary and explanatory note', () => {
+    renderWithProviders(
+      <SyncDiffDialog
+        open={true}
+        loading={false}
+        syncing={false}
+        onCancel={vi.fn()}
+        onConfirm={vi.fn()}
+        preview={{
+          clientId: 'cursor',
+          configPath: 'C:\\Users\\tester\\.cursor\\mcp.json',
+          items: [
+            {
+              name: 'ignored-server',
+              source: 'modified',
+              action: 'ignored',
+              before: { command: 'python' },
+              after: { command: 'python' },
+            },
+          ],
+        }}
+      />,
+    )
+
+    expect(screen.getByTestId('sync-preview-summary-ignored')).toHaveTextContent('1 ignored')
+    expect(screen.getByTestId('sync-preview-ignore-note')).toBeInTheDocument()
+  })
 })
