@@ -33,6 +33,13 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
+# Local configurations
+*.local.md
+.cursor
+.claude
+.codex
+.roo
+
 # Environment
 .env
 .env.local
