@@ -1,6 +1,7 @@
 # aidrelay
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Download](https://img.shields.io/github/v/release/Cyneric/aidrelay?label=Download&color=green)](https://github.com/Cyneric/aidrelay/releases/latest)
 
 A Windows desktop app for managing MCP server configs and AI coding rules across multiple AI dev tools. Instead of manually editing JSON and markdown files for each tool, you keep everything in one place and sync it out.
 
