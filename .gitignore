@@ -39,6 +39,7 @@ pnpm-debug.log*
 .claude
 .codex
 .roo
+skills/
 
 # Environment
 .env
