@@ -37,7 +37,7 @@ jobs:
       - name: Build and package
         run: pnpm dist:win --publish always
         env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Code signing — set these secrets in the GitHub repo settings when
           # a Windows Authenticode certificate is available.
           # CSC_LINK: ${{ secrets.CSC_LINK }}

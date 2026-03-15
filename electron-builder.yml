@@ -72,7 +72,7 @@ nsis:
 
 publish:
   provider: github
-  owner: christianblank91
+  owner: Cyneric
   repo: aidrelay
   releaseType: release
 
