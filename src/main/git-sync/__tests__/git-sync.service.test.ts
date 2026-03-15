@@ -22,30 +22,24 @@ import * as fsMod from 'fs'
 import * as fsPromises from 'fs/promises'
 import spawn from 'cross-spawn'
 
-const skillsExportToDirectoryMock =
-  vi.fn<
-    (
-      syncDir: string,
-    ) => Promise<{
-      skillsExported: number
-      userSkillsExported: number
-      projectSkillsExported: number
-      skillFilesExported: number
-    }>
-  >()
-const skillsImportFromDirectoryMock =
-  vi.fn<
-    (
-      syncDir: string,
-    ) => Promise<{
-      skillsImported: number
-      userSkillsImported: number
-      projectSkillsImported: number
-      skillConflicts: number
-      skillConflictItems: []
-      projectSkillMappings: []
-    }>
-  >()
+const skillsExportToDirectoryMock = vi.fn<
+  (syncDir: string) => Promise<{
+    skillsExported: number
+    userSkillsExported: number
+    projectSkillsExported: number
+    skillFilesExported: number
+  }>
+>()
+const skillsImportFromDirectoryMock = vi.fn<
+  (syncDir: string) => Promise<{
+    skillsImported: number
+    userSkillsImported: number
+    projectSkillsImported: number
+    skillConflicts: number
+    skillConflictItems: []
+    projectSkillMappings: []
+  }>
+>()
 
 // ─── Module Mocks ─────────────────────────────────────────────────────────────
 
