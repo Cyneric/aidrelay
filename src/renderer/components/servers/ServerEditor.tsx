@@ -2,7 +2,7 @@
  * @file src/renderer/components/servers/ServerEditor.tsx
  *
  * @created 07.03.2026
- * @modified 08.03.2026
+ * @modified 16.03.2026
  *
  * @author Christian Blank <aidrelay@proton.me>
  * @copyright 2026
@@ -13,9 +13,10 @@
  * `serversCreate` or `serversUpdate` from the servers Zustand store.
  */
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { X } from 'lucide-react'
 import { toast } from 'sonner'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -47,8 +48,17 @@ const ServerEditor = ({ server, onClose }: ServerEditorProps) => {
   const [activeTab, setActiveTab] = useState<Tab>('form')
   const [saving, setSaving] = useState(false)
   const [formState, setFormState] = useState<McpServer | undefined>(server)
+  const { t } = useTranslation()
 
   const { create, update } = useServersStore()
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [onClose])
 
   const handleFormSubmit = useCallback(
     async (data: CreateServerInput & { secretEnvKeys: string[] }) => {
@@ -104,13 +114,19 @@ const ServerEditor = ({ server, onClose }: ServerEditorProps) => {
         className="fixed inset-y-0 right-0 z-50 w-full max-w-xl flex flex-col bg-background border-l border-border shadow-xl"
         role="dialog"
         aria-modal="true"
-        aria-label={server ? `Edit MCP Server: ${server.name}` : 'Add MCP Server'}
+        aria-label={
+          server
+            ? t('serverForm.editTitleWithName', { name: server.name })
+            : t('serverForm.createTitle')
+        }
         data-testid="server-editor"
       >
         {/* Header */}
         <header className="flex items-center justify-between px-6 py-4 border-b border-border">
           <h2 className="font-semibold text-base">
-            {server ? `Edit MCP Server: ${server.name}` : 'Add MCP Server'}
+            {server
+              ? t('serverForm.editTitleWithName', { name: server.name })
+              : t('serverForm.createTitle')}
           </h2>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -119,13 +135,13 @@ const ServerEditor = ({ server, onClose }: ServerEditorProps) => {
                 variant="ghost"
                 size="icon"
                 onClick={onClose}
-                aria-label="Close editor"
+                aria-label={t('serverForm.close')}
                 data-testid="server-editor-close"
               >
                 <X size={18} />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Close</TooltipContent>
+            <TooltipContent>{t('serverForm.close')}</TooltipContent>
           </Tooltip>
         </header>
 
@@ -144,14 +160,14 @@ const ServerEditor = ({ server, onClose }: ServerEditorProps) => {
               className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
               data-testid="server-editor-tab-form"
             >
-              Form
+              {t('serverForm.tabForm')}
             </TabsTrigger>
             <TabsTrigger
               value="json"
               className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
               data-testid="server-editor-tab-json"
             >
-              JSON
+              {t('serverForm.tabJson')}
             </TabsTrigger>
           </TabsList>
           <TabsContent value="form" className="flex-1 overflow-y-auto px-6 py-5 mt-0">
@@ -187,7 +203,7 @@ const ServerEditor = ({ server, onClose }: ServerEditorProps) => {
         {activeTab === 'json' && (
           <footer className="flex justify-end gap-2 px-6 py-4 border-t border-border">
             <Button type="button" variant="outline" onClick={onClose}>
-              Cancel
+              {t('serverForm.cancel')}
             </Button>
             <Button
               type="button"
@@ -208,7 +224,11 @@ const ServerEditor = ({ server, onClose }: ServerEditorProps) => {
               disabled={saving || !formState?.name || !formState?.command}
               data-testid="server-editor-json-save"
             >
-              {saving ? 'Saving…' : server ? 'Save changes' : 'Add MCP Server'}
+              {saving
+                ? t('serverForm.saving')
+                : server
+                  ? t('serverForm.saveChanges')
+                  : t('serverForm.addServer')}
             </Button>
           </footer>
         )}

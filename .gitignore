@@ -34,12 +34,17 @@ yarn-error.log*
 pnpm-debug.log*
 
 # Local configurations
+.github/prompts/
+.ui-design/
 *.local.md
+.opencode
+openspec
 .cursor
 .claude
+skills/
 .codex
 .roo
-skills/
+.agent
 
 # Environment
 .env

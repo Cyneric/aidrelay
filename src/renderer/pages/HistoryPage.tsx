@@ -2,7 +2,7 @@
  * @file src/renderer/pages/HistoryPage.tsx
  *
  * @created 07.03.2026
- * @modified 10.03.2026
+ * @modified 16.03.2026
  *
  * @author Christian Blank <aidrelay@proton.me>
  * @copyright 2026
@@ -118,13 +118,19 @@ const HistoryPage = () => {
     search.length > 0 || selectedTypes.length > 0 || sort !== 'newest' || datePreset !== 'all'
 
   return (
-    <main className="flex flex-col gap-5" data-testid="history-page">
+    <section
+      aria-labelledby="history-heading"
+      className="flex flex-col gap-5"
+      data-testid="history-page"
+    >
       <header>
-        <h1 className="text-2xl font-bold tracking-tight">{t('history.title')}</h1>
+        <h1 id="history-heading" className="text-2xl font-bold tracking-tight">
+          {t('history.title')}
+        </h1>
         <p className="mt-1 text-sm text-muted-foreground">{t('history.subtitle')}</p>
       </header>
 
-      <section className="sticky top-0 z-20 rounded-xl border bg-background/95 p-4 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-background/80">
+      <section className="sticky -top-6 z-20 -mx-6 rounded-none border-b border-border/70 bg-background/95 px-6 pb-4 pt-6 backdrop-blur supports-[backdrop-filter]:bg-background/80">
         <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_auto_auto]">
           <div className="space-y-1">
             <Label htmlFor="history-search" className="text-xs text-muted-foreground">
@@ -304,7 +310,7 @@ const HistoryPage = () => {
           </div>
         </>
       )}
-    </main>
+    </section>
   )
 }
 

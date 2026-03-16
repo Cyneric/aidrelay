@@ -2,7 +2,7 @@
  * @file src/renderer/components/rules/RuleEditor.tsx
  *
  * @created 07.03.2026
- * @modified 08.03.2026
+ * @modified 16.03.2026
  *
  * @author Christian Blank <aidrelay@proton.me>
  * @copyright 2026
@@ -14,9 +14,10 @@
  * the rules Zustand store.
  */
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { X } from 'lucide-react'
 import { toast } from 'sonner'
+import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -51,9 +52,18 @@ const RuleEditor = ({ rule, onClose }: RuleEditorProps) => {
   const [activeTab, setActiveTab] = useState<Tab>('details')
   const [saving, setSaving] = useState(false)
   const [content, setContent] = useState(rule?.content ?? '')
+  const { t } = useTranslation()
 
   const { create, update } = useRulesStore()
   const tokenEstimate = useTokenEstimate(content)
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [onClose])
 
   const handleContentChange = useCallback((newContent: string) => {
     setContent(newContent)
@@ -62,7 +72,7 @@ const RuleEditor = ({ rule, onClose }: RuleEditorProps) => {
   const handleDetailsSubmit = useCallback(
     async (data: Omit<CreateRuleInput, 'content'>) => {
       if (!content.trim()) {
-        toast.error('Rule content cannot be empty')
+        toast.error(t('ruleEditor.contentRequired'))
         return
       }
 
@@ -87,7 +97,7 @@ const RuleEditor = ({ rule, onClose }: RuleEditorProps) => {
         setSaving(false)
       }
     },
-    [content, rule, create, update, onClose],
+    [content, rule, create, update, onClose, t],
   )
 
   return (
@@ -105,13 +115,21 @@ const RuleEditor = ({ rule, onClose }: RuleEditorProps) => {
         className="fixed inset-y-0 right-0 z-50 w-full max-w-2xl flex flex-col bg-background border-l border-border shadow-xl"
         role="dialog"
         aria-modal="true"
-        aria-label={rule ? `Edit rule: ${rule.name}` : 'Add rule'}
+        aria-label={
+          rule
+            ? t('ruleEditor.editTitleWithName', { name: rule.name })
+            : t('ruleEditor.createTitle')
+        }
         data-testid="rule-editor"
       >
         {/* Header */}
         <header className="flex items-center justify-between px-6 py-4 border-b border-border">
           <div className="flex items-center gap-3">
-            <h2 className="font-semibold text-base">{rule ? `Edit: ${rule.name}` : 'Add rule'}</h2>
+            <h2 className="font-semibold text-base">
+              {rule
+                ? t('ruleEditor.editTitleWithName', { name: rule.name })
+                : t('ruleEditor.createTitle')}
+            </h2>
             {tokenEstimate > 0 && (
               <span
                 className={cn(
@@ -131,13 +149,13 @@ const RuleEditor = ({ rule, onClose }: RuleEditorProps) => {
                 variant="ghost"
                 size="icon"
                 onClick={onClose}
-                aria-label="Close editor"
+                aria-label={t('ruleEditor.close')}
                 data-testid="rule-editor-close"
               >
                 <X size={18} />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Close</TooltipContent>
+            <TooltipContent>{t('ruleEditor.close')}</TooltipContent>
           </Tooltip>
         </header>
 
@@ -156,14 +174,14 @@ const RuleEditor = ({ rule, onClose }: RuleEditorProps) => {
               className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
               data-testid="rule-editor-tab-details"
             >
-              Details
+              {t('ruleEditor.tabDetails')}
             </TabsTrigger>
             <TabsTrigger
               value="content"
               className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
               data-testid="rule-editor-tab-content"
             >
-              Content
+              {t('ruleEditor.tabContent')}
             </TabsTrigger>
           </TabsList>
           <TabsContent value="details" className="flex-1 overflow-y-auto px-6 py-5 mt-0">
@@ -190,14 +208,14 @@ const RuleEditor = ({ rule, onClose }: RuleEditorProps) => {
               onClick={onClose}
               data-testid="rule-editor-content-cancel"
             >
-              Cancel
+              {t('ruleEditor.cancel')}
             </Button>
             <Button
               type="button"
               onClick={() => setActiveTab('details')}
               data-testid="rule-editor-content-next"
             >
-              {rule ? 'Save changes' : 'Continue to details →'}
+              {t('ruleEditor.continueToDetails')}
             </Button>
           </footer>
         )}

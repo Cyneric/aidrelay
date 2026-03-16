@@ -2,7 +2,7 @@
  * @file src/renderer/pages/DashboardPage.tsx
  *
  * @created 07.03.2026
- * @modified 10.03.2026
+ * @modified 16.03.2026
  *
  * @author Christian Blank <aidrelay@proton.me>
  * @copyright 2026
@@ -584,7 +584,7 @@ const DashboardPage = () => {
           <div>
             <h1
               id="dashboard-heading"
-              className="text-2xl font-semibold tracking-tight text-text-primary"
+              className="text-2xl font-bold tracking-tight text-text-primary"
             >
               {t('dashboard.title')}
             </h1>
@@ -883,21 +883,26 @@ const DashboardPage = () => {
               aria-labelledby="not-installed-heading"
               data-testid="dashboard-section-not-installed"
             >
-              <button
-                type="button"
-                onClick={() => setCollapsedNotInstalled((value) => !value)}
-                className="mb-3 inline-flex items-center gap-2 rounded-md border border-border/60 bg-surface-2 px-3 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-surface-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                aria-expanded={!collapsedNotInstalled}
-                aria-controls="dashboard-not-installed-grid"
-              >
-                <ChevronDown
-                  size={14}
-                  className={cn('transition-transform', !collapsedNotInstalled && 'rotate-180')}
-                  aria-hidden="true"
-                />
-                <span id="not-installed-heading">{t('dashboard.sectionNotInstalled')}</span>
+              <div className="mb-3 flex items-center gap-2">
+                <h2 id="not-installed-heading" className="text-sm font-semibold text-text-primary">
+                  {t('dashboard.sectionNotInstalled')}
+                </h2>
                 <span className="text-xs text-text-secondary">{sections.notInstalled.length}</span>
-              </button>
+                <button
+                  type="button"
+                  onClick={() => setCollapsedNotInstalled((value) => !value)}
+                  className="ml-1 inline-flex items-center rounded-md border border-border/60 bg-surface-2 px-2 py-1 text-xs font-medium text-text-secondary transition-colors hover:bg-surface-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  aria-expanded={!collapsedNotInstalled}
+                  aria-controls="dashboard-not-installed-grid"
+                  aria-label={t('dashboard.sectionNotInstalled')}
+                >
+                  <ChevronDown
+                    size={12}
+                    className={cn('transition-transform', !collapsedNotInstalled && 'rotate-180')}
+                    aria-hidden="true"
+                  />
+                </button>
+              </div>
 
               {!collapsedNotInstalled ? (
                 <CardGrid

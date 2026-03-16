@@ -2,7 +2,7 @@
  * @file src/renderer/pages/ActivityLogPage.tsx
  *
  * @created 07.03.2026
- * @modified 10.03.2026
+ * @modified 16.03.2026
  *
  * @author Christian Blank <aidrelay@proton.me>
  * @copyright 2026
@@ -15,6 +15,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { RefreshCw } from 'lucide-react'
+import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -59,11 +60,12 @@ const ActivityLogPage = () => {
       const results = await logService.query(filters)
       setEntries(results)
     } catch (err) {
-      console.error('Failed to load activity log:', err)
+      const message = err instanceof Error ? err.message : t('common.error')
+      toast.error(t('activityLog.loadFailed'), { description: message })
     } finally {
       setLoading(false)
     }
-  }, [actionFilter, clientFilter, sinceFilter])
+  }, [actionFilter, clientFilter, sinceFilter, t])
 
   useEffect(() => {
     void fetchEntries()

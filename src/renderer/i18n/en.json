@@ -231,7 +231,12 @@
     "cancel": "Cancel",
     "viewJson": "View JSON",
     "viewForm": "View form",
-    "close": "Close"
+    "close": "Close",
+    "tabForm": "Form",
+    "tabJson": "JSON",
+    "editTitleWithName": "Edit MCP Server: {{name}}",
+    "saveChanges": "Save changes",
+    "addServer": "Add MCP Server"
   },
   "envEditor": {
     "addVariable": "Add variable",
@@ -325,7 +330,9 @@
     "tabDetails": "Details",
     "tabContent": "Content",
     "saveChanges": "Save changes",
-    "continueToDetails": "Continue to details →"
+    "continueToDetails": "Continue to details →",
+    "editTitleWithName": "Edit: {{name}}",
+    "contentRequired": "Rule content cannot be empty"
   },
   "profiles": {
     "title": "Profiles",
@@ -397,7 +404,8 @@
     "collapseDetails": "Collapse details",
     "expandDetails": "Expand details",
     "showDetails": "Show",
-    "hideDetails": "Hide"
+    "hideDetails": "Hide",
+    "loadFailed": "Failed to load activity log"
   },
   "clients": {
     "title": "Clients",

@@ -2,7 +2,7 @@
  * @file src/renderer/pages/ServersPage.tsx
  *
  * @created 07.03.2026
- * @modified 10.03.2026
+ * @modified 16.03.2026
  *
  * @author Christian Blank <aidrelay@proton.me>
  * @copyright 2026
@@ -682,6 +682,13 @@ const ServersPage = () => {
                   {t('servers.addFirst')}
                 </Button>
               </div>
+            </div>
+          ) : table.getRowModel().rows.length === 0 ? (
+            <div
+              className="flex items-center justify-center py-16 text-sm text-muted-foreground"
+              data-testid="servers-no-results"
+            >
+              {t('servers.noResults')}
             </div>
           ) : (
             <Table className="w-full text-sm" data-testid="servers-table">

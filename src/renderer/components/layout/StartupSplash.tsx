@@ -1,6 +1,12 @@
 /**
  * @file src/renderer/components/layout/StartupSplash.tsx
  *
+ * @created 07.03.2026
+ * @modified 16.03.2026
+ *
+ * @author Christian Blank <aidrelay@proton.me>
+ * @copyright 2026
+ *
  * @description Full-screen startup splash overlay with a milestone progress
  * bar and loading text.
  */

@@ -231,7 +231,12 @@
     "cancel": "Abbrechen",
     "viewJson": "JSON anzeigen",
     "viewForm": "Formular anzeigen",
-    "close": "Schließen"
+    "close": "Schließen",
+    "tabForm": "Formular",
+    "tabJson": "JSON",
+    "editTitleWithName": "MCP-Server bearbeiten: {{name}}",
+    "saveChanges": "Änderungen speichern",
+    "addServer": "MCP-Server hinzufügen"
   },
   "envEditor": {
     "addVariable": "Variable hinzufügen",
@@ -325,7 +330,9 @@
     "tabDetails": "Details",
     "tabContent": "Inhalt",
     "saveChanges": "Änderungen speichern",
-    "continueToDetails": "Weiter zu Details →"
+    "continueToDetails": "Weiter zu Details →",
+    "editTitleWithName": "Bearbeiten: {{name}}",
+    "contentRequired": "Regelinhalt darf nicht leer sein"
   },
   "profiles": {
     "title": "Profile",
@@ -397,7 +404,8 @@
     "collapseDetails": "Details einklappen",
     "expandDetails": "Details ausklappen",
     "showDetails": "Anzeigen",
-    "hideDetails": "Verbergen"
+    "hideDetails": "Verbergen",
+    "loadFailed": "Aktivitätsprotokoll konnte nicht geladen werden"
   },
   "clients": {
     "title": "Clients",
