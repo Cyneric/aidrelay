@@ -1,6 +1,6 @@
 {
   "name": "aidrelay",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "AI Developer Relay - Centralized MCP server config and AI rules manager",
   "private": true,
   "author": {
