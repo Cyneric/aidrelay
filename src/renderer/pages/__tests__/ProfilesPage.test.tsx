@@ -1,3 +1,16 @@
+/**
+ * @file src/renderer/pages/__tests__/ProfilesPage.test.tsx
+ *
+ * @created 08.03.2026
+ * @modified 17.03.2026
+ *
+ * @author Christian Blank <aidrelay@proton.me>
+ * @copyright 2026
+ *
+ * @description Unit tests for ProfilesPage. Verifies delete confirmation flow
+ * using the RowActions dropdown pattern.
+ */
+
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import userEvent from '@testing-library/user-event'
 import { screen, waitFor } from '@testing-library/react'
@@ -58,27 +71,39 @@ describe('ProfilesPage delete confirmation', () => {
   })
 
   it('opens typed-name confirmation dialog before deleting', async () => {
+    const user = userEvent.setup()
     renderWithProviders(<ProfilesPage />)
 
-    await userEvent.click(screen.getByTestId('profile-delete-p1'))
+    // Open the dropdown menu for this profile
+    const menuTrigger = screen.getByTestId('profile-actions-p1-menu-trigger')
+    await user.click(menuTrigger)
+
+    // Click the delete item in the dropdown
+    const deleteItem = await screen.findByTestId('profile-actions-p1-item-delete')
+    await user.click(deleteItem)
+
     expect(screen.getByTestId('profile-delete-dialog')).toBeInTheDocument()
     expect(mockDelete).not.toHaveBeenCalled()
   })
 
   it('confirms deletion only after matching profile name', async () => {
+    const user = userEvent.setup()
     renderWithProviders(<ProfilesPage />)
 
-    await userEvent.click(screen.getByTestId('profile-delete-p1'))
+    // Open dropdown and click delete
+    await user.click(screen.getByTestId('profile-actions-p1-menu-trigger'))
+    const deleteItem = await screen.findByTestId('profile-actions-p1-item-delete')
+    await user.click(deleteItem)
 
     const input = screen.getByTestId('profile-delete-confirmation-input')
     const confirm = screen.getByTestId('profile-delete-confirm')
 
     expect(confirm).toBeDisabled()
 
-    await userEvent.type(input, 'work mode')
+    await user.type(input, 'work mode')
     expect(confirm).toBeEnabled()
 
-    await userEvent.click(confirm)
+    await user.click(confirm)
 
     await waitFor(() => expect(mockDelete).toHaveBeenCalledWith('p1'))
     await waitFor(() =>
@@ -87,10 +112,15 @@ describe('ProfilesPage delete confirmation', () => {
   })
 
   it('closes dialog on cancel without deleting', async () => {
+    const user = userEvent.setup()
     renderWithProviders(<ProfilesPage />)
 
-    await userEvent.click(screen.getByTestId('profile-delete-p1'))
-    await userEvent.click(screen.getByTestId('profile-delete-cancel'))
+    // Open dropdown and click delete
+    await user.click(screen.getByTestId('profile-actions-p1-menu-trigger'))
+    const deleteItem = await screen.findByTestId('profile-actions-p1-item-delete')
+    await user.click(deleteItem)
+
+    await user.click(screen.getByTestId('profile-delete-cancel'))
 
     expect(mockDelete).not.toHaveBeenCalled()
     expect(screen.queryByTestId('profile-delete-dialog')).not.toBeInTheDocument()

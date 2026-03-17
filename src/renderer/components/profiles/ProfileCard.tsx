@@ -2,22 +2,22 @@
  * @file src/renderer/components/profiles/ProfileCard.tsx
  *
  * @created 07.03.2026
- * @modified 08.03.2026
+ * @modified 17.03.2026
  *
  * @author Christian Blank <aidrelay@proton.me>
  * @copyright 2026
  *
  * @description Card widget for a single configuration profile. Shows the
  * name, icon, color swatch, description, and an "Active" badge when the
- * profile is current. Exposes Activate, Edit, and Delete action buttons.
+ * profile is current. Uses RowActions dropdown for edit/delete actions.
  */
 
-import { Pencil, Trash2, Zap } from 'lucide-react'
+import { Zap, Pencil, Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
-import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { RowActions } from '@/components/common/RowActions'
+import type { RowActionMenuItem } from '@/components/common/RowActions'
 import type { Profile } from '@shared/types'
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -40,6 +40,22 @@ interface ProfileCardProps {
 const ProfileCard = ({ profile, onActivate, onEdit, onDelete }: ProfileCardProps) => {
   const { t } = useTranslation()
   const isDefault = profile.name.toLowerCase() === 'default'
+
+  const menuItems: ReadonlyArray<RowActionMenuItem> = [
+    {
+      label: t('common.edit'),
+      icon: Pencil,
+      onClick: () => onEdit(profile),
+      disabled: isDefault,
+    },
+    {
+      label: t('common.delete'),
+      icon: Trash2,
+      onClick: () => onDelete(profile),
+      disabled: profile.isActive || isDefault,
+      destructive: true,
+    },
+  ]
 
   return (
     <article
@@ -86,67 +102,19 @@ const ProfileCard = ({ profile, onActivate, onEdit, onDelete }: ProfileCardProps
         </div>
 
         {/* Actions */}
-        <div className="flex items-center gap-0.5 shrink-0">
-          {!profile.isActive && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  onClick={() => onActivate(profile)}
-                  aria-label={`Activate profile ${profile.name}`}
-                  data-testid={`profile-activate-${profile.id}`}
-                >
-                  <Zap size={14} />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>{t('profiles.activateTooltip')}</TooltipContent>
-            </Tooltip>
-          )}
-
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                onClick={() => onEdit(profile)}
-                disabled={isDefault}
-                aria-label={`Edit profile ${profile.name}`}
-                data-testid={`profile-edit-${profile.id}`}
-              >
-                <Pencil size={14} />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              {isDefault ? t('profiles.editDefaultTooltip') : t('profiles.editTooltip')}
-            </TooltipContent>
-          </Tooltip>
-
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                onClick={() => onDelete(profile)}
-                disabled={profile.isActive || isDefault}
-                aria-label={`Delete profile ${profile.name}`}
-                data-testid={`profile-delete-${profile.id}`}
-              >
-                <Trash2 size={14} />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              {isDefault
-                ? t('profiles.deleteDefaultTooltip')
-                : profile.isActive
-                  ? t('profiles.deleteActiveTooltip')
-                  : t('profiles.deleteTooltip')}
-            </TooltipContent>
-          </Tooltip>
-        </div>
+        <RowActions
+          primaryAction={
+            !profile.isActive
+              ? {
+                  label: t('profiles.activateTooltip'),
+                  icon: Zap,
+                  onClick: () => onActivate(profile),
+                }
+              : undefined
+          }
+          menuItems={menuItems}
+          testId={`profile-actions-${profile.id}`}
+        />
       </div>
 
       {/* Description */}

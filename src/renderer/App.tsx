@@ -2,21 +2,27 @@
  * @file src/renderer/App.tsx
  *
  * @created 07.03.2026
- * @modified 10.03.2026
+ * @modified 17.03.2026
  *
  * @author Christian Blank <aidrelay@proton.me>
  * @copyright 2026
  *
  * @description Root React component. Sets up the TanStack Router with a
  * root route that renders the Shell layout and child routes for each page.
- * Placeholder routes are used for pages not yet implemented so navigation
- * links work end-to-end from the start. Rules page wired in Step 22;
- * Profiles page wired in Step 30; Registry + Stacks pages wired in Step 43/45;
- * Settings + History pages wired in Phase 6.
+ * Navigation was simplified in the UI/UX redesign: Activity Log merged into
+ * History, Sync Center merged into Dashboard/Settings, Skills merged into Rules.
+ * Stacks remains navigable but is no longer in the sidebar.
  */
 
 import { useEffect } from 'react'
-import { RouterProvider, createRouter, createRootRoute, createRoute } from '@tanstack/react-router'
+import {
+  RouterProvider,
+  createRouter,
+  createRootRoute,
+  createRoute,
+  createMemoryHistory,
+  redirect,
+} from '@tanstack/react-router'
 import { Toaster, toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
 import { TooltipProvider } from '@/components/ui/tooltip'
@@ -24,15 +30,12 @@ import { Shell } from '@/components/layout/Shell'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { ServersPage } from '@/pages/ServersPage'
 import { RulesPage } from '@/pages/RulesPage'
-import { ActivityLogPage } from '@/pages/ActivityLogPage'
 import { ProfilesPage } from '@/pages/ProfilesPage'
 import { RegistryPage } from '@/pages/RegistryPage'
 import { StacksPage } from '@/pages/StacksPage'
 import { SettingsPage } from '@/pages/SettingsPage'
 import { HistoryPage } from '@/pages/HistoryPage'
 import { ClientsPage } from '@/pages/ClientsPage'
-import { SyncCenterPage } from '@/pages/SyncCenterPage'
-import { SkillsPage } from '@/pages/SkillsPage'
 import { StartupSplash } from '@/components/layout/StartupSplash'
 import { useStartupSplash } from '@/hooks/useStartupSplash'
 import { clientsService } from '@/services/clients.service'
@@ -72,12 +75,6 @@ const profilesRoute = createRoute({
   component: ProfilesPage,
 })
 
-const activityRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: '/activity',
-  component: ActivityLogPage,
-})
-
 const registryRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/registry',
@@ -102,16 +99,14 @@ const historyRoute = createRoute({
   component: HistoryPage,
 })
 
-const syncCenterRoute = createRoute({
+// Redirect legacy activity routes to the unified history page
+const activityRedirectRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: '/sync-center',
-  component: SyncCenterPage,
-})
-
-const skillsRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: '/skills',
-  component: SkillsPage,
+  path: '/activity',
+  beforeLoad: () => {
+    // eslint-disable-next-line @typescript-eslint/only-throw-error -- TanStack Router expects redirect to be thrown
+    throw redirect({ to: '/history' })
+  },
 })
 
 const routeTree = rootRoute.addChildren([
@@ -120,18 +115,22 @@ const routeTree = rootRoute.addChildren([
   rulesRoute,
   clientsRoute,
   profilesRoute,
-  activityRoute,
   registryRoute,
   stacksRoute,
   settingsRoute,
   historyRoute,
-  syncCenterRoute,
-  skillsRoute,
+  activityRedirectRoute,
 ])
 
 // ─── Router ───────────────────────────────────────────────────────────────────
 
-const router = createRouter({ routeTree })
+// Use in-memory history so routing works correctly under Electron's file:// protocol.
+// The default browser history breaks in production because the URL path is the
+// path to the asar bundle, not "/", so no route ever matches.
+const router = createRouter({
+  routeTree,
+  history: createMemoryHistory({ initialEntries: ['/'] }),
+})
 
 // Register the router's type for TypeScript inference across the app
 declare module '@tanstack/react-router' {

@@ -2,7 +2,7 @@
  * @file src/renderer/pages/SettingsPage.tsx
  *
  * @created 07.03.2026
- * @modified 10.03.2026
+ * @modified 17.03.2026
  *
  * @author Christian Blank <aidrelay@proton.me>
  * @copyright 2026
@@ -33,6 +33,7 @@ import {
   Loader2,
   CheckCircle2,
   XCircle,
+  RefreshCw,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -41,6 +42,7 @@ import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { PathWithActions } from '@/components/common/PathWithActions'
+import { PageHeader } from '@/components/common/PageHeader'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import {
   Select,
@@ -57,6 +59,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { SyncCenterDialog } from '@/components/sync/SyncCenterDialog'
 import { useTheme, type Theme } from '@/lib/useTheme'
 import { useSettingsSections } from '@/hooks/useSettingsSections'
 import { DEFAULT_LANGUAGE, normalizeLanguage, type SupportedLanguage } from '@/i18n/language'
@@ -250,6 +253,7 @@ const GitRemoteSection = () => {
   const canGitSync = true
   const [guideOpen, setGuideOpen] = useState(false)
   const [advancedOpen, setAdvancedOpen] = useState(false)
+  const [syncCenterOpen, setSyncCenterOpen] = useState(false)
   const [isConnected, setIsConnected] = useState(false)
   const [syncPhase, setSyncPhase] = useState<GitSyncPhase>('idle')
   const [syncStatusMode, setSyncStatusMode] = useState<GitSyncStatusMode>('sync')
@@ -657,7 +661,19 @@ const GitRemoteSection = () => {
           <Unplug size={14} aria-hidden="true" />
           {t('settings.disconnectButton')}
         </Button>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => setSyncCenterOpen(true)}
+          className="gap-1.5"
+          data-testid="btn-open-sync-center"
+        >
+          <RefreshCw size={14} aria-hidden="true" />
+          {t('syncCenter.openSyncCenter')}
+        </Button>
       </div>
+
+      <SyncCenterDialog open={syncCenterOpen} onOpenChange={setSyncCenterOpen} />
 
       <details
         className="mt-4 rounded-md border border-border/70 p-3"
@@ -1486,10 +1502,7 @@ const SettingsPage = () => {
 
   return (
     <main className="flex flex-col gap-6 max-w-2xl" data-testid="settings-page">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">{t('nav.settings')}</h1>
-        <p className="text-sm text-muted-foreground mt-1">{t('settings.subtitle')}</p>
-      </div>
+      <PageHeader title={t('nav.settings')} subtitle={t('settings.subtitle')} />
 
       {sections.map((SectionComponent, index) => (
         <SectionComponent key={index} />

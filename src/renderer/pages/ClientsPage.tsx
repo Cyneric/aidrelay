@@ -2,7 +2,7 @@
  * @file src/renderer/pages/ClientsPage.tsx
  *
  * @created 07.03.2026
- * @modified 10.03.2026
+ * @modified 17.03.2026
  *
  * @author Christian Blank <aidrelay@proton.me>
  * @copyright 2026
@@ -45,6 +45,8 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { RowActions } from '@/components/common/RowActions'
+import { PageHeader } from '@/components/common/PageHeader'
 import { ClientIcon } from '@/components/common/icons/ClientIcon'
 import { CreateConfigConfirmDialog } from '@/components/clients/CreateConfigConfirmDialog'
 import { SyncDiffDialog } from '@/components/clients/SyncDiffDialog'
@@ -287,107 +289,51 @@ const ClientRow = ({
 
       {/* Actions */}
       <TableCell className="px-2 py-2.5">
-        <div className="flex items-center gap-1">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                type="button"
-                size="icon-xs"
-                onClick={() => onSync(client.id)}
-                disabled={!client.installed || syncing || missingConfig}
-                aria-label={t('clients.syncTooltip', { name: client.displayName })}
-                data-testid={`btn-sync-${client.id}`}
-              >
-                <RefreshCw size={11} className={syncing ? 'animate-spin' : ''} aria-hidden="true" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              {!client.installed
-                ? client.id === 'codex-gui'
-                  ? t('clients.notInstalledCodexGuiTooltip', { name: client.displayName })
-                  : t('clients.notInstalledTooltip', { name: client.displayName })
-                : missingConfig
-                  ? t('clients.syncDisabledMissingConfigTooltip', { name: client.displayName })
-                  : t('clients.syncTooltip', { name: client.displayName })}
-            </TooltipContent>
-          </Tooltip>
-
-          {isFileBasedClient ? (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon-xs"
-                  onClick={() => onDiscover(client.id)}
-                  disabled={discovering}
-                  aria-label={t('clients.discoverAria', { name: client.displayName })}
-                  data-testid={`btn-discover-${client.id}`}
-                >
-                  <FolderInput size={11} aria-hidden="true" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>{t('clients.discoverTooltip')}</TooltipContent>
-            </Tooltip>
-          ) : (
-            <span className="inline-flex size-6" aria-hidden="true" />
-          )}
-
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                type="button"
-                variant="outline"
-                size="icon-xs"
-                onClick={() => onManageSyncItems(client.id)}
-                aria-label={t('clients.manageSyncItemsAria', { name: client.displayName })}
-                data-testid={`btn-manage-sync-items-${client.id}`}
-              >
-                <SlidersHorizontal size={11} aria-hidden="true" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>{t('clients.manageSyncItemsTooltip')}</TooltipContent>
-          </Tooltip>
-
-          {showInstall ? (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  type="button"
-                  size="icon-xs"
-                  onClick={() => onInstall(client.id)}
-                  disabled={installing}
-                  className="bg-cyan-600 text-white hover:bg-cyan-500 dark:bg-cyan-500 dark:hover:bg-cyan-400"
-                  aria-label={t('clients.installAria', { name: client.displayName })}
-                  data-testid={`btn-install-${client.id}`}
-                >
-                  <Download size={11} aria-hidden="true" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>{t('clients.installTooltip')}</TooltipContent>
-            </Tooltip>
-          ) : (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon-xs"
-                  onClick={() => onValidate(client.id)}
-                  disabled={validating || !hasConfig}
-                  aria-label={t('clients.validateClientAria', { name: client.displayName })}
-                  data-testid={`btn-validate-${client.id}`}
-                >
-                  <ShieldCheck size={11} aria-hidden="true" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                {hasConfig
-                  ? t('clients.validateTooltip')
-                  : t('clients.validateDisabledMissingConfigTooltip')}
-              </TooltipContent>
-            </Tooltip>
-          )}
+        <div className="flex items-center gap-1.5">
+          <RowActions
+            primaryAction={{
+              label: t('clients.syncAction'),
+              icon: RefreshCw,
+              onClick: () => onSync(client.id),
+              disabled: !client.installed || missingConfig,
+              loading: syncing,
+            }}
+            menuItems={[
+              ...(isFileBasedClient
+                ? [
+                    {
+                      label: t('clients.discoverAction'),
+                      icon: FolderInput,
+                      onClick: () => onDiscover(client.id),
+                      disabled: discovering,
+                    },
+                  ]
+                : []),
+              {
+                label: t('clients.manageSyncItemsAction'),
+                icon: SlidersHorizontal,
+                onClick: () => onManageSyncItems(client.id),
+              },
+              ...(showInstall
+                ? [
+                    {
+                      label: t('clients.installAction'),
+                      icon: Download,
+                      onClick: () => onInstall(client.id),
+                      disabled: installing,
+                    },
+                  ]
+                : [
+                    {
+                      label: t('clients.validateAction'),
+                      icon: ShieldCheck,
+                      onClick: () => onValidate(client.id),
+                      disabled: validating || !hasConfig,
+                    },
+                  ]),
+            ]}
+            testId={`client-actions-${client.id}`}
+          />
 
           {validationStatus === 'success' && (
             <Tooltip>
@@ -1027,62 +973,62 @@ const ClientsPage = () => {
         }}
       />
 
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">{t('clients.title')}</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {loading
-              ? t('clients.detecting')
-              : t('clients.installedCount', { installed: installedCount, total: clients.length })}
-          </p>
-        </div>
+      <PageHeader
+        title={t('clients.title')}
+        subtitle={
+          loading
+            ? t('clients.detecting')
+            : t('clients.installedCount', { installed: installedCount, total: clients.length })
+        }
+        testId="clients-page-header"
+        actions={
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => void detectAll()}
+              disabled={loading}
+              className="gap-1.5"
+              data-testid="btn-refresh-clients"
+            >
+              <RefreshCw size={14} className={loading ? 'animate-spin' : ''} aria-hidden="true" />
+              {loading ? t('clients.detecting_button') : t('clients.refresh')}
+            </Button>
 
-        <div className="flex gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => void detectAll()}
-            disabled={loading}
-            className="gap-1.5"
-            data-testid="btn-refresh-clients"
-          >
-            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} aria-hidden="true" />
-            {loading ? t('clients.detecting_button') : t('clients.refresh')}
-          </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => void handleValidateAll()}
+                  disabled={loading || validatingAll || validateAllCount === 0}
+                  className="gap-1.5"
+                  data-testid="btn-validate-all"
+                >
+                  <ShieldCheck
+                    size={14}
+                    className={validatingAll ? 'animate-pulse' : ''}
+                    aria-hidden="true"
+                  />
+                  {validatingAll ? t('clients.validateAllRunning') : t('clients.validateAll')}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t('clients.validateAllTooltip')}</TooltipContent>
+            </Tooltip>
 
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => void handleValidateAll()}
-                disabled={loading || validatingAll || validateAllCount === 0}
-                className="gap-1.5"
-                data-testid="btn-validate-all"
-              >
-                <ShieldCheck
-                  size={14}
-                  className={validatingAll ? 'animate-pulse' : ''}
-                  aria-hidden="true"
-                />
-                {validatingAll ? t('clients.validateAllRunning') : t('clients.validateAll')}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>{t('clients.validateAllTooltip')}</TooltipContent>
-          </Tooltip>
-
-          <Button
-            type="button"
-            onClick={() => void handleSyncAll()}
-            disabled={loading || installedCount === 0}
-            className="gap-1.5"
-            data-testid="btn-sync-all"
-          >
-            <RefreshCw size={14} aria-hidden="true" />
-            {t('clients.syncAll')}
-          </Button>
-        </div>
-      </div>
+            <Button
+              type="button"
+              onClick={() => void handleSyncAll()}
+              disabled={loading || installedCount === 0}
+              className="gap-1.5"
+              data-testid="btn-sync-all"
+            >
+              <RefreshCw size={14} aria-hidden="true" />
+              {t('clients.syncAll')}
+            </Button>
+          </>
+        }
+      />
 
       <div className="rounded-lg border overflow-hidden">
         <Table className="w-full text-sm" data-testid="clients-table">

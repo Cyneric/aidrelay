@@ -2,13 +2,13 @@
  * @file src/renderer/components/layout/Sidebar.tsx
  *
  * @created 07.03.2026
- * @modified 10.03.2026
+ * @modified 17.03.2026
  *
  * @author Christian Blank <aidrelay@proton.me>
  * @copyright 2026
  *
- * @description Fixed left sidebar with application branding and primary
- * navigation. Highlights the active route using TanStack Router state.
+ * @description Fixed left sidebar with application branding and simplified
+ * flat navigation. Highlights the active route using TanStack Router state.
  */
 
 import { useEffect, useRef } from 'react'
@@ -18,49 +18,47 @@ import {
   BookOpen,
   Monitor,
   Layers,
-  Activity,
   Settings,
   Store,
-  Package,
   History,
-  GitPullRequest,
-  Sparkles,
 } from 'lucide-react'
 import { Link, useRouterState } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import { useTheme } from '@/lib/useTheme'
 import { useProfilesStore } from '@/stores/profiles.store'
+import { Separator } from '@/components/ui/separator'
 import sidebarLogoDark from '../../assets/branding/aidrelay_logo_with_slogan_for_darkmode.png'
 import sidebarLogoLight from '../../assets/branding/aidrelay_logo_with_slogan_for_lightmode.png'
 
 // ─── Nav Config ───────────────────────────────────────────────────────────────
 
 /**
- * Static nav item definitions. Labels are i18n keys looked up at render time
- * so the sidebar reacts to language changes without a page reload.
+ * Primary navigation items displayed in the main section of the sidebar.
+ * Labels are i18n keys looked up at render time so the sidebar reacts
+ * to language changes without a page reload.
  */
-const CORE_NAV_ITEMS = [
+const PRIMARY_NAV_ITEMS = [
   { to: '/', labelKey: 'nav.dashboard', icon: LayoutDashboard },
   { to: '/servers', labelKey: 'nav.servers', icon: Server },
   { to: '/rules', labelKey: 'nav.rules', icon: BookOpen },
   { to: '/clients', labelKey: 'nav.clients', icon: Monitor },
-  { to: '/skills', labelKey: 'nav.skills', icon: Sparkles },
-]
-
-const OPERATIONS_NAV_ITEMS = [
   { to: '/profiles', labelKey: 'nav.profiles', icon: Layers },
   { to: '/registry', labelKey: 'nav.registry', icon: Store },
-  { to: '/stacks', labelKey: 'nav.stacks', icon: Package },
-  { to: '/activity', labelKey: 'nav.activityLog', icon: Activity },
+] as const
+
+/**
+ * Secondary navigation items displayed below the separator.
+ */
+const SECONDARY_NAV_ITEMS = [
   { to: '/history', labelKey: 'nav.history', icon: History },
-  { to: '/sync-center', labelKey: 'nav.syncCenter', icon: GitPullRequest },
+  { to: '/settings', labelKey: 'nav.settings', icon: Settings },
 ] as const
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 /**
- * Application sidebar with logo, navigation links, and a pinned settings link.
+ * Application sidebar with logo, navigation links, and active profile indicator.
  * Rendered once inside `Shell` — not re-mounted on route changes.
  */
 const Sidebar = () => {
@@ -85,7 +83,7 @@ const Sidebar = () => {
   const renderNavLink = (
     to: string,
     labelKey: string,
-    Icon: (typeof CORE_NAV_ITEMS)[number]['icon'],
+    Icon: (typeof PRIMARY_NAV_ITEMS)[number]['icon'],
   ) => {
     const label = t(labelKey)
     const isActive = to === '/' ? currentPath === '/' : currentPath.startsWith(to)
@@ -130,35 +128,17 @@ const Sidebar = () => {
         />
       </div>
 
-      {/* Primary links */}
+      {/* Navigation */}
       <nav className="flex-1 overflow-y-auto px-2 py-2">
-        <div className="space-y-3">
-          <section aria-labelledby="sidebar-core-nav">
-            <h2
-              id="sidebar-core-nav"
-              className="px-3 pb-0.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/80"
-            >
-              {t('nav.sectionCore')}
-            </h2>
-            <ul className="space-y-0.5" role="list">
-              {CORE_NAV_ITEMS.map(({ to, labelKey, icon }) => renderNavLink(to, labelKey, icon))}
-            </ul>
-          </section>
+        <ul className="space-y-0.5" role="list">
+          {PRIMARY_NAV_ITEMS.map(({ to, labelKey, icon }) => renderNavLink(to, labelKey, icon))}
+        </ul>
 
-          <section aria-labelledby="sidebar-operations-nav">
-            <h2
-              id="sidebar-operations-nav"
-              className="px-3 pb-0.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/80"
-            >
-              {t('nav.sectionOperations')}
-            </h2>
-            <ul className="space-y-0.5" role="list">
-              {OPERATIONS_NAV_ITEMS.map(({ to, labelKey, icon }) =>
-                renderNavLink(to, labelKey, icon),
-              )}
-            </ul>
-          </section>
-        </div>
+        <Separator className="my-3" />
+
+        <ul className="space-y-0.5" role="list">
+          {SECONDARY_NAV_ITEMS.map(({ to, labelKey, icon }) => renderNavLink(to, labelKey, icon))}
+        </ul>
       </nav>
 
       {/* Active profile */}
@@ -204,26 +184,6 @@ const Sidebar = () => {
             {t('profilesIndicator.none')}
           </p>
         )}
-      </div>
-
-      {/* Settings (pinned to bottom) */}
-      <div className="border-t px-2 py-2">
-        <h2 className="px-3 pb-0.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/80">
-          {t('nav.sectionSettings')}
-        </h2>
-        <ul role="list">
-          <li>
-            <Link
-              to="/settings"
-              className={linkClasses(currentPath.startsWith('/settings'))}
-              data-testid="nav-link-settings"
-              aria-current={currentPath.startsWith('/settings') ? 'page' : undefined}
-            >
-              <Settings size={15} aria-hidden="true" />
-              {t('nav.settings')}
-            </Link>
-          </li>
-        </ul>
       </div>
     </aside>
   )

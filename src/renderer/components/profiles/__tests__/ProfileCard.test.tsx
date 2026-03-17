@@ -2,13 +2,14 @@
  * @file src/renderer/components/profiles/__tests__/ProfileCard.test.tsx
  *
  * @created 07.03.2026
- * @modified 08.03.2026
+ * @modified 17.03.2026
  *
  * @author Christian Blank <aidrelay@proton.me>
  * @copyright 2026
  *
  * @description Unit tests for the ProfileCard component. Verifies rendering,
- * badge visibility, action button callbacks, and disabled states.
+ * badge visibility, action button callbacks, and disabled states via the
+ * RowActions dropdown pattern.
  */
 
 import { describe, it, expect, vi } from 'vitest'
@@ -75,7 +76,7 @@ describe('ProfileCard', () => {
     expect(screen.queryByTestId('profile-active-badge-p1')).not.toBeInTheDocument()
   })
 
-  it('shows Activate button when profile is not active', () => {
+  it('shows Activate primary action when profile is not active', () => {
     renderWithProviders(
       <ProfileCard
         profile={baseProfile}
@@ -84,10 +85,10 @@ describe('ProfileCard', () => {
         onDelete={vi.fn()}
       />,
     )
-    expect(screen.getByTestId('profile-activate-p1')).toBeInTheDocument()
+    expect(screen.getByTestId('profile-actions-p1-primary')).toBeInTheDocument()
   })
 
-  it('hides Activate button when profile is active', () => {
+  it('hides Activate primary action when profile is active', () => {
     renderWithProviders(
       <ProfileCard
         profile={{ ...baseProfile, isActive: true }}
@@ -96,10 +97,11 @@ describe('ProfileCard', () => {
         onDelete={vi.fn()}
       />,
     )
-    expect(screen.queryByTestId('profile-activate-p1')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('profile-actions-p1-primary')).not.toBeInTheDocument()
   })
 
   it('calls onActivate with the profile when Activate clicked', async () => {
+    const user = userEvent.setup()
     const onActivate = vi.fn()
     renderWithProviders(
       <ProfileCard
@@ -109,20 +111,24 @@ describe('ProfileCard', () => {
         onDelete={vi.fn()}
       />,
     )
-    await userEvent.click(screen.getByTestId('profile-activate-p1'))
+    await user.click(screen.getByTestId('profile-actions-p1-primary'))
     expect(onActivate).toHaveBeenCalledWith(baseProfile)
   })
 
-  it('calls onEdit with the profile when Edit clicked', async () => {
+  it('calls onEdit with the profile when Edit clicked in dropdown', async () => {
+    const user = userEvent.setup()
     const onEdit = vi.fn()
     renderWithProviders(
       <ProfileCard profile={baseProfile} onActivate={vi.fn()} onEdit={onEdit} onDelete={vi.fn()} />,
     )
-    await userEvent.click(screen.getByTestId('profile-edit-p1'))
+    await user.click(screen.getByTestId('profile-actions-p1-menu-trigger'))
+    const editItem = await screen.findByTestId('profile-actions-p1-item-edit')
+    await user.click(editItem)
     expect(onEdit).toHaveBeenCalledWith(baseProfile)
   })
 
-  it('calls onDelete with the profile when Delete clicked', async () => {
+  it('calls onDelete with the profile when Delete clicked in dropdown', async () => {
+    const user = userEvent.setup()
     const onDelete = vi.fn()
     renderWithProviders(
       <ProfileCard
@@ -132,11 +138,14 @@ describe('ProfileCard', () => {
         onDelete={onDelete}
       />,
     )
-    await userEvent.click(screen.getByTestId('profile-delete-p1'))
+    await user.click(screen.getByTestId('profile-actions-p1-menu-trigger'))
+    const deleteItem = await screen.findByTestId('profile-actions-p1-item-delete')
+    await user.click(deleteItem)
     expect(onDelete).toHaveBeenCalledWith(baseProfile)
   })
 
-  it('disables Delete button when profile is active', () => {
+  it('disables Delete item when profile is active', async () => {
+    const user = userEvent.setup()
     renderWithProviders(
       <ProfileCard
         profile={{ ...baseProfile, isActive: true }}
@@ -145,10 +154,13 @@ describe('ProfileCard', () => {
         onDelete={vi.fn()}
       />,
     )
-    expect(screen.getByTestId('profile-delete-p1')).toBeDisabled()
+    await user.click(screen.getByTestId('profile-actions-p1-menu-trigger'))
+    const deleteItem = await screen.findByTestId('profile-actions-p1-item-delete')
+    expect(deleteItem).toHaveAttribute('data-disabled', '')
   })
 
-  it('disables Delete button for the default profile', () => {
+  it('disables Delete item for the default profile', async () => {
+    const user = userEvent.setup()
     renderWithProviders(
       <ProfileCard
         profile={{ ...baseProfile, name: 'default', isActive: false }}
@@ -157,10 +169,13 @@ describe('ProfileCard', () => {
         onDelete={vi.fn()}
       />,
     )
-    expect(screen.getByTestId('profile-delete-p1')).toBeDisabled()
+    await user.click(screen.getByTestId('profile-actions-p1-menu-trigger'))
+    const deleteItem = await screen.findByTestId('profile-actions-p1-item-delete')
+    expect(deleteItem).toHaveAttribute('data-disabled', '')
   })
 
-  it('disables Edit button for the default profile', () => {
+  it('disables Edit item for the default profile', async () => {
+    const user = userEvent.setup()
     renderWithProviders(
       <ProfileCard
         profile={{ ...baseProfile, name: 'default', isActive: false }}
@@ -169,7 +184,9 @@ describe('ProfileCard', () => {
         onDelete={vi.fn()}
       />,
     )
-    expect(screen.getByTestId('profile-edit-p1')).toBeDisabled()
+    await user.click(screen.getByTestId('profile-actions-p1-menu-trigger'))
+    const editItem = await screen.findByTestId('profile-actions-p1-item-edit')
+    expect(editItem).toHaveAttribute('data-disabled', '')
   })
 
   it('shows correct override counts', () => {

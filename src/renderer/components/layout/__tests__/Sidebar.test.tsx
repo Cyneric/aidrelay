@@ -2,7 +2,7 @@
  * @file src/renderer/components/layout/__tests__/Sidebar.test.tsx
  *
  * @created 08.03.2026
- * @modified 08.03.2026
+ * @modified 17.03.2026
  *
  * @author Christian Blank <aidrelay@proton.me>
  * @copyright 2026
@@ -45,9 +45,13 @@ vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string) => {
       if (key === 'nav.servers') return 'MCP Servers'
-      if (key === 'nav.sectionCore') return 'Core'
-      if (key === 'nav.sectionOperations') return 'Operations'
-      if (key === 'nav.sectionSettings') return 'Settings'
+      if (key === 'nav.dashboard') return 'Dashboard'
+      if (key === 'nav.rules') return 'Rules'
+      if (key === 'nav.clients') return 'Clients'
+      if (key === 'nav.profiles') return 'Profiles'
+      if (key === 'nav.registry') return 'Registry'
+      if (key === 'nav.history') return 'History'
+      if (key === 'nav.settings') return 'Settings'
       if (key === 'profilesIndicator.label') return 'Active profile'
       if (key === 'profilesIndicator.loading') return 'Loading profile...'
       if (key === 'profilesIndicator.none') return 'No active profile'
@@ -155,10 +159,15 @@ describe('Sidebar', () => {
       expect(screen.getByText('MCP Servers')).toBeInTheDocument()
     })
 
-    it('renders grouped navigation section labels', () => {
+    it('renders all primary and secondary nav links', () => {
       render(<Sidebar />)
-      expect(screen.getByText('Core')).toBeInTheDocument()
-      expect(screen.getByText('Operations')).toBeInTheDocument()
+      expect(screen.getByText('Dashboard')).toBeInTheDocument()
+      expect(screen.getByText('MCP Servers')).toBeInTheDocument()
+      expect(screen.getByText('Rules')).toBeInTheDocument()
+      expect(screen.getByText('Clients')).toBeInTheDocument()
+      expect(screen.getByText('Profiles')).toBeInTheDocument()
+      expect(screen.getByText('Registry')).toBeInTheDocument()
+      expect(screen.getByText('History')).toBeInTheDocument()
       expect(screen.getByText('Settings')).toBeInTheDocument()
     })
 

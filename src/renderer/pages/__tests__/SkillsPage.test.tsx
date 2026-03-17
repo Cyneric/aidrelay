@@ -164,6 +164,8 @@ describe('SkillsPage', () => {
   })
 
   it('supports create wizard step validation and final create call', async () => {
+    // This test drives a multi-step wizard through 9+ sequential interactions.
+    // Under parallel test suite load the default 5 s is too tight — use 15 s.
     const user = userEvent.setup()
     renderWithProviders(<SkillsPage />)
 
@@ -190,7 +192,7 @@ describe('SkillsPage', () => {
         resources: [],
       }),
     )
-  })
+  }, 15000)
 
   it('resolves a sync conflict via keep local action', async () => {
     const user = userEvent.setup()

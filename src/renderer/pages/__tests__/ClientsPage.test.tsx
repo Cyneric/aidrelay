@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { renderWithProviders } from '@/test-utils'
 import { ClientsPage } from '../ClientsPage'
 import type {
@@ -83,6 +84,24 @@ vi.mock('@/stores/clients.store', async (importOriginal) => {
     }),
   }
 })
+
+/**
+ * Helper to open a RowActions dropdown for a given client and click a menu item.
+ *
+ * @param user - The userEvent instance.
+ * @param clientId - The client identifier (e.g. "cursor", "vscode").
+ * @param itemSlug - The slugified menu item label (e.g. "validate-config").
+ */
+const clickDropdownItem = async (
+  user: ReturnType<typeof userEvent.setup>,
+  clientId: string,
+  itemSlug: string,
+) => {
+  const trigger = screen.getByTestId(`client-actions-${clientId}-menu-trigger`)
+  await user.click(trigger)
+  const item = await screen.findByTestId(`client-actions-${clientId}-item-${itemSlug}`)
+  await user.click(item)
+}
 
 describe('ClientsPage sync-all reporting', () => {
   const windowOpenMock =
@@ -244,12 +263,19 @@ describe('ClientsPage sync-all reporting', () => {
     })
   })
 
-  it('renders only one folder icon for config paths in table rows', () => {
+  it('renders only one folder icon for config paths in table rows', async () => {
+    const user = userEvent.setup()
     renderWithProviders(<ClientsPage />)
 
     expect(screen.getByTestId('clients-config-path-vscode-0-reveal')).toBeInTheDocument()
     expect(screen.getByTestId('clients-config-path-vscode-0-edit')).toBeInTheDocument()
-    expect(screen.getByTestId('btn-discover-vscode')).toBeInTheDocument()
+
+    // Discover is now in the dropdown menu
+    const trigger = screen.getByTestId('client-actions-vscode-menu-trigger')
+    await user.click(trigger)
+    expect(
+      await screen.findByTestId('client-actions-vscode-item-discover-config-path'),
+    ).toBeInTheDocument()
   })
 
   it('shows missing-config indicator in config path cell and prompts from dedicated create-config action', async () => {
@@ -269,13 +295,10 @@ describe('ClientsPage sync-all reporting', () => {
 
     renderWithProviders(<ClientsPage />)
 
-    const syncButton = screen.getByTestId('btn-sync-cursor')
+    const syncButton = screen.getByTestId('client-actions-cursor-primary')
     const createConfigButton = screen.getByTestId('btn-create-config-cursor')
-    const validateButton = screen.getByTestId('btn-validate-cursor')
-    expect(syncButton).toHaveAccessibleName('Write current profile config to Cursor')
     expect(syncButton).toBeDisabled()
     expect(createConfigButton).toHaveAccessibleName('Create configuration for Cursor')
-    expect(validateButton).toBeDisabled()
 
     expect(screen.queryByTestId('client-missing-config-badge-cursor')).not.toBeInTheDocument()
     const missingConfigPath = screen.getByTestId('client-missing-config-path-cursor')
@@ -321,9 +344,10 @@ describe('ClientsPage sync-all reporting', () => {
       configurable: true,
     })
 
+    const user = userEvent.setup()
     renderWithProviders(<ClientsPage />)
 
-    fireEvent.click(screen.getByTestId('btn-sync-cursor'))
+    await user.click(screen.getByTestId('client-actions-cursor-primary'))
 
     expect(await screen.findByText('Create new configuration?')).toBeInTheDocument()
     expect(toastErrorMock).not.toHaveBeenCalledWith('needs config')
@@ -331,9 +355,10 @@ describe('ClientsPage sync-all reporting', () => {
 
   it('shows green check indicator when validation succeeds', async () => {
     validateConfigMock.mockResolvedValue({ valid: true, errors: [] })
+    const user = userEvent.setup()
     renderWithProviders(<ClientsPage />)
 
-    fireEvent.click(screen.getByTestId('btn-validate-vscode'))
+    await clickDropdownItem(user, 'vscode', 'validate-config')
 
     expect(await screen.findByTestId('validation-status-vscode-success')).toBeInTheDocument()
     expect(screen.queryByTestId('validation-status-vscode-failure')).not.toBeInTheDocument()
@@ -341,9 +366,10 @@ describe('ClientsPage sync-all reporting', () => {
 
   it('shows red cross indicator when validation returns schema issues', async () => {
     validateConfigMock.mockResolvedValue({ valid: false, errors: ['bad schema'] })
+    const user = userEvent.setup()
     renderWithProviders(<ClientsPage />)
 
-    fireEvent.click(screen.getByTestId('btn-validate-vscode'))
+    await clickDropdownItem(user, 'vscode', 'validate-config')
 
     expect(await screen.findByTestId('validation-status-vscode-failure')).toBeInTheDocument()
     expect(screen.queryByTestId('validation-status-vscode-success')).not.toBeInTheDocument()
@@ -351,9 +377,10 @@ describe('ClientsPage sync-all reporting', () => {
 
   it('shows red cross indicator when validation request throws', async () => {
     validateConfigMock.mockRejectedValue(new Error('IPC unavailable'))
+    const user = userEvent.setup()
     renderWithProviders(<ClientsPage />)
 
-    fireEvent.click(screen.getByTestId('btn-validate-vscode'))
+    await clickDropdownItem(user, 'vscode', 'validate-config')
 
     expect(await screen.findByTestId('validation-status-vscode-failure')).toBeInTheDocument()
     expect(screen.queryByTestId('validation-status-vscode-success')).not.toBeInTheDocument()
@@ -361,9 +388,10 @@ describe('ClientsPage sync-all reporting', () => {
 
   it('keeps validation indicator scoped to the validated row', async () => {
     validateConfigMock.mockResolvedValue({ valid: true, errors: [] })
+    const user = userEvent.setup()
     renderWithProviders(<ClientsPage />)
 
-    fireEvent.click(screen.getByTestId('btn-validate-vscode'))
+    await clickDropdownItem(user, 'vscode', 'validate-config')
 
     expect(await screen.findByTestId('validation-status-vscode-success')).toBeInTheDocument()
     expect(screen.queryByTestId('validation-status-cursor-success')).not.toBeInTheDocument()
@@ -374,12 +402,13 @@ describe('ClientsPage sync-all reporting', () => {
     validateConfigMock
       .mockResolvedValueOnce({ valid: true, errors: [] })
       .mockResolvedValueOnce({ valid: false, errors: ['now broken'] })
+    const user = userEvent.setup()
     renderWithProviders(<ClientsPage />)
 
-    fireEvent.click(screen.getByTestId('btn-validate-vscode'))
+    await clickDropdownItem(user, 'vscode', 'validate-config')
     expect(await screen.findByTestId('validation-status-vscode-success')).toBeInTheDocument()
 
-    fireEvent.click(screen.getByTestId('btn-validate-vscode'))
+    await clickDropdownItem(user, 'vscode', 'validate-config')
     expect(await screen.findByTestId('validation-status-vscode-failure')).toBeInTheDocument()
     expect(screen.queryByTestId('validation-status-vscode-success')).not.toBeInTheDocument()
   })
@@ -453,9 +482,10 @@ describe('ClientsPage sync-all reporting', () => {
       message: 'Installed via winget.',
     })
 
+    const user = userEvent.setup()
     renderWithProviders(<ClientsPage />)
 
-    fireEvent.click(screen.getByTestId('btn-install-cursor'))
+    await clickDropdownItem(user, 'cursor', 'install-client')
     expect(await screen.findByText('Install client?')).toBeInTheDocument()
     fireEvent.click(screen.getByTestId('install-dialog-confirm'))
 
@@ -480,9 +510,10 @@ describe('ClientsPage sync-all reporting', () => {
       },
     ]
 
+    const user = userEvent.setup()
     renderWithProviders(<ClientsPage />)
 
-    fireEvent.click(screen.getByTestId('btn-install-cursor'))
+    await clickDropdownItem(user, 'cursor', 'install-client')
     expect(await screen.findByText('Install client?')).toBeInTheDocument()
     fireEvent.click(screen.getByTestId('install-dialog-official'))
 
@@ -517,9 +548,10 @@ describe('ClientsPage sync-all reporting', () => {
         }),
     )
 
+    const user = userEvent.setup()
     renderWithProviders(<ClientsPage />)
 
-    fireEvent.click(screen.getByTestId('btn-install-cursor'))
+    await clickDropdownItem(user, 'cursor', 'install-client')
     fireEvent.click(await screen.findByTestId('install-dialog-confirm'))
 
     expect(await screen.findByTestId('install-progress-panel')).toBeInTheDocument()
@@ -578,9 +610,10 @@ describe('ClientsPage sync-all reporting', () => {
   })
 
   it('opens manage sync items dialog and updates per-client ignore toggle', async () => {
+    const user = userEvent.setup()
     renderWithProviders(<ClientsPage />)
 
-    fireEvent.click(screen.getByTestId('btn-manage-sync-items-cursor'))
+    await clickDropdownItem(user, 'cursor', 'manage-sync-items')
 
     expect(await screen.findByTestId('manage-sync-items-dialog')).toBeInTheDocument()
     await waitFor(() => expect(serversListMock).toHaveBeenCalledTimes(1))
@@ -600,9 +633,10 @@ describe('ClientsPage sync-all reporting', () => {
       filePaths: ['C:\\custom\\cursor\\mcp.json'],
     })
 
+    const user = userEvent.setup()
     renderWithProviders(<ClientsPage />)
 
-    fireEvent.click(screen.getByTestId('btn-discover-cursor'))
+    await clickDropdownItem(user, 'cursor', 'discover-config-path')
 
     await waitFor(() =>
       expect(showOpenDialogMock).toHaveBeenCalledWith({

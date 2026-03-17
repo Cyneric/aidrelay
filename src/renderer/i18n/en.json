@@ -4,17 +4,10 @@
     "servers": "MCP Servers",
     "rules": "Rules",
     "clients": "Clients",
-    "skills": "Skills",
     "profiles": "Profiles",
     "registry": "Registry",
-    "stacks": "Stacks",
-    "activityLog": "Activity Log",
     "history": "History",
-    "syncCenter": "Sync Center",
-    "settings": "Settings",
-    "sectionCore": "Core",
-    "sectionOperations": "Operations",
-    "sectionSettings": "Settings"
+    "settings": "Settings"
   },
   "profilesIndicator": {
     "label": "Active profile",
@@ -26,6 +19,9 @@
     "title": "Dashboard",
     "subtitle": "Detected AI development tools",
     "noClients": "No AI tools detected on this machine.",
+    "emptyTitle": "No AI tools detected",
+    "emptyDescription": "aidrelay scans your system for installed AI development tools. Click below to run detection.",
+    "detectAll": "Detect All",
     "synced": "Synced",
     "outOfSync": "Out of sync",
     "neverSynced": "Never synced",
@@ -137,6 +133,7 @@
     "search": "Search MCP servers…",
     "noResults": "No MCP servers found.",
     "noServersYet": "No MCP servers yet.",
+    "noServersDescription": "Add servers manually or import them from your installed AI tools.",
     "addFirst": "Add your first MCP Server",
     "countInRegistry_one": "{{count}} MCP Server in the registry",
     "countInRegistry_other": "{{count}} MCP Servers in the registry",
@@ -154,6 +151,7 @@
     "deleteDialogDescription": "Delete \"{{name}}\"? This cannot be undone.",
     "deleteConfirm": "Delete \"{{name}}\"? This cannot be undone.",
     "syncAll": "Sync all clients",
+    "importExportStack": "Import / Export Stack",
     "importFromClients": "Import from clients",
     "importFromClientsTooltip": "Import MCP server configs from installed AI clients",
     "syncAllTooltip": "Write active profile to all installed clients",
@@ -172,6 +170,7 @@
     "limitReached": "MCP server limit reached.",
     "toggleMatrix": "Per-client toggles",
     "perClientEnableDisable": "Per-client enable / disable",
+    "matrixHelpText": "Control which MCP servers are enabled for each AI tool. Changes take effect on the next sync.",
     "loading": "Loading MCP servers…",
     "editTooltip": "Edit MCP Server",
     "deleteTooltip": "Delete MCP Server",
@@ -211,6 +210,10 @@
     "repairAria": "Repair {{name}}",
     "installTooltip": "Install MCP server locally",
     "repairTooltip": "Repair installation (rerun missing steps)",
+    "testAction": "Test server",
+    "repairAction": "Repair",
+    "installAction": "Install",
+    "copyCommandAction": "Copy command",
     "or": "or"
   },
   "serverForm": {
@@ -256,7 +259,10 @@
     "alreadySecret": "Already secret"
   },
   "rules": {
-    "title": "AI Rules",
+    "title": "Rules & Skills",
+    "subtitle": "Manage AI coding rules and reusable skills",
+    "tabRules": "Rules",
+    "tabSkills": "Skills",
     "add": "Add rule",
     "search": "Search rules…",
     "noResults": "No rules found.",
@@ -495,6 +501,11 @@
       },
       "noPackageManagerHint": "No supported package manager was detected. Use the official download page below."
     },
+    "syncAction": "Sync",
+    "discoverAction": "Discover config path",
+    "manageSyncItemsAction": "Manage sync items",
+    "validateAction": "Validate config",
+    "installAction": "Install client",
     "discoverTooltip": "Pick a config file manually",
     "discoverAria": "Discover config path for {{name}}",
     "discoverDialogTitle": "Choose a config file for {{name}}",
@@ -523,8 +534,10 @@
     "validationStatusFailureTooltip": "Last validation: failed"
   },
   "history": {
-    "title": "Backup History",
-    "subtitle": "Per-client config snapshots — restore any previous state with one click.",
+    "title": "History",
+    "subtitle": "Backup history and activity log.",
+    "tabBackups": "Backups",
+    "tabActivityLog": "Activity Log",
     "detecting": "Detecting installed clients…",
     "noClients": "No AI tools detected on this machine.",
     "noBackups": "No backups yet for this client. A backup is created automatically before each sync.",
@@ -645,7 +658,11 @@
     "importSummary_other": "{{imported}} imported · {{skipped}} duplicates skipped",
     "importPasteEmpty": "Paste JSON content before importing",
     "importWithErrors": "Import completed with {{count}} error(s). See summary below.",
-    "importSuccess": "Imported {{imported}} item(s), skipped {{skipped}} duplicate(s)"
+    "importSuccess": "Imported {{imported}} item(s), skipped {{skipped}} duplicate(s)",
+    "export": "Export",
+    "import": "Import",
+    "chooseFile": "Choose file",
+    "fileSelected": "Selected: {{name}}"
   },
   "theme": {
     "toggleLabel": "Toggle theme",
@@ -1024,7 +1041,13 @@
     "currentValue": "Current value",
     "pendingChange": "Pending change",
     "excludeFromPush": "Exclude from push",
-    "confirmPush": "Confirm push"
+    "confirmPush": "Confirm push",
+    "copyDiagnostics": "Copy troubleshooting bundle",
+    "widgetAllSynced": "All synced",
+    "widgetIssuesFound": "{{count}} sync issue(s) found",
+    "widgetDetail": "{{pending}} pending setup(s), {{conflicts}} conflict(s), {{pushReview}} to push",
+    "widgetViewDetails": "View Details",
+    "openSyncCenter": "Open Sync Center"
   },
   "common": {
     "save": "Save",
@@ -1040,6 +1063,7 @@
     "search": "Search",
     "noResults": "No results found.",
     "enabled": "Enabled",
-    "disabled": "Disabled"
+    "disabled": "Disabled",
+    "moreActions": "More actions"
   }
 }

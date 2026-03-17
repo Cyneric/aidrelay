@@ -2,15 +2,15 @@
  * @file src/renderer/pages/RulesPage.tsx
  *
  * @created 07.03.2026
- * @modified 08.03.2026
+ * @modified 17.03.2026
  *
  * @author Christian Blank <aidrelay@proton.me>
  * @copyright 2026
  *
- * @description AI rules management page. Displays all rules in a TanStack
- * Table with per-row enable/disable toggles, category filtering, scope
- * switching, and a collapsible token budget panel. Header actions: Add Rule,
- * Sync Rules, Import.
+ * @description AI rules and skills management page. Uses top-level tabs to
+ * switch between the rules table (with scope toggle, category filter, and
+ * token budget panel) and the embedded Skills view. The rules-specific header
+ * actions (Add Rule, Sync, Import) are shown only when the Rules tab is active.
  */
 
 import { useEffect, useState, useCallback, useMemo } from 'react'
@@ -39,7 +39,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { PageHeader } from '@/components/common/PageHeader'
 import { CategoryFilter } from '@/components/rules/CategoryFilter'
 import { ScopeToggle } from '@/components/rules/ScopeToggle'
 import { RuleEditor } from '@/components/rules/RuleEditor'
@@ -47,12 +49,17 @@ import { TokenBudgetPanel } from '@/components/rules/TokenBudgetPanel'
 import { ImportRulesDialog } from '@/components/rules/ImportRulesDialog'
 import { tokenTextClass } from '@/components/rules/tokenBadgeSeverity'
 import { ConfirmActionDialog } from '@/components/common/ConfirmActionDialog'
+import { SkillsPage } from '@/pages/SkillsPage'
 import { useRulesStore } from '@/stores/rules.store'
 import { rulesService } from '@/services/rules.service'
 import { rulesColumnHelper, useRulesTable } from '@/hooks/useRulesTable'
 import type { AiRule, RuleScope } from '@shared/types'
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Types ───────────────────────────────────────────────────────────────────
+
+type RulesTab = 'rules' | 'skills'
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 /**
  * Returns a Tailwind color class for a priority badge.
@@ -70,17 +77,18 @@ const priorityColor = (priority: AiRule['priority']): string => {
   }
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
+// ─── Component ───────────────────────────────────────────────────────────────
 
 /**
- * Full AI rules management page. Shows a searchable, sortable TanStack Table
- * of all registered rules with category filter pills, scope switching, and a
- * collapsible per-client token budget panel.
+ * Full AI rules and skills management page. Top-level tabs switch between
+ * the rules table and the embedded SkillsPage. Rules-specific header actions
+ * are conditionally rendered based on the active tab.
  */
 const RulesPage = () => {
   const { rules, loading, error, load, delete: deleteRule, toggleEnabled } = useRulesStore()
   const { t } = useTranslation()
 
+  const [activeTab, setActiveTab] = useState<RulesTab>('rules')
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [scope, setScope] = useState<RuleScope>('global')
   const [projectPath, setProjectPath] = useState('')
@@ -170,7 +178,44 @@ const RulesPage = () => {
     }
   }, [t])
 
-  // ─── Table columns ──────────────────────────────────────────────────────────
+  // ─── Rules-specific header actions ─────────────────────────────────────────
+
+  const rulesActions = (
+    <>
+      <Button
+        type="button"
+        variant="outline"
+        onClick={() => setShowImport(true)}
+        className="gap-1.5"
+        data-testid="import-rules-button"
+      >
+        <Upload size={14} aria-hidden="true" />
+        {t('rules.importFromProject')}
+      </Button>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => void handleSyncAll()}
+            disabled={syncingAll}
+            className="gap-1.5"
+            data-testid="sync-rules-button"
+          >
+            <RefreshCw size={14} className={syncingAll ? 'animate-spin' : ''} aria-hidden="true" />
+            {syncingAll ? t('common.loading') : t('rules.syncAll')}
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>{t('rules.syncAllTooltip')}</TooltipContent>
+      </Tooltip>
+      <Button type="button" onClick={openCreate} className="gap-1.5" data-testid="add-rule-button">
+        <Plus size={14} aria-hidden="true" />
+        {t('rules.add')}
+      </Button>
+    </>
+  )
+
+  // ─── Table columns ────────────────────────────────────────────────────────
 
   const columns = [
     rulesColumnHelper.accessor('enabled', {
@@ -319,202 +364,180 @@ const RulesPage = () => {
     columns as Parameters<typeof useRulesTable>[1],
   )
 
-  // ─── Render ──────────────────────────────────────────────────────────────────
+  // ─── Render ────────────────────────────────────────────────────────────────
 
   return (
     <>
-      <section
-        aria-labelledby="rules-heading"
-        className="flex flex-col gap-6"
-        data-testid="rules-page"
-      >
-        {/* Page header */}
-        <header className="flex items-start justify-between gap-4 flex-wrap">
-          <div>
-            <h1 id="rules-heading" className="text-2xl font-bold tracking-tight">
-              {t('rules.title')}
-            </h1>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              {t('rules.countInRegistry', { count: rules.length })}
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2 flex-wrap">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setShowImport(true)}
-              className="gap-1.5"
-              data-testid="import-rules-button"
-            >
-              <Upload size={14} aria-hidden="true" />
-              {t('rules.importFromProject')}
-            </Button>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => void handleSyncAll()}
-                  disabled={syncingAll}
-                  className="gap-1.5"
-                  data-testid="sync-rules-button"
-                >
-                  <RefreshCw
-                    size={14}
-                    className={syncingAll ? 'animate-spin' : ''}
-                    aria-hidden="true"
-                  />
-                  {syncingAll ? t('common.loading') : t('rules.syncAll')}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>{t('rules.syncAllTooltip')}</TooltipContent>
-            </Tooltip>
-            <Button
-              type="button"
-              onClick={openCreate}
-              className="gap-1.5"
-              data-testid="add-rule-button"
-            >
-              <Plus size={14} aria-hidden="true" />
-              {t('rules.add')}
-            </Button>
-          </div>
-        </header>
-
-        {/* Error state */}
-        {error && (
-          <div
-            role="alert"
-            className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
-          >
-            {error}
-          </div>
-        )}
-
-        {/* Scope toggle */}
-        <ScopeToggle
-          scope={scope}
-          onScopeChange={setScope}
-          projectPath={projectPath}
-          onProjectPathChange={setProjectPath}
+      <section aria-labelledby="rules-heading" className="flex flex-col" data-testid="rules-page">
+        <PageHeader
+          id="rules-heading"
+          title={t('rules.title')}
+          subtitle={t('rules.subtitle')}
+          actions={activeTab === 'rules' ? rulesActions : undefined}
+          testId="rules-page-header"
         />
 
-        {/* Search + Category filter */}
-        <div className="flex flex-col gap-3">
-          <Input
-            type="search"
-            value={globalFilter}
-            onChange={(e) => setGlobalFilter(e.target.value)}
-            placeholder={t('rules.search')}
-            className="max-w-sm"
-            aria-label={t('rules.search')}
-            data-testid="rules-search"
-          />
-          <CategoryFilter
-            rules={scopeFilteredRules}
-            selected={selectedCategory}
-            onChange={setSelectedCategory}
-          />
-        </div>
+        <Tabs
+          value={activeTab}
+          onValueChange={(value) => setActiveTab(value as RulesTab)}
+          className="px-6 pb-6"
+          data-testid="rules-tabs"
+        >
+          <TabsList data-testid="rules-tabs-list">
+            <TabsTrigger value="rules" data-testid="rules-tab-rules">
+              {t('rules.tabRules')}
+            </TabsTrigger>
+            <TabsTrigger value="skills" data-testid="rules-tab-skills">
+              {t('rules.tabSkills')}
+            </TabsTrigger>
+          </TabsList>
 
-        {/* Table */}
-        <div className="rounded-md border border-border overflow-hidden">
-          {loading ? (
-            <div
-              className="flex items-center justify-center py-16 text-sm text-muted-foreground"
-              data-testid="rules-loading"
-            >
-              {t('rules.loading')}
-            </div>
-          ) : displayedRules.length === 0 ? (
-            <div
-              className="flex flex-col items-center justify-center py-16 gap-2"
-              data-testid="rules-empty"
-            >
-              <p className="text-sm text-muted-foreground">
-                {rules.length === 0
-                  ? t('rules.noRulesYet')
-                  : selectedCategory
-                    ? t('rules.noScopeRulesInCategory', { scope, category: selectedCategory })
-                    : t('rules.noScopeRules', { scope })}
-              </p>
-            </div>
-          ) : (
-            <>
-              <Table className="w-full text-sm" data-testid="rules-table">
-                <TableHeader className="bg-muted/50">
-                  {table.getHeaderGroups().map((headerGroup) => (
-                    <TableRow key={headerGroup.id}>
-                      {headerGroup.headers.map((header) => (
-                        <TableHead
-                          key={header.id}
-                          scope="col"
-                          style={{
-                            width: header.getSize() !== 150 ? header.getSize() : undefined,
-                          }}
-                          className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider first:rounded-tl-md last:rounded-tr-md"
-                        >
-                          {header.isPlaceholder
-                            ? null
-                            : flexRender(header.column.columnDef.header, header.getContext())}
-                        </TableHead>
-                      ))}
-                    </TableRow>
-                  ))}
-                </TableHeader>
-                <TableBody className="divide-y divide-border">
-                  {table.getRowModel().rows.map((row) => (
-                    <TableRow
-                      key={row.id}
-                      className="hover:bg-muted/30 transition-colors"
-                      data-testid={`rule-row-${row.original.id}`}
-                    >
-                      {row.getVisibleCells().map((cell) => (
-                        <TableCell key={cell.id} className="px-3 py-2.5">
-                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-
-              {/* Token summary footer */}
-              <div className="border-t border-border px-3 py-2 flex items-center justify-end gap-2 text-xs text-muted-foreground bg-muted/20">
-                <span>{t('rules.shownCount', { count: table.getRowModel().rows.length })}</span>
-                {totalVisibleTokens > 0 && (
-                  <>
-                    <span aria-hidden="true">·</span>
-                    <span className={tokenTextClass(totalVisibleTokens)}>
-                      {t('rules.tokensEnabled', { count: totalVisibleTokens })}
-                    </span>
-                  </>
-                )}
+          <TabsContent value="rules" className="flex flex-col gap-6 pt-4">
+            {/* Error state */}
+            {error && (
+              <div
+                role="alert"
+                className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+              >
+                {error}
               </div>
-            </>
-          )}
-        </div>
+            )}
 
-        {/* Per-client token budget panel */}
-        <div className="rounded-md border border-border">
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() => setBudgetExpanded((v) => !v)}
-            className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium rounded-none rounded-t-md"
-            aria-expanded={budgetExpanded}
-            data-testid="budget-panel-expand"
-          >
-            <span>{t('rules.tokenBudgetPerClient')}</span>
-            {budgetExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-          </Button>
-          {budgetExpanded && (
-            <div className="border-t border-border px-4 py-4" data-testid="budget-panel-content">
-              <TokenBudgetPanel />
+            {/* Scope toggle */}
+            <ScopeToggle
+              scope={scope}
+              onScopeChange={setScope}
+              projectPath={projectPath}
+              onProjectPathChange={setProjectPath}
+            />
+
+            {/* Search + Category filter */}
+            <div className="flex flex-col gap-3">
+              <Input
+                type="search"
+                value={globalFilter}
+                onChange={(e) => setGlobalFilter(e.target.value)}
+                placeholder={t('rules.search')}
+                className="max-w-sm"
+                aria-label={t('rules.search')}
+                data-testid="rules-search"
+              />
+              <CategoryFilter
+                rules={scopeFilteredRules}
+                selected={selectedCategory}
+                onChange={setSelectedCategory}
+              />
             </div>
-          )}
-        </div>
+
+            {/* Table */}
+            <div className="rounded-md border border-border overflow-hidden">
+              {loading ? (
+                <div
+                  className="flex items-center justify-center py-16 text-sm text-muted-foreground"
+                  data-testid="rules-loading"
+                >
+                  {t('rules.loading')}
+                </div>
+              ) : displayedRules.length === 0 ? (
+                <div
+                  className="flex flex-col items-center justify-center py-16 gap-2"
+                  data-testid="rules-empty"
+                >
+                  <p className="text-sm text-muted-foreground">
+                    {rules.length === 0
+                      ? t('rules.noRulesYet')
+                      : selectedCategory
+                        ? t('rules.noScopeRulesInCategory', {
+                            scope,
+                            category: selectedCategory,
+                          })
+                        : t('rules.noScopeRules', { scope })}
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <Table className="w-full text-sm" data-testid="rules-table">
+                    <TableHeader className="bg-muted/50">
+                      {table.getHeaderGroups().map((headerGroup) => (
+                        <TableRow key={headerGroup.id}>
+                          {headerGroup.headers.map((header) => (
+                            <TableHead
+                              key={header.id}
+                              scope="col"
+                              style={{
+                                width: header.getSize() !== 150 ? header.getSize() : undefined,
+                              }}
+                              className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider first:rounded-tl-md last:rounded-tr-md"
+                            >
+                              {header.isPlaceholder
+                                ? null
+                                : flexRender(header.column.columnDef.header, header.getContext())}
+                            </TableHead>
+                          ))}
+                        </TableRow>
+                      ))}
+                    </TableHeader>
+                    <TableBody className="divide-y divide-border">
+                      {table.getRowModel().rows.map((row) => (
+                        <TableRow
+                          key={row.id}
+                          className="hover:bg-muted/30 transition-colors"
+                          data-testid={`rule-row-${row.original.id}`}
+                        >
+                          {row.getVisibleCells().map((cell) => (
+                            <TableCell key={cell.id} className="px-3 py-2.5">
+                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+
+                  {/* Token summary footer */}
+                  <div className="border-t border-border px-3 py-2 flex items-center justify-end gap-2 text-xs text-muted-foreground bg-muted/20">
+                    <span>{t('rules.shownCount', { count: table.getRowModel().rows.length })}</span>
+                    {totalVisibleTokens > 0 && (
+                      <>
+                        <span aria-hidden="true">·</span>
+                        <span className={tokenTextClass(totalVisibleTokens)}>
+                          {t('rules.tokensEnabled', { count: totalVisibleTokens })}
+                        </span>
+                      </>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Per-client token budget panel */}
+            <div className="rounded-md border border-border">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setBudgetExpanded((v) => !v)}
+                className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium rounded-none rounded-t-md"
+                aria-expanded={budgetExpanded}
+                data-testid="budget-panel-expand"
+              >
+                <span>{t('rules.tokenBudgetPerClient')}</span>
+                {budgetExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+              </Button>
+              {budgetExpanded && (
+                <div
+                  className="border-t border-border px-4 py-4"
+                  data-testid="budget-panel-content"
+                >
+                  <TokenBudgetPanel />
+                </div>
+              )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="skills" className="pt-4" data-testid="rules-skills-tab-content">
+            <SkillsPage />
+          </TabsContent>
+        </Tabs>
       </section>
 
       {/* Rule editor drawer */}

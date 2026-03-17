@@ -2,7 +2,7 @@
  * @file src/renderer/components/stacks/StackImporter.tsx
  *
  * @created 07.03.2026
- * @modified 08.03.2026
+ * @modified 17.03.2026
  *
  * @author Christian Blank <aidrelay@proton.me>
  * @copyright 2026
@@ -13,13 +13,15 @@
  * gate required).
  */
 
-import { useState, useCallback, useRef, type ChangeEvent } from 'react'
+import { useState, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Upload } from 'lucide-react'
+import { FolderOpen, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { dialogService } from '@/services/dialog.service'
+import { filesService } from '@/services/files.service'
 import { useServersStore } from '@/stores/servers.store'
 import { useRulesStore } from '@/stores/rules.store'
 import type { ImportResult } from '@shared/channels'
@@ -33,11 +35,11 @@ const StackImporter = () => {
   const { t } = useTranslation()
   const { load: loadServers } = useServersStore()
   const { load: loadRules } = useRulesStore()
-  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [pastedJson, setPastedJson] = useState('')
   const [importing, setImporting] = useState(false)
   const [result, setResult] = useState<ImportResult | null>(null)
+  const [selectedFileName, setSelectedFileName] = useState<string | null>(null)
 
   const runImport = useCallback(
     async (json: string) => {
@@ -68,19 +70,18 @@ const StackImporter = () => {
     [loadServers, loadRules, t],
   )
 
-  const handleFileChange = useCallback(
-    async (e: ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0]
-      if (!file) return
-      const text = await file.text()
-      await runImport(text)
-      // Reset so the same file can be re-selected
-      if (fileInputRef.current) {
-        fileInputRef.current.value = ''
-      }
-    },
-    [runImport],
-  )
+  const handleFilePick = useCallback(async () => {
+    const { canceled, filePaths } = await dialogService.showOpen({
+      properties: ['openFile'],
+      title: t('stacks.fromFile'),
+    })
+    if (canceled || filePaths.length === 0) return
+    const filePath = filePaths[0]!
+    const fileName = filePath.split(/[\\/]/).pop() ?? filePath
+    setSelectedFileName(fileName)
+    const { content } = await filesService.readText(filePath)
+    await runImport(content)
+  }, [runImport, t])
 
   const handlePasteImport = useCallback(async () => {
     if (!pastedJson.trim()) {
@@ -98,17 +99,22 @@ const StackImporter = () => {
       <div className="flex flex-col gap-1.5">
         <span className="text-sm font-medium">{t('stacks.fromFile')}</span>
         <div className="flex items-center gap-3">
-          <input
-            ref={fileInputRef}
-            id="stack-file"
-            type="file"
-            accept=".json"
-            onChange={(e) => void handleFileChange(e)}
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => void handleFilePick()}
             disabled={importing}
-            className="text-sm file:mr-3 file:rounded-md file:border file:border-input file:bg-background file:px-3 file:py-1.5 file:text-sm file:font-medium file:cursor-pointer hover:file:bg-accent disabled:opacity-50"
-            aria-label="Choose stack JSON file"
+            className="gap-1.5"
             data-testid="stack-file-input"
-          />
+          >
+            <FolderOpen size={14} aria-hidden="true" />
+            {t('stacks.chooseFile')}
+          </Button>
+          {selectedFileName && (
+            <span className="text-sm text-muted-foreground" data-testid="stack-file-name">
+              {t('stacks.fileSelected', { name: selectedFileName })}
+            </span>
+          )}
         </div>
       </div>
 

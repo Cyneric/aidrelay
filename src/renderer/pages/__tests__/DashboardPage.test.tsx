@@ -231,6 +231,11 @@ describe('DashboardPage', () => {
         clientsPreviewConfigImport: previewConfigImportMock,
         clientsImportConfigChanges: importConfigChangesMock,
         onConfigChanged: () => () => {},
+        // SyncStatusWidget calls these on mount; return empty arrays so the widget
+        // shows the "all synced" state without errors in DashboardPage tests.
+        syncListPending: vi.fn().mockResolvedValue([]),
+        syncListConflicts: vi.fn().mockResolvedValue([]),
+        syncPushReview: vi.fn().mockResolvedValue([]),
       },
       writable: true,
       configurable: true,

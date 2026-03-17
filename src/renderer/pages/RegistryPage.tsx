@@ -2,7 +2,7 @@
  * @file src/renderer/pages/RegistryPage.tsx
  *
  * @created 07.03.2026
- * @modified 07.03.2026
+ * @modified 17.03.2026
  *
  * @author Christian Blank <aidrelay@proton.me>
  * @copyright 2026
@@ -15,6 +15,7 @@ import { useEffect } from 'react'
 import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
+import { PageHeader } from '@/components/common/PageHeader'
 import { RegistryBrowser } from '@/components/registry/RegistryBrowser'
 import { useServersStore } from '@/stores/servers.store'
 
@@ -37,13 +38,11 @@ const RegistryPage = () => {
       className="flex flex-col gap-6"
       data-testid="registry-page"
     >
-      <header>
-        <h1 id="registry-heading" className="text-2xl font-bold tracking-tight">
-          {t('registry.title')}
-        </h1>
-        <p className="text-sm text-muted-foreground mt-0.5">{t('registry.subtitle')}</p>
-        <p className="text-xs text-muted-foreground mt-1">{t('registry.helperText')}</p>
-      </header>
+      <PageHeader
+        id="registry-heading"
+        title={t('registry.title')}
+        subtitle={`${t('registry.subtitle')} ${t('registry.helperText')}`}
+      />
 
       <article
         className="rounded-lg border border-border bg-card p-4"

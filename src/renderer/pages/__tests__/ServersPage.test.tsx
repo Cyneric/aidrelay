@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { renderWithProviders } from '@/test-utils'
 import { ServersPage } from '../ServersPage'
 import type { McpServer } from '@shared/types'
@@ -59,6 +60,7 @@ const serversActionsState: {
 
 const toastSuccessMock = vi.fn<(message?: unknown) => void>()
 const toastErrorMock = vi.fn<(message?: unknown) => void>()
+const clipboardWriteTextMock = vi.fn<(text: string) => Promise<void>>()
 
 const server: McpServer = {
   id: 'srv-1',
@@ -169,10 +171,11 @@ describe('ServersPage command column', () => {
     serversActionsState.testingByServerId = {}
     serversActionsState.testStatusByServerId = {}
 
-    Object.assign(navigator, {
-      clipboard: {
-        writeText: vi.fn().mockResolvedValue(undefined),
-      },
+    clipboardWriteTextMock.mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText: clipboardWriteTextMock },
+      writable: true,
+      configurable: true,
     })
   })
 
@@ -199,13 +202,13 @@ describe('ServersPage command column', () => {
     fireEvent.click(copyButton)
 
     await waitFor(() => {
-      expect(navigator.clipboard.writeText).toHaveBeenCalledWith(fullCommand)
+      expect(clipboardWriteTextMock).toHaveBeenCalledWith(fullCommand)
       expect(toastSuccessMock).toHaveBeenCalledWith('Command copied to clipboard')
     })
   })
 
   it('shows error toast when copy fails', async () => {
-    vi.mocked(navigator.clipboard.writeText).mockRejectedValueOnce(new Error('no clipboard'))
+    clipboardWriteTextMock.mockRejectedValueOnce(new Error('no clipboard'))
 
     renderWithProviders(<ServersPage />)
 
@@ -217,15 +220,22 @@ describe('ServersPage command column', () => {
     })
   })
 
-  it('keeps existing row actions available', () => {
+  it('keeps existing row actions available', async () => {
+    const user = userEvent.setup()
     renderWithProviders(<ServersPage />)
 
-    expect(screen.getByTestId('server-test-srv-1')).toBeInTheDocument()
-    expect(screen.getByTestId('server-edit-srv-1')).toBeInTheDocument()
-    expect(screen.getByTestId('server-delete-srv-1')).toBeInTheDocument()
+    // Primary action (Edit) is always visible
+    expect(screen.getByTestId('server-actions-srv-1-primary')).toBeInTheDocument()
+
+    // Open the dropdown to verify menu items
+    await user.click(screen.getByTestId('server-actions-srv-1-menu-trigger'))
+
+    expect(await screen.findByTestId('server-actions-srv-1-item-test-server')).toBeInTheDocument()
+    expect(await screen.findByTestId('server-actions-srv-1-item-delete')).toBeInTheDocument()
   })
 
-  it('renders inline test phase and spinner for active test row', () => {
+  it('renders inline test phase and spinner for active test row', async () => {
+    const user = userEvent.setup()
     serversActionsState.testingByServerId = { 'srv-1': 'waiting_response' }
 
     renderWithProviders(<ServersPage />)
@@ -233,11 +243,15 @@ describe('ServersPage command column', () => {
     expect(screen.getByTestId('server-test-phase-srv-1')).toHaveTextContent(
       'Waiting for server response…',
     )
-    const testButton = screen.getByTestId('server-test-srv-1')
-    expect(testButton.querySelector('svg')).toHaveClass('animate-spin')
+
+    // Open the dropdown to verify the test item is disabled while testing
+    await user.click(screen.getByTestId('server-actions-srv-1-menu-trigger'))
+    const testItem = await screen.findByTestId('server-actions-srv-1-item-test-server')
+    expect(testItem).toHaveAttribute('data-disabled', '')
   })
 
-  it('supports showing multiple active test rows in parallel', () => {
+  it('supports showing multiple active test rows in parallel', async () => {
+    const user = userEvent.setup()
     serversActionsState.testingByServerId = {
       'srv-1': 'waiting_response',
       'srv-2': 'sending_initialize',
@@ -249,8 +263,17 @@ describe('ServersPage command column', () => {
       'Waiting for server response…',
     )
     expect(screen.getByTestId('server-test-phase-srv-2')).toHaveTextContent('Sending initialize…')
-    expect(screen.getByTestId('server-test-srv-1')).toBeDisabled()
-    expect(screen.getByTestId('server-test-srv-2')).toBeDisabled()
+
+    // Verify test action is disabled in dropdown for srv-1
+    await user.click(screen.getByTestId('server-actions-srv-1-menu-trigger'))
+    const testItem1 = await screen.findByTestId('server-actions-srv-1-item-test-server')
+    expect(testItem1).toHaveAttribute('data-disabled', '')
+
+    // Close the first dropdown by pressing Escape, then check srv-2
+    await user.keyboard('{Escape}')
+    await user.click(screen.getByTestId('server-actions-srv-2-menu-trigger'))
+    const testItem2 = await screen.findByTestId('server-actions-srv-2-item-test-server')
+    expect(testItem2).toHaveAttribute('data-disabled', '')
   })
 
   it('renders not tested badge by default', () => {

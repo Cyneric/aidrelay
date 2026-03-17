@@ -2,7 +2,7 @@
  * @file src/renderer/pages/ServersPage.tsx
  *
  * @created 07.03.2026
- * @modified 16.03.2026
+ * @modified 17.03.2026
  *
  * @author Christian Blank <aidrelay@proton.me>
  * @copyright 2026
@@ -36,6 +36,9 @@ import {
   Download,
   Copy,
   Wrench,
+  Server,
+  Info,
+  Package,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
@@ -60,10 +63,14 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { RowActions } from '@/components/common/RowActions'
+import { PageHeader } from '@/components/common/PageHeader'
+import { EmptyState } from '@/components/common/EmptyState'
 import { ServerEditor } from '@/components/servers/ServerEditor'
 import { InstallLocalWizard } from '@/components/installer/InstallLocalWizard'
 import { ToggleMatrix } from '@/components/servers/ToggleMatrix'
 import { ConfirmActionDialog } from '@/components/common/ConfirmActionDialog'
+import { StacksDialog } from '@/components/stacks/StacksDialog'
 import { useServersStore } from '@/stores/servers.store'
 import { useClientsStore } from '@/stores/clients.store'
 import { useServersActions } from '@/hooks/useServersActions'
@@ -143,6 +150,7 @@ const ServersPage = () => {
   const [deletingServer, setDeletingServer] = useState(false)
   const [wizardServer, setWizardServer] = useState<McpServer | null>(null)
   const [wizardMode, setWizardMode] = useState<'install' | 'repair'>('install')
+  const [showStacksDialog, setShowStacksDialog] = useState(false)
   const {
     syncingAll,
     importingFromClients,
@@ -413,98 +421,55 @@ const ServersPage = () => {
     columnHelper.display({
       id: 'actions',
       header: '',
-      size: 94,
-      cell: ({ row }) => (
-        <div className="flex items-center justify-end gap-1">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                onClick={() => void handleTest(row.original)}
-                disabled={!serverTestingEnabled || isTestingServer(row.original.id)}
-                aria-label={t('servers.testAria', { name: row.original.name })}
-                data-testid={`server-test-${row.original.id}`}
-              >
-                {isTestingServer(row.original.id) ? (
-                  <RefreshCw size={14} className="animate-spin" />
-                ) : (
-                  <FlaskConical size={14} />
-                )}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>{t('servers.testTooltip', { name: row.original.name })}</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                onClick={() => {
-                  const state = statuses[row.original.id]
-                  if (state) {
-                    openRepair(row.original)
+      size: 160,
+      cell: ({ row }) => {
+        const server = row.original
+        const setupState = statuses[server.id] ?? null
+        const isInstalling = setupState?.installStatus === 'running'
+        const fullCommand = `${server.command} ${server.args.join(' ')}`.trim()
+
+        return (
+          <RowActions
+            primaryAction={{
+              label: t('servers.edit'),
+              icon: Pencil,
+              onClick: () => openEdit(server),
+            }}
+            menuItems={[
+              {
+                label: t('servers.testAction'),
+                icon: FlaskConical,
+                onClick: () => void handleTest(server),
+                disabled: !serverTestingEnabled || isTestingServer(server.id),
+              },
+              {
+                label: setupState ? t('servers.repairAction') : t('servers.installAction'),
+                icon: setupState ? Wrench : Download,
+                onClick: () => {
+                  if (setupState) {
+                    openRepair(server)
                   } else {
-                    openInstall(row.original)
+                    openInstall(server)
                   }
-                }}
-                disabled={statuses[row.original.id]?.installStatus === 'running'}
-                aria-label={
-                  statuses[row.original.id]
-                    ? t('servers.repairAria', { name: row.original.name })
-                    : t('servers.installAria', { name: row.original.name })
-                }
-                data-testid={`server-install-repair-${row.original.id}`}
-              >
-                {statuses[row.original.id]?.installStatus === 'running' ? (
-                  <RefreshCw size={14} className="animate-spin" />
-                ) : statuses[row.original.id] ? (
-                  <Wrench size={14} />
-                ) : (
-                  <Download size={14} />
-                )}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              {statuses[row.original.id]
-                ? t('servers.repairTooltip', { name: row.original.name })
-                : t('servers.installTooltip', { name: row.original.name })}
-            </TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                onClick={() => openEdit(row.original)}
-                aria-label={t('servers.editAria', { name: row.original.name })}
-                data-testid={`server-edit-${row.original.id}`}
-              >
-                <Pencil size={14} />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>{t('servers.editTooltip')}</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                onClick={() => void handleDelete(row.original)}
-                aria-label={t('servers.deleteAria', { name: row.original.name })}
-                data-testid={`server-delete-${row.original.id}`}
-              >
-                <Trash2 size={14} />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>{t('servers.deleteTooltip')}</TooltipContent>
-          </Tooltip>
-        </div>
-      ),
+                },
+                disabled: isInstalling,
+              },
+              {
+                label: t('servers.copyCommandAction'),
+                icon: Copy,
+                onClick: () => void handleCopyCommand(fullCommand),
+              },
+              {
+                label: t('servers.delete'),
+                icon: Trash2,
+                onClick: () => void handleDelete(server),
+                destructive: true,
+              },
+            ]}
+            testId={`server-actions-${server.id}`}
+          />
+        )
+      },
     }),
   ]
 
@@ -532,68 +497,75 @@ const ServersPage = () => {
         data-testid="servers-page"
       >
         {/* Page header */}
-        <header className="flex items-center justify-between gap-4">
-          <div>
-            <h1 id="servers-heading" className="text-2xl font-bold tracking-tight">
-              {t('servers.title')}
-            </h1>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              {t('servers.countInRegistry', { count: servers.length })}
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => void handleImportFromClients()}
-                  disabled={importingFromClients || installedClientCount === 0}
-                  className="gap-1.5"
-                  data-testid="import-from-clients-button"
-                >
-                  <Download
-                    size={14}
-                    className={importingFromClients ? 'animate-pulse' : ''}
-                    aria-hidden="true"
-                  />
-                  {importingFromClients ? t('common.loading') : t('servers.importFromClients')}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>{t('servers.importFromClientsTooltip')}</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => void handleSyncAll()}
-                  disabled={syncingAll || installedClientCount === 0}
-                  className="gap-1.5"
-                  data-testid="sync-all-button"
-                >
-                  <RefreshCw
-                    size={14}
-                    className={syncingAll ? 'animate-spin' : ''}
-                    aria-hidden="true"
-                  />
-                  {syncingAll ? t('common.loading') : t('servers.syncAll')}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>{t('servers.syncAllTooltip')}</TooltipContent>
-            </Tooltip>
-            <Button
-              type="button"
-              onClick={openCreate}
-              className="gap-1.5"
-              data-testid="add-server-button"
-            >
-              <Plus size={14} aria-hidden="true" />
-              {t('servers.add')}
-            </Button>
-          </div>
-        </header>
+        <PageHeader
+          id="servers-heading"
+          title={t('servers.title')}
+          subtitle={t('servers.countInRegistry', { count: servers.length })}
+          testId="servers-page-header"
+          actions={
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowStacksDialog(true)}
+                className="gap-1.5"
+                data-testid="import-export-stack-button"
+              >
+                <Package size={14} aria-hidden="true" />
+                {t('servers.importExportStack')}
+              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => void handleImportFromClients()}
+                    disabled={importingFromClients || installedClientCount === 0}
+                    className="gap-1.5"
+                    data-testid="import-from-clients-button"
+                  >
+                    <Download
+                      size={14}
+                      className={importingFromClients ? 'animate-pulse' : ''}
+                      aria-hidden="true"
+                    />
+                    {importingFromClients ? t('common.loading') : t('servers.importFromClients')}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{t('servers.importFromClientsTooltip')}</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => void handleSyncAll()}
+                    disabled={syncingAll || installedClientCount === 0}
+                    className="gap-1.5"
+                    data-testid="sync-all-button"
+                  >
+                    <RefreshCw
+                      size={14}
+                      className={syncingAll ? 'animate-spin' : ''}
+                      aria-hidden="true"
+                    />
+                    {syncingAll ? t('common.loading') : t('servers.syncAll')}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{t('servers.syncAllTooltip')}</TooltipContent>
+              </Tooltip>
+              <Button
+                type="button"
+                onClick={openCreate}
+                className="gap-1.5"
+                data-testid="add-server-button"
+              >
+                <Plus size={14} aria-hidden="true" />
+                {t('servers.add')}
+              </Button>
+            </>
+          }
+        />
 
         {/* Error state */}
         {error && (
@@ -657,32 +629,17 @@ const ServersPage = () => {
               {t('servers.loading')}
             </div>
           ) : servers.length === 0 ? (
-            <div
-              className="flex flex-col items-center justify-center py-16 gap-3"
-              data-testid="servers-empty"
-            >
-              <p className="text-sm text-muted-foreground">{t('servers.noServersYet')}</p>
-              <div className="flex items-center gap-4">
-                <Button
-                  type="button"
-                  variant="link"
-                  onClick={() => void handleImportFromClients()}
-                  disabled={importingFromClients || installedClientCount === 0}
-                  className="h-auto p-0 text-sm"
-                >
-                  {t('servers.importFromClients')}
-                </Button>
-                <span className="text-muted-foreground">{t('servers.or')}</span>
-                <Button
-                  type="button"
-                  variant="link"
-                  onClick={openCreate}
-                  className="h-auto p-0 text-sm"
-                >
-                  {t('servers.addFirst')}
-                </Button>
-              </div>
-            </div>
+            <EmptyState
+              icon={Server}
+              title={t('servers.noServersYet')}
+              description={t('servers.noServersDescription')}
+              action={{ label: t('servers.addFirst'), onClick: openCreate }}
+              secondaryAction={{
+                label: t('servers.importFromClients'),
+                onClick: () => void handleImportFromClients(),
+              }}
+              testId="servers-empty"
+            />
           ) : table.getRowModel().rows.length === 0 ? (
             <div
               className="flex items-center justify-center py-16 text-sm text-muted-foreground"
@@ -744,6 +701,19 @@ const ServersPage = () => {
           </Button>
           {matrixExpanded && (
             <div className="border-t border-border px-4 py-4">
+              <div className="mb-3 flex items-start gap-2">
+                <Info
+                  size={14}
+                  className="mt-0.5 shrink-0 text-text-secondary"
+                  aria-hidden="true"
+                />
+                <p className="text-xs text-text-secondary">
+                  {t('servers.matrixHelpText', {
+                    defaultValue:
+                      'Control which MCP servers are enabled for each AI tool. Changes take effect on the next sync.',
+                  })}
+                </p>
+              </div>
               <ToggleMatrix />
             </div>
           )}
@@ -767,6 +737,8 @@ const ServersPage = () => {
           onSuccess={closeWizard}
         />
       )}
+
+      {showStacksDialog && <StacksDialog onClose={() => setShowStacksDialog(false)} />}
 
       <ConfirmActionDialog
         open={pendingDeleteServer !== null}

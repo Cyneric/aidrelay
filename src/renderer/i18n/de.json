@@ -4,17 +4,10 @@
     "servers": "MCP-Server",
     "rules": "Regeln",
     "clients": "Clients",
-    "skills": "Skills",
     "profiles": "Profile",
     "registry": "Registry",
-    "stacks": "Stacks",
-    "activityLog": "Aktivitätsprotokoll",
     "history": "Verlauf",
-    "syncCenter": "Sync-Center",
-    "settings": "Einstellungen",
-    "sectionCore": "Kern",
-    "sectionOperations": "Betrieb",
-    "sectionSettings": "Einstellungen"
+    "settings": "Einstellungen"
   },
   "profilesIndicator": {
     "label": "Aktives Profil",
@@ -26,6 +19,9 @@
     "title": "Dashboard",
     "subtitle": "Erkannte KI-Entwicklungstools",
     "noClients": "Keine KI-Tools auf diesem Gerät gefunden.",
+    "emptyTitle": "Keine KI-Tools erkannt",
+    "emptyDescription": "aidrelay durchsucht dein System nach installierten KI-Entwicklungstools. Klicke unten, um die Erkennung zu starten.",
+    "detectAll": "Alle erkennen",
     "synced": "Synchronisiert",
     "outOfSync": "Nicht synchronisiert",
     "neverSynced": "Noch nicht synchronisiert",
@@ -137,6 +133,7 @@
     "search": "MCP-Server suchen…",
     "noResults": "Keine MCP-Server gefunden.",
     "noServersYet": "Noch keine MCP-Server vorhanden.",
+    "noServersDescription": "Füge Server manuell hinzu oder importiere sie aus deinen installierten KI-Tools.",
     "addFirst": "Ersten MCP-Server hinzufügen",
     "countInRegistry_one": "{{count}} MCP-Server in der Registry",
     "countInRegistry_other": "{{count}} MCP-Server in der Registry",
@@ -154,6 +151,7 @@
     "deleteDialogDescription": "\"{{name}}\" löschen? Dies kann nicht rückgängig gemacht werden.",
     "deleteConfirm": "\"{{name}}\" löschen? Dies kann nicht rückgängig gemacht werden.",
     "syncAll": "Alle Clients synchronisieren",
+    "importExportStack": "Stack importieren / exportieren",
     "importFromClients": "Von Clients importieren",
     "importFromClientsTooltip": "MCP-Server-Konfigurationen von installierten KI-Clients importieren",
     "syncAllTooltip": "Aktives Profil auf alle installierten Clients schreiben",
@@ -172,6 +170,7 @@
     "limitReached": "MCP-Server-Limit erreicht.",
     "toggleMatrix": "Pro-Client-Schalter",
     "perClientEnableDisable": "Pro-Client aktivieren / deaktivieren",
+    "matrixHelpText": "Steuere, welche MCP-Server für jedes KI-Tool aktiviert sind. Änderungen werden bei der nächsten Synchronisierung wirksam.",
     "loading": "MCP-Server werden geladen…",
     "editTooltip": "MCP-Server bearbeiten",
     "deleteTooltip": "MCP-Server löschen",
@@ -211,6 +210,10 @@
     "repairAria": "{{name}} reparieren",
     "installTooltip": "MCP-Server lokal installieren",
     "repairTooltip": "Installation reparieren (fehlende Schritte erneut ausführen)",
+    "testAction": "Server testen",
+    "repairAction": "Reparieren",
+    "installAction": "Installieren",
+    "copyCommandAction": "Befehl kopieren",
     "or": "oder"
   },
   "serverForm": {
@@ -256,7 +259,10 @@
     "alreadySecret": "Bereits geheim"
   },
   "rules": {
-    "title": "KI-Regeln",
+    "title": "Regeln & Skills",
+    "subtitle": "KI-Codierungsregeln und wiederverwendbare Skills verwalten",
+    "tabRules": "Regeln",
+    "tabSkills": "Skills",
     "add": "Regel hinzufügen",
     "search": "Regeln suchen…",
     "noResults": "Keine Regeln gefunden.",
@@ -495,6 +501,11 @@
       },
       "noPackageManagerHint": "Kein unterstuetzter Paketmanager wurde gefunden. Nutzen Sie die offizielle Download-Seite unten."
     },
+    "syncAction": "Synchronisieren",
+    "discoverAction": "Konfigurationspfad suchen",
+    "manageSyncItemsAction": "Sync-Elemente verwalten",
+    "validateAction": "Konfiguration validieren",
+    "installAction": "Client installieren",
     "discoverTooltip": "Konfigurationsdatei manuell auswaehlen",
     "discoverAria": "Konfigurationspfad fuer {{name}} finden",
     "discoverDialogTitle": "Konfigurationsdatei fuer {{name}} auswaehlen",
@@ -523,8 +534,10 @@
     "validationStatusFailureTooltip": "Letzte Validierung: fehlgeschlagen"
   },
   "history": {
-    "title": "Sicherungsverlauf",
-    "subtitle": "Pro-Client-Konfigurations-Snapshots — stellen Sie jeden früheren Zustand mit einem Klick wieder her.",
+    "title": "Verlauf",
+    "subtitle": "Sicherungsverlauf und Aktivitätsprotokoll.",
+    "tabBackups": "Sicherungen",
+    "tabActivityLog": "Aktivitätsprotokoll",
     "detecting": "Installierte Clients werden erkannt…",
     "noClients": "Keine KI-Tools auf diesem Gerät gefunden.",
     "noBackups": "Noch keine Sicherungen für diesen Client. Vor jeder Synchronisierung wird automatisch eine Sicherung erstellt.",
@@ -645,7 +658,11 @@
     "importSummary_other": "{{imported}} importiert · {{skipped}} Duplikate übersprungen",
     "importPasteEmpty": "JSON-Inhalt vor dem Import einfügen",
     "importWithErrors": "Import mit {{count}} Fehler(n) abgeschlossen. Siehe Zusammenfassung.",
-    "importSuccess": "{{imported}} Element(e) importiert, {{skipped}} Duplikat(e) übersprungen"
+    "importSuccess": "{{imported}} Element(e) importiert, {{skipped}} Duplikat(e) übersprungen",
+    "export": "Exportieren",
+    "import": "Importieren",
+    "chooseFile": "Datei auswählen",
+    "fileSelected": "Ausgewählt: {{name}}"
   },
   "theme": {
     "toggleLabel": "Design umschalten",
@@ -1024,7 +1041,13 @@
     "currentValue": "Aktueller Wert",
     "pendingChange": "Ausstehende Änderung",
     "excludeFromPush": "Vom Push ausschließen",
-    "confirmPush": "Push bestätigen"
+    "confirmPush": "Push bestätigen",
+    "copyDiagnostics": "Fehlerbericht kopieren",
+    "widgetAllSynced": "Alles synchronisiert",
+    "widgetIssuesFound": "{{count}} Sync-Problem(e) gefunden",
+    "widgetDetail": "{{pending}} ausstehend, {{conflicts}} Konflikt(e), {{pushReview}} zum Pushen",
+    "widgetViewDetails": "Details anzeigen",
+    "openSyncCenter": "Sync-Center öffnen"
   },
   "common": {
     "save": "Speichern",
@@ -1040,6 +1063,7 @@
     "search": "Suchen",
     "noResults": "Keine Ergebnisse gefunden.",
     "enabled": "Aktiv",
-    "disabled": "Deaktiviert"
+    "disabled": "Deaktiviert",
+    "moreActions": "Weitere Aktionen"
   }
 }

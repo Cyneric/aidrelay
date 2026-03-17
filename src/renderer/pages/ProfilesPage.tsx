@@ -2,7 +2,7 @@
  * @file src/renderer/pages/ProfilesPage.tsx
  *
  * @created 07.03.2026
- * @modified 08.03.2026
+ * @modified 17.03.2026
  *
  * @author Christian Blank <aidrelay@proton.me>
  * @copyright 2026
@@ -14,11 +14,13 @@
  */
 
 import { useEffect, useState, useCallback } from 'react'
-import { Plus } from 'lucide-react'
+import { Plus, Info, Layers } from 'lucide-react'
 import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { CardGrid } from '@/components/ui/card-grid'
+import { PageHeader } from '@/components/common/PageHeader'
+import { EmptyState } from '@/components/common/EmptyState'
 import { ProfileCard } from '@/components/profiles/ProfileCard'
 import { ProfileEditor } from '@/components/profiles/ProfileEditor'
 import { ProfileDiffView } from '@/components/profiles/ProfileDiffView'
@@ -113,24 +115,22 @@ const ProfilesPage = () => {
 
   return (
     <section aria-labelledby="profiles-heading" className="flex flex-col gap-6">
-      {/* Page header */}
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h1 id="profiles-heading" className="text-2xl font-bold tracking-tight">
-            {t('profiles.title')}
-          </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">{t('profiles.subtitle')}</p>
-        </div>
-        <Button
-          type="button"
-          onClick={openCreate}
-          className="gap-1.5"
-          data-testid="add-profile-button"
-        >
-          <Plus size={14} aria-hidden="true" />
-          {t('profiles.add')}
-        </Button>
-      </div>
+      <PageHeader
+        id="profiles-heading"
+        title={t('profiles.title')}
+        subtitle={t('profiles.subtitle')}
+        actions={
+          <Button
+            type="button"
+            onClick={openCreate}
+            className="gap-1.5"
+            data-testid="add-profile-button"
+          >
+            <Plus size={14} aria-hidden="true" />
+            {t('profiles.add')}
+          </Button>
+        }
+      />
 
       {/* Error banner */}
       {error && (
@@ -146,25 +146,31 @@ const ProfilesPage = () => {
         </p>
       )}
 
+      {/* Contextual help for new users */}
+      {!loading && profiles.length <= 1 && profiles.length > 0 && (
+        <div
+          className="flex items-start gap-3 rounded-lg border border-border/60 bg-muted/30 px-4 py-3"
+          data-testid="profiles-context-help"
+        >
+          <Info size={16} className="mt-0.5 shrink-0 text-text-secondary" aria-hidden="true" />
+          <p className="text-xs text-text-secondary">
+            {t('profiles.contextHelp', {
+              defaultValue:
+                'Profiles let you switch between different MCP server and rule configurations. Create additional profiles for different workflows or projects.',
+            })}
+          </p>
+        </div>
+      )}
+
       {/* Empty state */}
       {!loading && profiles.length === 0 && !error && (
-        <div
-          className="rounded-lg border border-dashed border-border p-12 flex flex-col items-center gap-3 text-center"
-          data-testid="profiles-empty"
-        >
-          <p className="text-sm font-medium">{t('profiles.noProfilesHeading')}</p>
-          <p className="text-xs text-muted-foreground max-w-sm">
-            {t('profiles.noProfilesDescription')}
-          </p>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={openCreate}
-            data-testid="profiles-empty-add"
-          >
-            {t('profiles.addFirst')}
-          </Button>
-        </div>
+        <EmptyState
+          icon={Layers}
+          title={t('profiles.noProfilesHeading')}
+          description={t('profiles.noProfilesDescription')}
+          action={{ label: t('profiles.addFirst'), onClick: openCreate }}
+          testId="profiles-empty"
+        />
       )}
 
       {/* Card grid */}

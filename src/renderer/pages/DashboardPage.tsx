@@ -2,7 +2,7 @@
  * @file src/renderer/pages/DashboardPage.tsx
  *
  * @created 07.03.2026
- * @modified 16.03.2026
+ * @modified 17.03.2026
  *
  * @author Christian Blank <aidrelay@proton.me>
  * @copyright 2026
@@ -13,7 +13,16 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, CheckCircle2, ChevronDown, Info, RefreshCw, Search } from 'lucide-react'
+import {
+  AlertTriangle,
+  CheckCircle2,
+  ChevronDown,
+  Info,
+  Monitor,
+  RefreshCw,
+  Search,
+  Server,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
@@ -29,6 +38,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { ClientCard } from '@/components/clients/ClientCard'
+import { EmptyState } from '@/components/common/EmptyState'
 import { CreateConfigConfirmDialog } from '@/components/clients/CreateConfigConfirmDialog'
 import { ConfigImportDiffDialog } from '@/components/clients/ConfigImportDiffDialog'
 import { SyncDiffDialog } from '@/components/clients/SyncDiffDialog'
@@ -36,6 +46,7 @@ import { SyncAllDiffDialog } from '@/components/clients/SyncAllDiffDialog'
 import { useClientsStore } from '@/stores/clients.store'
 import { useServersStore } from '@/stores/servers.store'
 import { clientsService } from '@/services/clients.service'
+import { SyncStatusWidget } from '@/components/sync/SyncStatusWidget'
 import { cn } from '@/lib/utils'
 import { isConfigCreationRequiredError } from '@/lib/sync-errors'
 import type {
@@ -593,10 +604,18 @@ const DashboardPage = () => {
         </header>
 
         <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <Card className="gap-1 border-border/70 bg-surface-2 py-3 shadow-none">
-            <p className="px-6 text-xs uppercase tracking-wide text-text-secondary">
-              {t('dashboard.kpiInstalled')}
-            </p>
+          <Card
+            className={cn(
+              'gap-1 border-border/70 border-l-2 bg-surface-2 py-3 shadow-none',
+              kpis.installedTools > 0 ? 'border-l-status-ok' : 'border-l-border',
+            )}
+          >
+            <div className="flex items-center gap-2 px-6">
+              <CheckCircle2 size={14} className="shrink-0 text-text-secondary" aria-hidden="true" />
+              <p className="text-xs uppercase tracking-wide text-text-secondary">
+                {t('dashboard.kpiInstalled')}
+              </p>
+            </div>
             <p
               className="px-6 text-2xl font-semibold text-text-primary"
               data-testid="dashboard-kpi-installed"
@@ -604,10 +623,22 @@ const DashboardPage = () => {
               {kpis.installedTools}
             </p>
           </Card>
-          <Card className="gap-1 border-border/70 bg-surface-2 py-3 shadow-none">
-            <p className="px-6 text-xs uppercase tracking-wide text-text-secondary">
-              {t('dashboard.kpiOutOfSync')}
-            </p>
+          <Card
+            className={cn(
+              'gap-1 border-border/70 border-l-2 bg-surface-2 py-3 shadow-none',
+              kpis.outOfSyncTools > 0 ? 'border-l-status-warn' : 'border-l-status-ok',
+            )}
+          >
+            <div className="flex items-center gap-2 px-6">
+              <AlertTriangle
+                size={14}
+                className="shrink-0 text-text-secondary"
+                aria-hidden="true"
+              />
+              <p className="text-xs uppercase tracking-wide text-text-secondary">
+                {t('dashboard.kpiOutOfSync')}
+              </p>
+            </div>
             <p
               className="px-6 text-2xl font-semibold text-status-warn"
               data-testid="dashboard-kpi-out-of-sync"
@@ -615,10 +646,18 @@ const DashboardPage = () => {
               {kpis.outOfSyncTools}
             </p>
           </Card>
-          <Card className="gap-1 border-border/70 bg-surface-2 py-3 shadow-none">
-            <p className="px-6 text-xs uppercase tracking-wide text-text-secondary">
-              {t('dashboard.kpiMissingConfig')}
-            </p>
+          <Card
+            className={cn(
+              'gap-1 border-border/70 border-l-2 bg-surface-2 py-3 shadow-none',
+              kpis.missingConfigTools > 0 ? 'border-l-destructive' : 'border-l-status-ok',
+            )}
+          >
+            <div className="flex items-center gap-2 px-6">
+              <Info size={14} className="shrink-0 text-text-secondary" aria-hidden="true" />
+              <p className="text-xs uppercase tracking-wide text-text-secondary">
+                {t('dashboard.kpiMissingConfig')}
+              </p>
+            </div>
             <p
               className="px-6 text-2xl font-semibold text-status-warn"
               data-testid="dashboard-kpi-missing-config"
@@ -626,10 +665,13 @@ const DashboardPage = () => {
               {kpis.missingConfigTools}
             </p>
           </Card>
-          <Card className="gap-1 border-border/70 bg-surface-2 py-3 shadow-none">
-            <p className="px-6 text-xs uppercase tracking-wide text-text-secondary">
-              {t('dashboard.kpiTotalServers')}
-            </p>
+          <Card className="gap-1 border-border/70 border-l-2 border-l-primary bg-surface-2 py-3 shadow-none">
+            <div className="flex items-center gap-2 px-6">
+              <Server size={14} className="shrink-0 text-text-secondary" aria-hidden="true" />
+              <p className="text-xs uppercase tracking-wide text-text-secondary">
+                {t('dashboard.kpiTotalServers')}
+              </p>
+            </div>
             <p
               className="px-6 text-2xl font-semibold text-text-primary"
               data-testid="dashboard-kpi-total-servers"
@@ -637,6 +679,10 @@ const DashboardPage = () => {
               {kpis.totalServers}
             </p>
           </Card>
+        </div>
+
+        <div className="mb-4">
+          <SyncStatusWidget />
         </div>
 
         <div
@@ -817,6 +863,22 @@ const DashboardPage = () => {
             />
           ))}
         </CardGrid>
+      )}
+
+      {!loading && clients.length === 0 && !error && (
+        <EmptyState
+          icon={Monitor}
+          title={t('dashboard.emptyTitle', { defaultValue: 'No AI tools detected' })}
+          description={t('dashboard.emptyDescription', {
+            defaultValue:
+              'aidrelay scans your system for installed AI development tools. Click below to run detection.',
+          })}
+          action={{
+            label: t('dashboard.detectAll'),
+            onClick: () => void reloadDashboardData(),
+          }}
+          testId="dashboard-empty"
+        />
       )}
 
       {!loading || clients.length > 0 ? (
