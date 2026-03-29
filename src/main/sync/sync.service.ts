@@ -250,6 +250,14 @@ export class SyncService {
   }
 
   async previewSync(adapter: ClientAdapter, configPath: string): Promise<SyncPreviewResult> {
+    return this.previewSyncWithServers(adapter, configPath)
+  }
+
+  async previewSyncWithServers(
+    adapter: ClientAdapter,
+    configPath: string,
+    serversOverride?: readonly McpServer[],
+  ): Promise<SyncPreviewResult> {
     const clientId = adapter.id
 
     log.info(`[sync] starting preview sync for ${clientId} → ${configPath}`)
@@ -279,7 +287,7 @@ export class SyncService {
       }
 
       // ── Step 4: MERGE ─────────────────────────────────────────────────────
-      const allServers = this.serversRepo.findAll()
+      const allServers = serversOverride ? [...serversOverride] : this.serversRepo.findAll()
       const managedMap = await buildManagedMap(allServers, clientId)
       const existingServers = await adapter.read(configPath)
       const ignoredNames = new Set(

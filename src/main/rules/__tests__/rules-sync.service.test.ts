@@ -337,6 +337,76 @@ describe('RulesSyncService.sync — gemini-cli', () => {
   })
 })
 
+describe('RulesSyncService.preview — gemini-cli', () => {
+  it('emits both global and project target files in preview output', () => {
+    const projectPath = join(tmpDir, 'gemini-preview-proj')
+    mkdirSync(projectPath, { recursive: true })
+
+    storedRules.push(
+      makeRule({ name: 'gem-global-preview', scope: 'global', content: 'Global preview body.' }),
+      makeRule({
+        id: 'r2',
+        name: 'gem-project-preview',
+        scope: 'project',
+        projectPath,
+        content: 'Project preview body.',
+      }),
+    )
+
+    const previews = service.preview('gemini-cli')
+
+    expect(previews).toHaveLength(2)
+    expect(previews).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          path: join(tmpDir, '.gemini', 'GEMINI.md'),
+          action: 'create',
+          ruleCount: 1,
+        }),
+        expect.objectContaining({
+          path: join(projectPath, '.gemini', 'GEMINI.md'),
+          action: 'create',
+          ruleCount: 1,
+        }),
+      ]),
+    )
+  })
+})
+
+describe('RulesSyncService.preview — roo-code', () => {
+  it('emits both Roo-native and compatibility files for each project', () => {
+    const projectPath = join(tmpDir, 'roo-preview-proj')
+    mkdirSync(projectPath, { recursive: true })
+
+    storedRules.push(
+      makeRule({
+        name: 'roo-preview-rule',
+        scope: 'project',
+        projectPath,
+        content: 'Roo preview body.',
+      }),
+    )
+
+    const previews = service.preview('roo-code')
+
+    expect(previews).toHaveLength(2)
+    expect(previews).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          path: join(projectPath, '.roo', 'rules', 'aidrelay.md'),
+          action: 'create',
+          ruleCount: 1,
+        }),
+        expect.objectContaining({
+          path: join(projectPath, '.clinerules', 'aidrelay.md'),
+          action: 'create',
+          ruleCount: 1,
+        }),
+      ]),
+    )
+  })
+})
+
 describe('RulesSyncService.sync — opencode', () => {
   it('writes concatenated instructions to opencode.json', () => {
     const projectPath = join(tmpDir, 'opencode-proj')

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { renderWithProviders } from '@/test-utils'
 import { ClientsPage } from '../ClientsPage'
@@ -7,7 +7,8 @@ import type {
   ClientInstallResult,
   ClientStatus,
   McpServer,
-  SyncAllPreviewResult,
+  SyncPlanResult,
+  SyncPlanScope,
   SyncResult,
 } from '@shared/types'
 import type { ClientInstallProgressPayload } from '@shared/channels'
@@ -20,7 +21,7 @@ const validateConfigMock = vi.fn<() => Promise<{ valid: boolean; errors: string[
 const validateAllConfigsMock =
   vi.fn<() => Promise<Record<string, { valid: boolean; errors: string[]; validatedAt: string }>>>()
 const installClientMock = vi.fn<(id: string) => Promise<ClientInstallResult>>()
-const previewSyncAllMock = vi.fn<() => Promise<SyncAllPreviewResult>>()
+const syncPreviewOutgoingMock = vi.fn<(scope: SyncPlanScope) => Promise<SyncPlanResult>>()
 const syncAllMock = vi.fn<() => Promise<SyncResult[]>>()
 const showOpenDialogMock = vi.fn<() => Promise<{ canceled: boolean; filePaths: string[] }>>()
 const setManualPathMock =
@@ -62,6 +63,44 @@ const makeMockServer = (overrides: Partial<McpServer> = {}): McpServer => ({
 const toastSuccessMock = vi.fn<(message?: unknown) => void>()
 const toastWarningMock = vi.fn<(message?: unknown) => void>()
 const toastErrorMock = vi.fn<(message?: unknown) => void>()
+
+const makeSyncPlan = (
+  scope: SyncPlanScope,
+  overrides: Partial<SyncPlanResult> = {},
+): SyncPlanResult => ({
+  scope,
+  generatedAt: '2026-03-29T12:00:00.000Z',
+  entries: [
+    {
+      id: 'entry-1',
+      path: 'C:\\Users\\tester\\.cursor\\mcp.json',
+      feature: 'mcp-config',
+      origin: 'client-sync',
+      action: 'create',
+      clientId: 'cursor',
+      clientName: 'Cursor',
+      detail: {
+        kind: 'mcp',
+        items: [
+          {
+            name: 'server-a',
+            source: 'added',
+            action: 'create',
+            before: null,
+            after: { command: 'npx', args: ['-y', '@scope/server-a'] },
+          },
+        ],
+      },
+    },
+  ],
+  blockers: [],
+  totalFiles: 1,
+  createCount: 1,
+  modifyCount: 0,
+  removeCount: 0,
+  confirmable: true,
+  ...overrides,
+})
 
 vi.mock('sonner', () => ({
   toast: {
@@ -179,7 +218,7 @@ describe('ClientsPage sync-all reporting', () => {
         clientsValidateConfig: validateConfigMock,
         clientsValidateAllConfigs: validateAllConfigsMock,
         clientsInstall: installClientMock,
-        clientsPreviewSyncAll: previewSyncAllMock,
+        syncPreviewOutgoing: syncPreviewOutgoingMock,
         clientsSyncAll: syncAllMock,
         showOpenDialog: showOpenDialogMock,
         clientsSetManualConfigPath: setManualPathMock,
@@ -193,6 +232,35 @@ describe('ClientsPage sync-all reporting', () => {
     })
     validateConfigMock.mockResolvedValue({ valid: true, errors: [] })
     validateAllConfigsMock.mockResolvedValue({})
+    syncPreviewOutgoingMock.mockImplementation((scope) =>
+      Promise.resolve(
+        makeSyncPlan(scope, {
+          entries: [
+            {
+              id: 'entry-1',
+              path: 'C:\\Users\\tester\\.cursor\\mcp.json',
+              feature: 'mcp-config',
+              origin: 'client-sync',
+              action: 'create',
+              clientId: 'cursor',
+              clientName: 'Cursor',
+              detail: {
+                kind: 'mcp',
+                items: [
+                  {
+                    name: 'server-a',
+                    source: 'added',
+                    action: 'create',
+                    before: null,
+                    after: { command: 'npx', args: ['-y', '@scope/server-a'] },
+                  },
+                ],
+              },
+            },
+          ],
+        }),
+      ),
+    )
   })
 
   afterEach(() => {
@@ -200,36 +268,64 @@ describe('ClientsPage sync-all reporting', () => {
   })
 
   it('opens the sync-all preview dialog and runs sync after confirmation', async () => {
-    previewSyncAllMock.mockResolvedValue({
-      previews: {
-        cursor: {
-          clientId: 'cursor',
-          configPath: 'C:\\Users\\tester\\.cursor\\mcp.json',
-          items: [
+    syncPreviewOutgoingMock.mockResolvedValue(
+      makeSyncPlan(
+        {
+          kind: 'actionable-clients',
+          clientIds: ['cursor', 'vscode'],
+          allowCreateConfigIfMissing: true,
+        },
+        {
+          entries: [
             {
-              name: 'server-a',
-              source: 'added',
+              id: 'entry-cursor',
+              path: 'C:\\Users\\tester\\.cursor\\mcp.json',
+              feature: 'mcp-config',
+              origin: 'client-sync',
               action: 'create',
-              before: null,
-              after: null,
+              clientId: 'cursor',
+              clientName: 'Cursor',
+              detail: {
+                kind: 'mcp',
+                items: [
+                  {
+                    name: 'server-a',
+                    source: 'added',
+                    action: 'create',
+                    before: null,
+                    after: { command: 'npx', args: ['-y', '@scope/server-a'] },
+                  },
+                ],
+              },
             },
-          ],
-        },
-        vscode: {
-          clientId: 'vscode',
-          configPath: 'C:\\Users\\tester\\AppData\\Roaming\\Code\\User\\mcp.json',
-          items: [
             {
-              name: 'server-b',
-              source: 'modified',
-              action: 'overwrite',
-              before: null,
-              after: null,
+              id: 'entry-vscode',
+              path: 'C:\\Users\\tester\\AppData\\Roaming\\Code\\User\\mcp.json',
+              feature: 'mcp-config',
+              origin: 'client-sync',
+              action: 'modify',
+              clientId: 'vscode',
+              clientName: 'VS Code',
+              detail: {
+                kind: 'mcp',
+                items: [
+                  {
+                    name: 'server-b',
+                    source: 'modified',
+                    action: 'overwrite',
+                    before: { command: 'old' },
+                    after: { command: 'new' },
+                  },
+                ],
+              },
             },
           ],
+          totalFiles: 2,
+          createCount: 1,
+          modifyCount: 1,
         },
-      },
-    })
+      ),
+    )
     syncAllMock.mockResolvedValue([
       {
         clientId: 'cursor',
@@ -249,13 +345,17 @@ describe('ClientsPage sync-all reporting', () => {
 
     fireEvent.click(screen.getByTestId('btn-sync-all'))
 
-    await waitFor(() => {
-      expect(previewSyncAllMock).toHaveBeenCalled()
-      expect(screen.getByTestId('sync-all-diff-dialog')).toBeInTheDocument()
-    })
+    await waitFor(() =>
+      expect(syncPreviewOutgoingMock).toHaveBeenCalledWith({
+        kind: 'actionable-clients',
+        clientIds: ['cursor', 'vscode'],
+        allowCreateConfigIfMissing: true,
+      }),
+    )
+    expect(screen.getByTestId('sync-center-dialog')).toBeInTheDocument()
+    expect(screen.getByTestId('sync-plan-view')).toBeInTheDocument()
 
-    const dialog = screen.getByTestId('sync-all-diff-dialog')
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Sync all' }))
+    fireEvent.click(screen.getByTestId('sync-plan-confirm'))
 
     await waitFor(() => {
       expect(syncAllMock).toHaveBeenCalledTimes(1)
@@ -313,13 +413,24 @@ describe('ClientsPage sync-all reporting', () => {
     fireEvent.click(screen.getByTestId('create-config-confirm'))
 
     await waitFor(() =>
+      expect(syncPreviewOutgoingMock).toHaveBeenCalledWith({
+        kind: 'client',
+        clientId: 'cursor',
+        options: {
+          allowCreateConfigIfMissing: true,
+        },
+      }),
+    )
+    expect(syncClientMock).not.toHaveBeenCalled()
+    fireEvent.click(await screen.findByTestId('sync-plan-confirm'))
+    await waitFor(() =>
       expect(syncClientMock).toHaveBeenCalledWith('cursor', {
         allowCreateConfigIfMissing: true,
       }),
     )
   })
 
-  it('shows create-config dialog when preview sync rejects with errorCode', async () => {
+  it('shows sync plan blockers and disables confirmation when preview is blocked', async () => {
     clientsFixture = [
       {
         id: 'cursor',
@@ -331,26 +442,42 @@ describe('ClientsPage sync-all reporting', () => {
       },
     ]
 
-    const previewError = Object.assign(new Error('needs config'), {
-      errorCode: 'config_creation_required' as const,
-    })
-
-    Object.defineProperty(window, 'api', {
-      value: {
-        ...window.api,
-        clientsPreviewSync: vi.fn().mockRejectedValue(previewError),
-      },
-      writable: true,
-      configurable: true,
-    })
+    syncPreviewOutgoingMock.mockResolvedValue(
+      makeSyncPlan(
+        {
+          kind: 'client',
+          clientId: 'cursor',
+        },
+        {
+          entries: [],
+          blockers: [
+            {
+              id: 'cursor-json-invalid',
+              title: 'Invalid configuration file',
+              description: 'The current config contains invalid JSON and cannot be merged safely.',
+              clientId: 'cursor',
+              clientName: 'Cursor',
+              path: 'C:\\Users\\tester\\.cursor\\mcp.json',
+            },
+          ],
+          totalFiles: 0,
+          createCount: 0,
+          modifyCount: 0,
+          removeCount: 0,
+          confirmable: false,
+        },
+      ),
+    )
 
     const user = userEvent.setup()
     renderWithProviders(<ClientsPage />)
 
     await user.click(screen.getByTestId('client-actions-cursor-primary'))
 
-    expect(await screen.findByText('Create new configuration?')).toBeInTheDocument()
-    expect(toastErrorMock).not.toHaveBeenCalledWith('needs config')
+    expect(await screen.findByTestId('sync-center-dialog')).toBeInTheDocument()
+    expect(await screen.findByTestId('sync-plan-blockers')).toBeInTheDocument()
+    expect(screen.getByTestId('sync-plan-confirm')).toBeDisabled()
+    expect(toastErrorMock).not.toHaveBeenCalled()
   })
 
   it('shows green check indicator when validation succeeds', async () => {

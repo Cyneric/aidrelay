@@ -49,8 +49,7 @@ import { RowActions } from '@/components/common/RowActions'
 import { PageHeader } from '@/components/common/PageHeader'
 import { ClientIcon } from '@/components/common/icons/ClientIcon'
 import { CreateConfigConfirmDialog } from '@/components/clients/CreateConfigConfirmDialog'
-import { SyncDiffDialog } from '@/components/clients/SyncDiffDialog'
-import { SyncAllDiffDialog } from '@/components/clients/SyncAllDiffDialog'
+import { SyncCenterDialog } from '@/components/sync/SyncCenterDialog'
 import { ManageSyncItemsDialog } from '@/components/clients/ManageSyncItemsDialog'
 import {
   InstallClientDialog,
@@ -59,7 +58,6 @@ import {
   type InstallTimelineStatus,
 } from '@/components/clients/InstallClientDialog'
 import { PathWithActions } from '@/components/common/PathWithActions'
-import { isConfigCreationRequiredError } from '@/lib/sync-errors'
 import { useClientsStore } from '@/stores/clients.store'
 import { clientsService } from '@/services/clients.service'
 import { serversService } from '@/services/servers.service'
@@ -71,9 +69,8 @@ import type {
   InstallManager,
   SyncClientOptions,
   SyncResult,
-  SyncPreviewResult,
-  SyncAllPreviewResult,
   McpServer,
+  SyncPlanScope,
 } from '@shared/types'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -452,16 +449,7 @@ const ClientsPage = () => {
   const { t } = useTranslation()
   const { clients, loading, detectAll, syncClient } = useClientsStore()
   const [syncingId, setSyncingId] = useState<ClientStatus['id'] | null>(null)
-  const [syncPreviewClientId, setSyncPreviewClientId] = useState<ClientStatus['id'] | null>(null)
-  const [syncPreviewResult, setSyncPreviewResult] = useState<SyncPreviewResult | null>(null)
-  const [syncPreviewOptions, setSyncPreviewOptions] = useState<SyncClientOptions | undefined>(
-    undefined,
-  )
-  const [syncPreviewLoading, setSyncPreviewLoading] = useState(false)
-  const [syncAllPreviewResult, setSyncAllPreviewResult] = useState<SyncAllPreviewResult | null>(
-    null,
-  )
-  const [syncAllPreviewLoading, setSyncAllPreviewLoading] = useState(false)
+  const [syncPlanScope, setSyncPlanScope] = useState<SyncPlanScope | null>(null)
   const [syncingAll, setSyncingAll] = useState(false)
   const [installingId, setInstallingId] = useState<ClientStatus['id'] | null>(null)
   const [discoveringId, setDiscoveringId] = useState<ClientStatus['id'] | null>(null)
@@ -513,75 +501,50 @@ const ClientsPage = () => {
     [syncClient, t],
   )
 
-  const handleSync = useCallback(
-    async (clientId: ClientStatus['id'], options?: SyncClientOptions) => {
-      setSyncPreviewClientId(clientId)
-      setSyncPreviewOptions(options)
-      setSyncPreviewLoading(true)
+  const handleSync = useCallback((clientId: ClientStatus['id'], options?: SyncClientOptions) => {
+    setSyncPlanScope({
+      kind: 'client',
+      clientId,
+      ...(options ? { options } : {}),
+    })
+  }, [])
+
+  const handleSyncAll = useCallback(() => {
+    const installedIds = clients.filter((client) => client.installed).map((client) => client.id)
+    setSyncPlanScope({
+      kind: 'actionable-clients',
+      clientIds: installedIds,
+      allowCreateConfigIfMissing: true,
+    })
+  }, [clients])
+
+  const handleConfirmSyncPlan = useCallback(async () => {
+    if (!syncPlanScope) return
+
+    if (syncPlanScope.kind === 'client') {
       try {
-        const preview = await clientsService.previewSync(clientId, options)
-        setSyncPreviewResult(preview)
-      } catch (err) {
-        const message = err instanceof Error ? err.message : t('common.error')
-        // If config is missing, show the create config dialog (same as before)
-        if (isConfigCreationRequiredError(err)) {
-          setCreateConfigClientId(clientId)
-        } else {
-          toast.error(message)
-        }
-        setSyncPreviewClientId(null)
-        setSyncPreviewResult(null)
-      } finally {
-        setSyncPreviewLoading(false)
+        await performSync(syncPlanScope.clientId, syncPlanScope.options)
+        setSyncPlanScope(null)
+      } catch {
+        // Error toast is already handled in performSync.
       }
-    },
-    [t],
-  )
-
-  const handleConfirmSync = useCallback(async () => {
-    if (!syncPreviewClientId) return
-    try {
-      await performSync(syncPreviewClientId, syncPreviewOptions)
-      // Sync succeeded, close the preview dialog
-      setSyncPreviewClientId(null)
-      setSyncPreviewResult(null)
-      setSyncPreviewOptions(undefined)
-    } catch {
-      // Error toast is already handled in performSync.
-      // Keep the preview dialog open so user can retry
+      return
     }
-  }, [syncPreviewClientId, syncPreviewOptions, performSync])
 
-  const handleSyncAll = useCallback(async () => {
-    setSyncAllPreviewLoading(true)
-    try {
-      const preview = await clientsService.previewSyncAll()
-      setSyncAllPreviewResult(preview)
-    } catch (err) {
-      const message = err instanceof Error ? err.message : t('common.error')
-      toast.error(message)
-      setSyncAllPreviewResult(null)
-    } finally {
-      setSyncAllPreviewLoading(false)
-    }
-  }, [t])
+    if (syncPlanScope.kind !== 'actionable-clients') return
 
-  const handleConfirmSyncAll = useCallback(async () => {
     setSyncingAll(true)
     try {
       await clientsService.syncAll()
-      // Sync succeeded, close the preview dialog
-      setSyncAllPreviewResult(null)
-      // Refresh client list
+      setSyncPlanScope(null)
       await detectAll()
     } catch (err) {
       const message = err instanceof Error ? err.message : t('common.error')
       toast.error(message)
-      // Keep the preview dialog open so user can retry
     } finally {
       setSyncingAll(false)
     }
-  }, [detectAll, t])
+  }, [detectAll, performSync, syncPlanScope, t])
 
   const getClientDisplayName = useCallback(
     (clientId: ClientStatus['id']): string =>
@@ -767,16 +730,15 @@ const ClientsPage = () => {
   const installClient = clients.find((client) => client.id === installClientId) ?? null
   const officialInstallUrl = installClient ? OFFICIAL_INSTALL_URLS[installClient.id] : undefined
 
-  const handleConfirmCreateConfig = useCallback(async () => {
+  const handleConfirmCreateConfig = useCallback(() => {
     if (!createConfigClient) return
-    try {
-      await performSync(createConfigClient.id, { allowCreateConfigIfMissing: true })
-    } catch {
-      // Error toast is already handled in handleSync.
-    } finally {
-      setCreateConfigClientId(null)
-    }
-  }, [createConfigClient, performSync])
+    setCreateConfigClientId(null)
+    setSyncPlanScope({
+      kind: 'client',
+      clientId: createConfigClient.id,
+      options: { allowCreateConfigIfMissing: true },
+    })
+  }, [createConfigClient])
 
   const handleConfirmInstall = useCallback(async () => {
     if (!installClient) return
@@ -935,27 +897,17 @@ const ClientsPage = () => {
         {...(installResult ? { result: installResult } : {})}
         {...(installErrorMessage ? { errorMessage: installErrorMessage } : {})}
       />
-      <SyncDiffDialog
-        open={syncPreviewClientId !== null}
-        preview={syncPreviewResult}
-        loading={syncPreviewLoading}
-        syncing={syncingId === syncPreviewClientId}
-        onCancel={() => {
-          setSyncPreviewClientId(null)
-          setSyncPreviewResult(null)
-          setSyncPreviewOptions(undefined)
+      <SyncCenterDialog
+        open={syncPlanScope !== null}
+        onOpenChange={(next) => {
+          if (!next) setSyncPlanScope(null)
         }}
-        onConfirm={() => void handleConfirmSync()}
-      />
-      <SyncAllDiffDialog
-        open={syncAllPreviewResult !== null}
-        preview={syncAllPreviewResult}
-        loading={syncAllPreviewLoading}
-        syncing={syncingAll}
-        onCancel={() => {
-          setSyncAllPreviewResult(null)
-        }}
-        onConfirm={() => void handleConfirmSyncAll()}
+        mode="confirmation"
+        scope={syncPlanScope ?? { kind: 'app' }}
+        confirming={
+          syncPlanScope?.kind === 'client' ? syncingId === syncPlanScope.clientId : syncingAll
+        }
+        onConfirm={() => void handleConfirmSyncPlan()}
       />
       <ManageSyncItemsDialog
         open={manageSyncClient !== null}

@@ -51,6 +51,8 @@ import type {
   DiagnosticReport,
   PendingSetup,
   SyncConflict,
+  SyncPlanResult,
+  SyncPlanScope,
   OssAttribution,
 } from './types'
 
@@ -585,10 +587,12 @@ export interface IpcChannels {
 
   // Sync (assisted cross‑device)
   'sync:list-pending': () => Promise<PendingSetup[]>
+  'sync:list-conflicts': () => Promise<SyncConflict[]>
   'sync:apply-pending': (serverId: string) => Promise<void>
   'sync:auto-pull': () => Promise<void>
   'sync:resolve-conflict': (conflictId: string, resolution: 'local' | 'remote') => Promise<void>
   'sync:push-review': () => Promise<SyncConflict[]>
+  'sync:preview-outgoing': (scope: SyncPlanScope) => Promise<SyncPlanResult>
 
   // Stacks
   'stacks:export': (serverIds: string[], ruleIds: string[], name: string) => Promise<string>

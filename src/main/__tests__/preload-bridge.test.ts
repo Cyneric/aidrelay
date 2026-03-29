@@ -78,6 +78,7 @@ const EXPECTED_KEYS = [
   'syncAutoPull',
   'syncListConflicts',
   'syncResolveConflict',
+  'syncPreviewOutgoing',
   'syncPushReview',
   'stacksExport',
   'stacksImport',
@@ -147,6 +148,7 @@ describe('preload bridge composition', () => {
     await api.clientsClearManualConfigPath('cursor')
     await api.serversList()
     await api.rulesSyncAll()
+    await api.syncPreviewOutgoing({ kind: 'app' })
     await api.gitSyncTestRemote({
       remoteUrl: 'ssh://git@github.com/owner/repo.git',
       authMethod: 'ssh',
@@ -183,6 +185,7 @@ describe('preload bridge composition', () => {
     expect(invoke).toHaveBeenCalledWith('clients:clear-manual-config-path', 'cursor')
     expect(invoke).toHaveBeenCalledWith('servers:list')
     expect(invoke).toHaveBeenCalledWith('rules:sync-all')
+    expect(invoke).toHaveBeenCalledWith('sync:preview-outgoing', { kind: 'app' })
     expect(invoke).toHaveBeenCalledWith('git-sync:test-remote', {
       remoteUrl: 'ssh://git@github.com/owner/repo.git',
       authMethod: 'ssh',

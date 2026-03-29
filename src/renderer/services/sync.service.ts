@@ -11,7 +11,7 @@
  * conflict resolution, and push review.
  */
 
-import type { PendingSetup, SyncConflict } from '@shared/types'
+import type { PendingSetup, SyncConflict, SyncPlanResult, SyncPlanScope } from '@shared/types'
 
 export const syncService = {
   listPending: (): Promise<PendingSetup[]> => window.api.syncListPending(),
@@ -26,4 +26,7 @@ export const syncService = {
     window.api.syncResolveConflict(conflictId, resolution),
 
   pushReview: (): Promise<SyncConflict[]> => window.api.syncPushReview(),
+
+  previewOutgoing: (scope: SyncPlanScope): Promise<SyncPlanResult> =>
+    window.api.syncPreviewOutgoing(scope),
 }

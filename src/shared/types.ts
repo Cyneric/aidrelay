@@ -354,6 +354,124 @@ export interface SyncAllPreviewResult {
   readonly previews: Readonly<Partial<Record<ClientId, SyncPreviewResult>>>
 }
 
+/**
+ * Logical preview scope for the unified Sync Plan surface.
+ */
+export type SyncPlanScope =
+  | { readonly kind: 'app' }
+  | {
+      readonly kind: 'client'
+      readonly clientId: ClientId
+      readonly options?: SyncClientOptions
+    }
+  | {
+      readonly kind: 'actionable-clients'
+      readonly clientIds: readonly ClientId[]
+      readonly allowCreateConfigIfMissing?: boolean
+    }
+  | { readonly kind: 'rules-all' }
+  | { readonly kind: 'profile-activate'; readonly profileId: string }
+
+/**
+ * File-level action surfaced by the Sync Plan UI.
+ */
+export type SyncPlanFileAction = 'create' | 'modify' | 'remove'
+
+/**
+ * Originating feature that caused a file to be included in the Sync Plan.
+ */
+export type SyncPlanOrigin = 'client-sync' | 'rules-sync' | 'profile-activation'
+
+/**
+ * High-level file category shown in the Sync Plan.
+ */
+export type SyncPlanFeature = 'mcp-config' | 'rules'
+
+/**
+ * Detail payload for an MCP config file entry in the Sync Plan.
+ */
+export interface SyncPlanMcpDetail {
+  readonly kind: 'mcp'
+  readonly items: readonly SyncPreviewItem[]
+}
+
+/**
+ * Detail payload for a rules file entry in the Sync Plan.
+ */
+export interface SyncPlanRulesDetail {
+  readonly kind: 'rules'
+  readonly before: string | null
+  readonly after: string
+  readonly ruleCount: number
+}
+
+/**
+ * Per-item profile override summary rendered above profile activation writes.
+ */
+export interface SyncPlanProfileOverrideItem {
+  readonly id: string
+  readonly name: string
+  readonly currentEnabled: boolean
+  readonly nextEnabled: boolean
+}
+
+/**
+ * Summary of profile changes that will be applied before syncing files.
+ */
+export interface SyncPlanProfileSummary {
+  readonly profileId: string
+  readonly profileName: string
+  readonly serverOverrides: readonly SyncPlanProfileOverrideItem[]
+  readonly ruleOverrides: readonly SyncPlanProfileOverrideItem[]
+}
+
+/**
+ * Expanded file detail payload surfaced in the Sync Plan.
+ */
+export type SyncPlanDetail = SyncPlanMcpDetail | SyncPlanRulesDetail
+
+/**
+ * One file that would be written by a sync-related action.
+ */
+export interface SyncPlanFileEntry {
+  readonly id: string
+  readonly path: string
+  readonly feature: SyncPlanFeature
+  readonly origin: SyncPlanOrigin
+  readonly action: SyncPlanFileAction
+  readonly clientId?: ClientId
+  readonly clientName?: string
+  readonly detail: SyncPlanDetail
+}
+
+/**
+ * Non-fatal issue that prevents part or all of a Sync Plan from being applied.
+ */
+export interface SyncPlanBlocker {
+  readonly id: string
+  readonly title: string
+  readonly description: string
+  readonly clientId?: ClientId
+  readonly clientName?: string
+  readonly path?: string
+}
+
+/**
+ * Aggregate outgoing-write preview shown in the Sync Plan surface.
+ */
+export interface SyncPlanResult {
+  readonly scope: SyncPlanScope
+  readonly generatedAt: string
+  readonly entries: readonly SyncPlanFileEntry[]
+  readonly blockers: readonly SyncPlanBlocker[]
+  readonly totalFiles: number
+  readonly createCount: number
+  readonly modifyCount: number
+  readonly removeCount: number
+  readonly confirmable: boolean
+  readonly profileSummary?: SyncPlanProfileSummary
+}
+
 // ─── Skills Types ─────────────────────────────────────────────────────────────
 
 /**

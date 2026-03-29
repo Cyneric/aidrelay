@@ -49,11 +49,12 @@ import { TokenBudgetPanel } from '@/components/rules/TokenBudgetPanel'
 import { ImportRulesDialog } from '@/components/rules/ImportRulesDialog'
 import { tokenTextClass } from '@/components/rules/tokenBadgeSeverity'
 import { ConfirmActionDialog } from '@/components/common/ConfirmActionDialog'
+import { SyncCenterDialog } from '@/components/sync/SyncCenterDialog'
 import { SkillsPage } from '@/pages/SkillsPage'
 import { useRulesStore } from '@/stores/rules.store'
 import { rulesService } from '@/services/rules.service'
 import { rulesColumnHelper, useRulesTable } from '@/hooks/useRulesTable'
-import type { AiRule, RuleScope } from '@shared/types'
+import type { AiRule, RuleScope, SyncPlanScope } from '@shared/types'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -99,6 +100,7 @@ const RulesPage = () => {
   const [showImport, setShowImport] = useState(false)
   const [pendingDeleteRule, setPendingDeleteRule] = useState<AiRule | null>(null)
   const [deletingRule, setDeletingRule] = useState(false)
+  const [syncPlanScope, setSyncPlanScope] = useState<SyncPlanScope | null>(null)
 
   const openCreate = useCallback(() => {
     setEditingRule(undefined)
@@ -159,7 +161,7 @@ const RulesPage = () => {
     }
   }, [deleteRule, pendingDeleteRule, t])
 
-  const handleSyncAll = useCallback(async () => {
+  const handleConfirmRulesSync = useCallback(async () => {
     setSyncingAll(true)
     try {
       const results = await rulesService.syncAll()
@@ -177,6 +179,13 @@ const RulesPage = () => {
       setSyncingAll(false)
     }
   }, [t])
+
+  const handleConfirmRulesSyncPlan = useCallback(() => {
+    void (async () => {
+      await handleConfirmRulesSync()
+      setSyncPlanScope(null)
+    })()
+  }, [handleConfirmRulesSync])
 
   // ─── Rules-specific header actions ─────────────────────────────────────────
 
@@ -197,7 +206,7 @@ const RulesPage = () => {
           <Button
             type="button"
             variant="outline"
-            onClick={() => void handleSyncAll()}
+            onClick={() => setSyncPlanScope({ kind: 'rules-all' })}
             disabled={syncingAll}
             className="gap-1.5"
             data-testid="sync-rules-button"
@@ -539,6 +548,18 @@ const RulesPage = () => {
           </TabsContent>
         </Tabs>
       </section>
+
+      {/* Rule editor drawer */}
+      <SyncCenterDialog
+        open={syncPlanScope !== null}
+        onOpenChange={(next) => {
+          if (!next) setSyncPlanScope(null)
+        }}
+        mode="confirmation"
+        scope={syncPlanScope ?? { kind: 'app' }}
+        confirming={syncingAll}
+        onConfirm={handleConfirmRulesSyncPlan}
+      />
 
       {/* Rule editor drawer */}
       {showEditor && (

@@ -38,7 +38,7 @@
 import { writeFileSync, mkdirSync, renameSync, existsSync, readFileSync } from 'fs'
 import { join, dirname } from 'path'
 import log from 'electron-log'
-import type { AiRule, SyncResult, ClientId } from '@shared/types'
+import type { AiRule, SyncPlanFileAction, SyncResult, ClientId } from '@shared/types'
 import type { Database } from 'better-sqlite3'
 import { RulesRepo } from '@main/db/rules.repo'
 import { ActivityLogRepo } from '@main/db/activity-log.repo'
@@ -57,6 +57,14 @@ const atomicWrite = (targetPath: string, content: string): void => {
   const tmp = targetPath + '.aidrelay.tmp'
   writeFileSync(tmp, content, 'utf-8')
   renameSync(tmp, targetPath)
+}
+
+interface RulesPreviewFile {
+  readonly path: string
+  readonly before: string | null
+  readonly after: string
+  readonly action: SyncPlanFileAction
+  readonly ruleCount: number
 }
 
 /**
@@ -145,6 +153,28 @@ export class RulesSyncService {
     return clientIds.map((id) => this.sync(id))
   }
 
+  /**
+   * Builds a non-mutating preview of the files rules sync would write for one client.
+   */
+  preview(clientId: ClientId, rulesOverride?: readonly AiRule[]): RulesPreviewFile[] {
+    const rules = (rulesOverride ?? this.rulesRepo.findAll()).filter((r) =>
+      this.isEnabledForClient(r, clientId),
+    )
+    return this.previewForClient(clientId, rules)
+  }
+
+  /**
+   * Builds previews for multiple clients in one call.
+   */
+  previewAll(
+    clientIds: readonly ClientId[],
+    rulesOverride?: readonly AiRule[],
+  ): Readonly<Partial<Record<ClientId, readonly RulesPreviewFile[]>>> {
+    return Object.fromEntries(
+      clientIds.map((clientId) => [clientId, this.preview(clientId, rulesOverride)]),
+    ) as Readonly<Partial<Record<ClientId, readonly RulesPreviewFile[]>>>
+  }
+
   // ── Private helpers ────────────────────────────────────────────────────────
 
   /**
@@ -206,6 +236,48 @@ export class RulesSyncService {
     }
   }
 
+  private previewForClient(clientId: ClientId, rules: readonly AiRule[]): RulesPreviewFile[] {
+    switch (clientId) {
+      case 'claude-code':
+        return this.previewIndividualMd(
+          rules,
+          join(this.userProfile, '.claude', 'rules'),
+          '.md',
+          toClaudeCodeMd,
+        )
+      case 'cursor':
+        return this.previewIndividualMd(
+          rules,
+          join(this.userProfile, '.cursor', 'rules'),
+          '.mdc',
+          toCursorMdc,
+        )
+      case 'cline':
+        return this.previewConcat(rules, (projectPath) =>
+          join(projectPath, '.clinerules', 'aidrelay.md'),
+        )
+      case 'roo-code':
+        return this.previewRoo(rules)
+      case 'vscode':
+      case 'vscode-insiders':
+      case 'visual-studio':
+        return this.previewConcat(rules, (projectPath) =>
+          join(projectPath, '.github', 'copilot-instructions.md'),
+        )
+      case 'windsurf':
+        return this.previewConcat(rules, (projectPath) => join(projectPath, '.windsurfrules'))
+      case 'codex-cli':
+      case 'codex-gui':
+        return this.previewConcat(rules, (projectPath) => join(projectPath, '.codex', 'AGENTS.md'))
+      case 'gemini-cli':
+        return this.previewGemini(rules)
+      case 'opencode':
+        return this.previewOpenCode(rules)
+      default:
+        return []
+    }
+  }
+
   /**
    * Writes one file per rule to a flat directory (claude-code + cursor strategy).
    * Global-scoped rules go to `baseDir`. Project-scoped rules go to a
@@ -243,6 +315,33 @@ export class RulesSyncService {
     return written
   }
 
+  private previewIndividualMd(
+    rules: readonly AiRule[],
+    globalBaseDir: string,
+    ext: string,
+    serialise: (rule: AiRule) => string,
+  ): RulesPreviewFile[] {
+    const previews: RulesPreviewFile[] = []
+
+    for (const rule of rules) {
+      const baseDir =
+        rule.scope === 'project' && rule.projectPath
+          ? join(rule.projectPath, ext === '.mdc' ? '.cursor/rules' : '.claude/rules')
+          : globalBaseDir
+
+      if (rule.scope === 'project' && !rule.projectPath) {
+        continue
+      }
+
+      const filePath = join(baseDir, `${toFileName(rule.name)}${ext}`)
+      const nextContent = serialise(rule)
+      const preview = this.createPreviewFile(filePath, nextContent, 1)
+      if (preview) previews.push(preview)
+    }
+
+    return previews
+  }
+
   /**
    * Writes all rules for a given project path into a single concatenated file
    * (vscode-family / windsurf / codex strategy). Rules without a `projectPath`
@@ -269,6 +368,31 @@ export class RulesSyncService {
       written += projectRules.length
     }
     return written
+  }
+
+  private previewConcat(
+    rules: readonly AiRule[],
+    pathFor: (projectPath: string) => string,
+  ): RulesPreviewFile[] {
+    const byProject = new Map<string, AiRule[]>()
+
+    for (const rule of rules) {
+      if (!rule.projectPath) {
+        continue
+      }
+      const existing = byProject.get(rule.projectPath) ?? []
+      existing.push(rule)
+      byProject.set(rule.projectPath, existing)
+    }
+
+    const previews: RulesPreviewFile[] = []
+    for (const [projectPath, projectRules] of byProject) {
+      const filePath = pathFor(projectPath)
+      const preview = this.createPreviewFile(filePath, toConcat(projectRules), projectRules.length)
+      if (preview) previews.push(preview)
+    }
+
+    return previews
   }
 
   /**
@@ -308,6 +432,43 @@ export class RulesSyncService {
     return written
   }
 
+  private previewOpenCode(rules: readonly AiRule[]): RulesPreviewFile[] {
+    const byProject = new Map<string, AiRule[]>()
+
+    for (const rule of rules) {
+      if (!rule.projectPath) {
+        continue
+      }
+      const existing = byProject.get(rule.projectPath) ?? []
+      existing.push(rule)
+      byProject.set(rule.projectPath, existing)
+    }
+
+    const previews: RulesPreviewFile[] = []
+    for (const [projectPath, projectRules] of byProject) {
+      const filePath = join(projectPath, 'opencode.json')
+      let existing: Record<string, unknown> = {}
+
+      if (existsSync(filePath)) {
+        try {
+          existing = JSON.parse(readFileSync(filePath, 'utf-8')) as Record<string, unknown>
+        } catch {
+          existing = {}
+        }
+      }
+
+      const merged = { ...existing, instructions: toConcat(projectRules) }
+      const preview = this.createPreviewFile(
+        filePath,
+        JSON.stringify(merged, null, 2),
+        projectRules.length,
+      )
+      if (preview) previews.push(preview)
+    }
+
+    return previews
+  }
+
   /**
    * Writes Gemini rules to `.gemini/GEMINI.md`.
    * - Global-scope rules go to `%USERPROFILE%\.gemini\GEMINI.md`.
@@ -345,6 +506,41 @@ export class RulesSyncService {
     return written
   }
 
+  private previewGemini(rules: readonly AiRule[]): RulesPreviewFile[] {
+    const globalRules = rules.filter((rule) => rule.scope === 'global')
+    const projectRules = rules.filter((rule) => rule.scope === 'project')
+    const byProject = new Map<string, AiRule[]>()
+
+    for (const rule of projectRules) {
+      if (!rule.projectPath) {
+        continue
+      }
+      const existing = byProject.get(rule.projectPath) ?? []
+      existing.push(rule)
+      byProject.set(rule.projectPath, existing)
+    }
+
+    const previews: RulesPreviewFile[] = []
+
+    if (globalRules.length > 0) {
+      const globalPath = join(this.userProfile, '.gemini', 'GEMINI.md')
+      const preview = this.createPreviewFile(globalPath, toConcat(globalRules), globalRules.length)
+      if (preview) previews.push(preview)
+    }
+
+    for (const [projectPath, rulesForProject] of byProject) {
+      const filePath = join(projectPath, '.gemini', 'GEMINI.md')
+      const preview = this.createPreviewFile(
+        filePath,
+        toConcat(rulesForProject),
+        rulesForProject.length,
+      )
+      if (preview) previews.push(preview)
+    }
+
+    return previews
+  }
+
   /**
    * Writes Roo Code project rules to both Roo-native and Cline-compatible
    * rule file locations for best compatibility.
@@ -370,5 +566,54 @@ export class RulesSyncService {
     }
 
     return written
+  }
+
+  private previewRoo(rules: readonly AiRule[]): RulesPreviewFile[] {
+    const byProject = new Map<string, AiRule[]>()
+
+    for (const rule of rules) {
+      if (!rule.projectPath) {
+        continue
+      }
+      const existing = byProject.get(rule.projectPath) ?? []
+      existing.push(rule)
+      byProject.set(rule.projectPath, existing)
+    }
+
+    const previews: RulesPreviewFile[] = []
+    for (const [projectPath, rulesForProject] of byProject) {
+      const nextContent = toConcat(rulesForProject)
+      const rooPreview = this.createPreviewFile(
+        join(projectPath, '.roo', 'rules', 'aidrelay.md'),
+        nextContent,
+        rulesForProject.length,
+      )
+      const compatPreview = this.createPreviewFile(
+        join(projectPath, '.clinerules', 'aidrelay.md'),
+        nextContent,
+        rulesForProject.length,
+      )
+      if (rooPreview) previews.push(rooPreview)
+      if (compatPreview) previews.push(compatPreview)
+    }
+
+    return previews
+  }
+
+  private createPreviewFile(
+    path: string,
+    nextContent: string,
+    ruleCount: number,
+  ): RulesPreviewFile | null {
+    const before = existsSync(path) ? readFileSync(path, 'utf-8') : null
+    if (before === nextContent) return null
+
+    return {
+      path,
+      before,
+      after: nextContent,
+      action: before === null ? 'create' : 'modify',
+      ruleCount,
+    }
   }
 }

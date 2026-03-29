@@ -1,4 +1,4 @@
-import type { PendingSetup, SyncConflict } from '../../shared/types'
+import type { PendingSetup, SyncConflict, SyncPlanResult, SyncPlanScope } from '../../shared/types'
 import type { IpcRendererLike } from './types'
 
 export const createSyncApi = (ipcRenderer: IpcRendererLike) => ({
@@ -15,4 +15,7 @@ export const createSyncApi = (ipcRenderer: IpcRendererLike) => ({
     ipcRenderer.invoke('sync:resolve-conflict', conflictId, resolution),
 
   syncPushReview: (): Promise<SyncConflict[]> => ipcRenderer.invoke('sync:push-review'),
+
+  syncPreviewOutgoing: (scope: SyncPlanScope): Promise<SyncPlanResult> =>
+    ipcRenderer.invoke('sync:preview-outgoing', scope),
 })

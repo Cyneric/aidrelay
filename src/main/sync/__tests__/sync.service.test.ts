@@ -256,4 +256,82 @@ describe('SyncService', () => {
     const ignoredItem = preview.items.find((item) => item.name === 'ignored-preview')
     expect(ignoredItem?.action).toBe('ignored')
   })
+
+  it('marks new managed entries as create in preview when the config file does not exist', async () => {
+    serversRepo.create({ name: 'preview-create', type: 'stdio', command: 'npx' })
+
+    const configPath = join(tmpDir, 'missing-mcp.json')
+    const preview = await syncService.previewSync(makeAdapter(), configPath)
+
+    expect(preview.configPath).toBe(configPath)
+    expect(preview.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: 'preview-create',
+          action: 'create',
+          source: 'added',
+        }),
+      ]),
+    )
+  })
+
+  it('marks changed managed entries as overwrite in preview when an existing config differs', async () => {
+    serversRepo.create({
+      name: 'preview-modify',
+      type: 'stdio',
+      command: 'npx',
+      args: ['-y', '@new/value'],
+    })
+
+    const configPath = join(tmpDir, 'modified-mcp.json')
+    writeFileSync(
+      configPath,
+      JSON.stringify({
+        mcpServers: {
+          'preview-modify': {
+            command: 'python',
+            args: ['legacy.py'],
+          },
+        },
+      }),
+      'utf-8',
+    )
+
+    const preview = await syncService.previewSync(makeAdapter(), configPath)
+    const changedItem = preview.items.find((item) => item.name === 'preview-modify')
+
+    expect(preview.configPath).toBe(configPath)
+    expect(changedItem?.action).toBe('overwrite')
+    expect(changedItem?.source).toBe('modified')
+  })
+
+  it('marks unchanged managed entries as no-op in preview when the file already matches', async () => {
+    serversRepo.create({
+      name: 'preview-same',
+      type: 'stdio',
+      command: 'npx',
+      args: ['-y', '@same/value'],
+    })
+
+    const configPath = join(tmpDir, 'same-mcp.json')
+    writeFileSync(
+      configPath,
+      JSON.stringify({
+        mcpServers: {
+          'preview-same': {
+            command: 'npx',
+            args: ['-y', '@same/value'],
+          },
+        },
+      }),
+      'utf-8',
+    )
+
+    const preview = await syncService.previewSync(makeAdapter(), configPath)
+    const unchangedItem = preview.items.find((item) => item.name === 'preview-same')
+
+    expect(preview.configPath).toBe(configPath)
+    expect(unchangedItem?.action).toBe('no-op')
+    expect(unchangedItem?.source).toBe('modified')
+  })
 })

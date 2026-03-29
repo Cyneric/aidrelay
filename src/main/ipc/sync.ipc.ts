@@ -13,8 +13,9 @@
 
 import { ipcMain } from 'electron'
 import log from 'electron-log'
-import type { PendingSetup, SyncConflict } from '@shared/types'
+import type { PendingSetup, SyncConflict, SyncPlanResult, SyncPlanScope } from '@shared/types'
 import { crossDeviceSyncService } from '@main/sync/cross-device-sync.service'
+import { syncPlanService } from '@main/sync/sync-plan.service'
 
 // ─── Handler Registration ─────────────────────────────────────────────────────
 
@@ -63,6 +64,14 @@ export const registerSyncIpc = (): void => {
     log.debug('[ipc] sync:push-review')
     return crossDeviceSyncService.pushReview()
   })
+
+  ipcMain.handle(
+    'sync:preview-outgoing',
+    async (_event, scope: SyncPlanScope): Promise<SyncPlanResult> => {
+      log.debug(`[ipc] sync:preview-outgoing ${scope.kind}`)
+      return syncPlanService.preview(scope)
+    },
+  )
 
   log.info('[ipc] sync handlers registered')
 }

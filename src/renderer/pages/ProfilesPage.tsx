@@ -23,8 +23,8 @@ import { PageHeader } from '@/components/common/PageHeader'
 import { EmptyState } from '@/components/common/EmptyState'
 import { ProfileCard } from '@/components/profiles/ProfileCard'
 import { ProfileEditor } from '@/components/profiles/ProfileEditor'
-import { ProfileDiffView } from '@/components/profiles/ProfileDiffView'
 import { ProfileDeleteConfirmDialog } from '@/components/profiles/ProfileDeleteConfirmDialog'
+import { SyncCenterDialog } from '@/components/sync/SyncCenterDialog'
 import { useProfilesStore } from '@/stores/profiles.store'
 import { useServersStore } from '@/stores/servers.store'
 import { useRulesStore } from '@/stores/rules.store'
@@ -199,17 +199,21 @@ const ProfilesPage = () => {
         />
       )}
 
-      {/* Activation diff confirmation modal */}
+      {/* Activation sync plan confirmation modal */}
       {activatingProfile !== undefined && (
-        <ProfileDiffView
-          profile={activatingProfile}
-          activating={activating}
+        <SyncCenterDialog
+          open={true}
+          onOpenChange={(open) => {
+            if (!open) setActivatingProfile(undefined)
+          }}
+          mode="confirmation"
+          scope={{ kind: 'profile-activate', profileId: activatingProfile.id }}
+          confirming={activating}
           onConfirm={() => {
             void handleActivateConfirm()
           }}
-          onCancel={() => {
-            setActivatingProfile(undefined)
-          }}
+          title={t('profiles.diffTitle', { name: activatingProfile.name })}
+          description={t('syncCenter.profileSyncPlanDescription')}
         />
       )}
 

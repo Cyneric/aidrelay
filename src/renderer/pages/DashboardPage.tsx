@@ -41,22 +41,19 @@ import { ClientCard } from '@/components/clients/ClientCard'
 import { EmptyState } from '@/components/common/EmptyState'
 import { CreateConfigConfirmDialog } from '@/components/clients/CreateConfigConfirmDialog'
 import { ConfigImportDiffDialog } from '@/components/clients/ConfigImportDiffDialog'
-import { SyncDiffDialog } from '@/components/clients/SyncDiffDialog'
-import { SyncAllDiffDialog } from '@/components/clients/SyncAllDiffDialog'
+import { SyncCenterDialog } from '@/components/sync/SyncCenterDialog'
 import { useClientsStore } from '@/stores/clients.store'
 import { useServersStore } from '@/stores/servers.store'
 import { clientsService } from '@/services/clients.service'
 import { SyncStatusWidget } from '@/components/sync/SyncStatusWidget'
 import { cn } from '@/lib/utils'
-import { isConfigCreationRequiredError } from '@/lib/sync-errors'
 import type {
   ClientStatus,
   McpServerMap,
   ConfigChangedPayload,
   ConfigImportPreviewResult,
-  SyncPreviewResult,
-  SyncAllPreviewResult,
   SyncClientOptions,
+  SyncPlanScope,
 } from '@shared/types'
 
 type DashboardFilter = 'all' | 'needs-attention' | 'synced' | 'not-installed'
@@ -73,11 +70,6 @@ interface ClientViewModel {
 }
 
 const FILTERS: readonly DashboardFilter[] = ['all', 'needs-attention', 'synced', 'not-installed']
-const MEANINGFUL_SYNC_ACTIONS = new Set(['create', 'overwrite', 'removed'])
-
-const hasMeaningfulPreviewChanges = (preview: SyncPreviewResult): boolean =>
-  preview.items.some((item) => MEANINGFUL_SYNC_ACTIONS.has(item.action))
-
 const getPriorityScore = (client: ClientStatus, missingConfig: boolean): number => {
   if (!client.installed) return 5
   if (client.syncStatus === 'error') return 0
@@ -121,17 +113,7 @@ const DashboardPage = () => {
   const [configImportLoading, setConfigImportLoading] = useState(false)
   const [configImporting, setConfigImporting] = useState(false)
   const [detectedUniqueServerCount, setDetectedUniqueServerCount] = useState(0)
-  const [syncPreviewClientId, setSyncPreviewClientId] = useState<ClientStatus['id'] | null>(null)
-  const [syncPreviewResult, setSyncPreviewResult] = useState<SyncPreviewResult | null>(null)
-  const [syncPreviewOptions, setSyncPreviewOptions] = useState<SyncClientOptions | undefined>(
-    undefined,
-  )
-  const [syncPreviewLoading, setSyncPreviewLoading] = useState(false)
-  const [syncAllPreviewResult, setSyncAllPreviewResult] = useState<SyncAllPreviewResult | null>(
-    null,
-  )
-  const [syncAllPreviewClientIds, setSyncAllPreviewClientIds] = useState<ClientStatus['id'][]>([])
-  const [syncAllPreviewLoading, setSyncAllPreviewLoading] = useState(false)
+  const [syncPlanScope, setSyncPlanScope] = useState<SyncPlanScope | null>(null)
 
   const reloadDashboardData = useCallback(async () => {
     await Promise.all([detectAll(), loadServers()])
@@ -328,8 +310,7 @@ const DashboardPage = () => {
         .map((item) => item.client),
     [clientView],
   )
-  const isBulkSyncDisabled =
-    bulkSyncRunning || syncAllPreviewLoading || actionableTargets.length === 0
+  const isBulkSyncDisabled = bulkSyncRunning || actionableTargets.length === 0
   const bulkSyncIndicatorState = useMemo<BulkSyncIndicatorState | null>(() => {
     if (actionableTargets.length > 0) return null
     if (kpis.missingConfigTools > 0) return 'warning'
@@ -412,92 +393,40 @@ const DashboardPage = () => {
     }
   }
 
-  const handleSync = async (clientId: ClientStatus['id'], options?: SyncClientOptions) => {
-    setSyncPreviewClientId(clientId)
-    setSyncPreviewOptions(options)
-    setSyncPreviewLoading(true)
-    try {
-      const preview = await clientsService.previewSync(clientId, options)
-      if (!hasMeaningfulPreviewChanges(preview)) {
-        setSyncPreviewClientId(null)
-        setSyncPreviewResult(null)
-        setSyncPreviewOptions(undefined)
-        toast.info(t('dashboard.syncNoChanges'))
-        await reloadDashboardData()
-        return
+  const handleSync = (clientId: ClientStatus['id'], options?: SyncClientOptions) => {
+    setSyncPlanScope({
+      kind: 'client',
+      clientId,
+      ...(options ? { options } : {}),
+    })
+  }
+
+  const handleSyncAllActionable = () => {
+    if (actionableTargets.length === 0 || bulkSyncRunning) return
+    setSyncPlanScope({
+      kind: 'actionable-clients',
+      clientIds: actionableTargets.map((client) => client.id),
+      allowCreateConfigIfMissing: true,
+    })
+  }
+
+  const handleConfirmSyncPlan = async () => {
+    if (!syncPlanScope) return
+
+    if (syncPlanScope.kind === 'client') {
+      const succeeded = await performSync(syncPlanScope.clientId, syncPlanScope.options)
+      if (succeeded) {
+        setSyncPlanScope(null)
       }
-      setSyncPreviewResult(preview)
-    } catch (err) {
-      const message = err instanceof Error ? err.message : t('common.error')
-      if (isConfigCreationRequiredError(err)) {
-        setCreateConfigClientId(clientId)
-      } else {
-        toast.error(message)
-      }
-      setSyncPreviewClientId(null)
-      setSyncPreviewResult(null)
-      setSyncPreviewOptions(undefined)
-    } finally {
-      setSyncPreviewLoading(false)
+      return
     }
-  }
 
-  const handleConfirmSync = async () => {
-    if (!syncPreviewClientId) return
-    const succeeded = await performSync(syncPreviewClientId, syncPreviewOptions)
-    if (!succeeded) return
-    setSyncPreviewClientId(null)
-    setSyncPreviewResult(null)
-    setSyncPreviewOptions(undefined)
-  }
-
-  const handleSyncAllActionable = async () => {
-    if (actionableTargets.length === 0 || bulkSyncRunning || syncAllPreviewLoading) return
-
-    setSyncAllPreviewLoading(true)
-    try {
-      const preview = await clientsService.previewSyncAll()
-      const actionableIds = new Set(actionableTargets.map((client) => client.id))
-      const filtered = Object.fromEntries(
-        Object.entries(preview.previews).filter(
-          (entry): entry is [ClientStatus['id'], SyncPreviewResult] =>
-            entry[1] !== undefined &&
-            actionableIds.has(entry[0] as ClientStatus['id']) &&
-            hasMeaningfulPreviewChanges(entry[1]),
-        ),
-      )
-
-      if (Object.keys(filtered).length === 0) {
-        toast.info(t('dashboard.syncAllNoChangesActionable'))
-        setSyncAllPreviewResult(null)
-        setSyncAllPreviewClientIds([])
-        await reloadDashboardData()
-        return
-      }
-
-      setSyncAllPreviewResult({ previews: filtered })
-      setSyncAllPreviewClientIds(
-        actionableTargets
-          .map((client) => client.id)
-          .filter((clientId) => filtered[clientId] !== undefined),
-      )
-    } catch (err) {
-      const message = err instanceof Error ? err.message : t('common.error')
-      toast.error(message)
-      setSyncAllPreviewResult(null)
-      setSyncAllPreviewClientIds([])
-    } finally {
-      setSyncAllPreviewLoading(false)
-    }
-  }
-
-  const handleConfirmSyncAll = async () => {
-    if (syncAllPreviewClientIds.length === 0 || bulkSyncRunning) return
+    if (syncPlanScope.kind !== 'actionable-clients' || bulkSyncRunning) return
 
     setBulkSyncRunning(true)
     setSyncingIds((prev) => {
       const next = new Set(prev)
-      for (const clientId of syncAllPreviewClientIds) next.add(clientId)
+      for (const clientId of syncPlanScope.clientIds) next.add(clientId)
       return next
     })
 
@@ -505,7 +434,7 @@ const DashboardPage = () => {
     let failed = 0
 
     try {
-      for (const clientId of syncAllPreviewClientIds) {
+      for (const clientId of syncPlanScope.clientIds) {
         const result = await clientsService.sync(clientId)
         if (result.success) succeeded += 1
         else failed += 1
@@ -513,27 +442,26 @@ const DashboardPage = () => {
 
       await reloadDashboardData()
     } catch {
-      failed = syncAllPreviewClientIds.length - succeeded
+      failed = syncPlanScope.clientIds.length - succeeded
     } finally {
       setBulkSyncRunning(false)
       setSyncingIds((prev) => {
         const next = new Set(prev)
-        for (const clientId of syncAllPreviewClientIds) next.delete(clientId)
+        for (const clientId of syncPlanScope.clientIds) next.delete(clientId)
         return next
       })
     }
 
     if (failed === 0) {
       toast.success(t('dashboard.syncAllSuccess', { count: succeeded }))
-      setSyncAllPreviewResult(null)
-      setSyncAllPreviewClientIds([])
+      setSyncPlanScope(null)
       return
     }
 
     toast.error(
       t('dashboard.syncAllSummary', {
         succeeded,
-        total: syncAllPreviewClientIds.length,
+        total: syncPlanScope.clientIds.length,
         failed,
       }),
     )
@@ -551,28 +479,19 @@ const DashboardPage = () => {
         onCancel={closeConfigImportDialog}
         onConfirm={() => void handleConfirmConfigImport()}
       />
-      <SyncDiffDialog
-        open={syncPreviewClientId !== null}
-        preview={syncPreviewResult}
-        loading={syncPreviewLoading}
-        syncing={syncPreviewClientId !== null && syncingIds.has(syncPreviewClientId)}
-        onCancel={() => {
-          setSyncPreviewClientId(null)
-          setSyncPreviewResult(null)
-          setSyncPreviewOptions(undefined)
+      <SyncCenterDialog
+        open={syncPlanScope !== null}
+        onOpenChange={(next) => {
+          if (!next) setSyncPlanScope(null)
         }}
-        onConfirm={() => void handleConfirmSync()}
-      />
-      <SyncAllDiffDialog
-        open={syncAllPreviewResult !== null}
-        preview={syncAllPreviewResult}
-        loading={syncAllPreviewLoading}
-        syncing={bulkSyncRunning}
-        onCancel={() => {
-          setSyncAllPreviewResult(null)
-          setSyncAllPreviewClientIds([])
-        }}
-        onConfirm={() => void handleConfirmSyncAll()}
+        mode="confirmation"
+        scope={syncPlanScope ?? { kind: 'app' }}
+        confirming={
+          syncPlanScope?.kind === 'client'
+            ? syncingIds.has(syncPlanScope.clientId)
+            : bulkSyncRunning
+        }
+        onConfirm={() => void handleConfirmSyncPlan()}
       />
 
       <CreateConfigConfirmDialog
@@ -757,12 +676,10 @@ const DashboardPage = () => {
               >
                 <RefreshCw
                   size={14}
-                  className={bulkSyncRunning || syncAllPreviewLoading ? 'animate-spin' : ''}
+                  className={bulkSyncRunning ? 'animate-spin' : ''}
                   aria-hidden="true"
                 />
-                {bulkSyncRunning || syncAllPreviewLoading
-                  ? t('clients.syncingButton')
-                  : t('dashboard.syncAllActionable')}
+                {bulkSyncRunning ? t('clients.syncingButton') : t('dashboard.syncAllActionable')}
               </Button>
             </div>
           </div>

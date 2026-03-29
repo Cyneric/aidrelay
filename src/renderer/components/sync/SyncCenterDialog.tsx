@@ -2,13 +2,15 @@
  * @file src/renderer/components/sync/SyncCenterDialog.tsx
  *
  * @created 17.03.2026
- * @modified 17.03.2026
+ * @modified 29.03.2026
  *
  * @author Christian Blank <aidrelay@proton.me>
  * @copyright 2026
  *
- * @description Reusable dialog containing all three Sync Center tabs (Needs Setup,
- * Conflicts, Push Review). Can be opened from the Dashboard widget or Settings page.
+ * @description Reusable Sync Center dialog. In inspection mode it exposes the
+ * classic sync-center tabs plus the new Outgoing Writes Sync Plan tab. In
+ * confirmation mode it focuses on the Sync Plan for one requested action and
+ * optionally shows confirm/cancel actions.
  */
 
 import { useState, useEffect, useCallback } from 'react'
@@ -18,6 +20,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
@@ -25,16 +28,19 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import { syncService } from '@/services/sync.service'
 import { diagnosticsService } from '@/services/diagnostics.service'
-import type { PendingSetup, SyncConflict } from '@shared/types'
-
-// ─── Props ───────────────────────────────────────────────────────────────────
+import { SyncPlanView } from '@/components/sync/SyncPlanView'
+import type { PendingSetup, SyncConflict, SyncPlanResult, SyncPlanScope } from '@shared/types'
 
 interface SyncCenterDialogProps {
   readonly open: boolean
   readonly onOpenChange: (open: boolean) => void
+  readonly mode?: 'inspection' | 'confirmation'
+  readonly scope?: SyncPlanScope
+  readonly confirming?: boolean
+  readonly onConfirm?: () => void
+  readonly title?: string
+  readonly description?: string
 }
-
-// ─── Tab Components ──────────────────────────────────────────────────────────
 
 const NeedsSetupTab = ({
   pending,
@@ -74,11 +80,11 @@ const NeedsSetupTab = ({
           <div>
             <h3 className="font-medium">{item.serverName}</h3>
             <p className="text-sm text-muted-foreground">{t(`syncCenter.reason.${item.reason}`)}</p>
-            {item.actions.length > 0 && (
+            {item.actions.length > 0 ? (
               <p className="mt-1 text-xs text-muted-foreground">
                 {t('syncCenter.actionsLabel')}: {item.actions.join(', ')}
               </p>
-            )}
+            ) : null}
           </div>
           <button
             onClick={() => onApply(item.serverId)}
@@ -133,11 +139,11 @@ const ConflictsTab = ({
               <h3 className="font-medium">{conflict.serverName}</h3>
               <p className="text-sm text-muted-foreground">{conflict.field}</p>
             </div>
-            {conflict.resolved && (
+            {conflict.resolved ? (
               <span className="rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800 dark:bg-green-900/30 dark:text-green-300">
                 {t('syncCenter.resolved')}
               </span>
-            )}
+            ) : null}
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -157,7 +163,7 @@ const ConflictsTab = ({
               </pre>
             </div>
           </div>
-          {!conflict.resolved && (
+          {!conflict.resolved ? (
             <div className="mt-4 flex gap-2">
               <button
                 onClick={() => onResolve(conflict.id, 'local')}
@@ -174,7 +180,7 @@ const ConflictsTab = ({
                 {t('syncCenter.useRemote')}
               </button>
             </div>
-          )}
+          ) : null}
         </div>
       ))}
     </div>
@@ -262,28 +268,34 @@ const PushReviewTab = ({
   )
 }
 
-// ─── Main Dialog ─────────────────────────────────────────────────────────────
+const defaultScope: SyncPlanScope = { kind: 'app' }
 
-/**
- * Reusable Sync Center dialog that exposes all three tabs: Needs Setup,
- * Conflicts, and Push Review. Manages its own data loading and actions.
- *
- * @param props.open - Whether the dialog is visible
- * @param props.onOpenChange - Callback when the dialog open state changes
- */
-const SyncCenterDialog = ({ open, onOpenChange }: SyncCenterDialogProps) => {
+const SyncCenterDialog = ({
+  open,
+  onOpenChange,
+  mode = 'inspection',
+  scope = defaultScope,
+  confirming = false,
+  onConfirm,
+  title,
+  description,
+}: SyncCenterDialogProps) => {
   const { t } = useTranslation()
-  const [activeTab, setActiveTab] = useState<'needs-setup' | 'conflicts' | 'push-review'>(
-    'needs-setup',
-  )
+  const [activeTab, setActiveTab] = useState<
+    'needs-setup' | 'conflicts' | 'push-review' | 'outgoing-writes'
+  >(mode === 'confirmation' ? 'outgoing-writes' : 'needs-setup')
   const [pending, setPending] = useState<PendingSetup[]>([])
   const [conflicts, setConflicts] = useState<SyncConflict[]>([])
   const [pushReview, setPushReview] = useState<SyncConflict[]>([])
+  const [syncPlan, setSyncPlan] = useState<SyncPlanResult | null>(null)
   const [loadingPending, setLoadingPending] = useState(false)
   const [loadingConflicts, setLoadingConflicts] = useState(false)
   const [loadingPushReview, setLoadingPushReview] = useState(false)
+  const [loadingSyncPlan, setLoadingSyncPlan] = useState(false)
 
-  const loadAllData = useCallback(async () => {
+  const loadOverviewData = useCallback(async () => {
+    if (mode !== 'inspection') return
+
     setLoadingPending(true)
     setLoadingConflicts(true)
     setLoadingPushReview(true)
@@ -302,13 +314,28 @@ const SyncCenterDialog = ({ open, onOpenChange }: SyncCenterDialogProps) => {
       setLoadingConflicts(false)
       setLoadingPushReview(false)
     }
-  }, [])
+  }, [mode])
+
+  const loadSyncPlan = useCallback(async () => {
+    setLoadingSyncPlan(true)
+    try {
+      const result = await syncService.previewOutgoing(scope)
+      setSyncPlan(result)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : t('common.error')
+      toast.error(message)
+      setSyncPlan(null)
+    } finally {
+      setLoadingSyncPlan(false)
+    }
+  }, [scope, t])
 
   useEffect(() => {
-    if (open) {
-      void loadAllData()
-    }
-  }, [open, loadAllData])
+    if (!open) return
+    setActiveTab(mode === 'confirmation' ? 'outgoing-writes' : 'needs-setup')
+    void loadOverviewData()
+    void loadSyncPlan()
+  }, [loadOverviewData, loadSyncPlan, mode, open])
 
   const handleApplyPending = async (serverId: string) => {
     try {
@@ -347,101 +374,151 @@ const SyncCenterDialog = ({ open, onOpenChange }: SyncCenterDialogProps) => {
       const report = await diagnosticsService.generateReport()
       const json = JSON.stringify(report, null, 2)
       await navigator.clipboard.writeText(json)
-      toast.success('Diagnostic report copied to clipboard')
+      toast.success(t('syncCenter.copyDiagnosticsSuccess'))
     } catch (error) {
       console.error('Failed to copy diagnostics:', error)
-      toast.error('Failed to copy diagnostics')
+      toast.error(t('syncCenter.copyDiagnosticsFailed'))
     }
   }
 
   const unresolvedConflictCount = conflicts.filter((c) => !c.resolved).length
+  const dialogTitle =
+    title ?? (mode === 'confirmation' ? t('syncCenter.syncPlanDialogTitle') : t('syncCenter.title'))
+  const dialogDescription =
+    description ??
+    (mode === 'confirmation' ? t('syncCenter.syncPlanDialogDescription') : t('syncCenter.subtitle'))
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-3xl max-h-[80vh]" data-testid="sync-center-dialog">
+      <DialogContent
+        className="sm:max-w-5xl max-h-[85vh] flex flex-col"
+        data-testid="sync-center-dialog"
+      >
         <DialogHeader>
           <div className="flex items-start justify-between gap-4">
             <div>
-              <DialogTitle>{t('syncCenter.title')}</DialogTitle>
-              <DialogDescription>{t('syncCenter.subtitle')}</DialogDescription>
+              <DialogTitle>{dialogTitle}</DialogTitle>
+              <DialogDescription>{dialogDescription}</DialogDescription>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                void handleCopyDiagnostics()
-              }}
-              data-testid="copy-diagnostics-button"
-            >
-              {t('syncCenter.copyDiagnostics')}
-            </Button>
+            {mode === 'inspection' ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  void handleCopyDiagnostics()
+                }}
+                data-testid="copy-diagnostics-button"
+              >
+                {t('syncCenter.copyDiagnostics')}
+              </Button>
+            ) : null}
           </div>
         </DialogHeader>
 
-        <Tabs
-          value={activeTab}
-          onValueChange={(value) => setActiveTab(value as typeof activeTab)}
-          className="flex flex-col"
-        >
-          <TabsList className="w-fit">
-            <TabsTrigger value="needs-setup" data-testid="dialog-tab-needs-setup">
-              {t('syncCenter.tabNeedsSetup')}
-              {pending.length > 0 && (
-                <span className="ml-1.5 rounded-full bg-destructive px-1.5 py-0.5 text-xs text-destructive-foreground">
-                  {pending.length}
-                </span>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="conflicts" data-testid="dialog-tab-conflicts">
-              {t('syncCenter.tabConflicts')}
-              {unresolvedConflictCount > 0 && (
-                <span className="ml-1.5 rounded-full bg-destructive px-1.5 py-0.5 text-xs text-destructive-foreground">
-                  {unresolvedConflictCount}
-                </span>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="push-review" data-testid="dialog-tab-push-review">
-              {t('syncCenter.tabPushReview')}
-              {pushReview.length > 0 && (
-                <span className="ml-1.5 rounded-full bg-destructive px-1.5 py-0.5 text-xs text-destructive-foreground">
-                  {pushReview.length}
-                </span>
-              )}
-            </TabsTrigger>
-          </TabsList>
+        {mode === 'inspection' ? (
+          <Tabs
+            value={activeTab}
+            onValueChange={(value) => setActiveTab(value as typeof activeTab)}
+            className="flex flex-1 flex-col overflow-hidden"
+          >
+            <TabsList className="w-fit">
+              <TabsTrigger value="needs-setup" data-testid="dialog-tab-needs-setup">
+                {t('syncCenter.tabNeedsSetup')}
+                {pending.length > 0 ? (
+                  <span className="ml-1.5 rounded-full bg-destructive px-1.5 py-0.5 text-xs text-destructive-foreground">
+                    {pending.length}
+                  </span>
+                ) : null}
+              </TabsTrigger>
+              <TabsTrigger value="conflicts" data-testid="dialog-tab-conflicts">
+                {t('syncCenter.tabConflicts')}
+                {unresolvedConflictCount > 0 ? (
+                  <span className="ml-1.5 rounded-full bg-destructive px-1.5 py-0.5 text-xs text-destructive-foreground">
+                    {unresolvedConflictCount}
+                  </span>
+                ) : null}
+              </TabsTrigger>
+              <TabsTrigger value="push-review" data-testid="dialog-tab-push-review">
+                {t('syncCenter.tabPushReview')}
+                {pushReview.length > 0 ? (
+                  <span className="ml-1.5 rounded-full bg-destructive px-1.5 py-0.5 text-xs text-destructive-foreground">
+                    {pushReview.length}
+                  </span>
+                ) : null}
+              </TabsTrigger>
+              <TabsTrigger value="outgoing-writes" data-testid="dialog-tab-outgoing-writes">
+                {t('syncCenter.tabOutgoingWrites')}
+                {syncPlan && syncPlan.totalFiles > 0 ? (
+                  <span className="ml-1.5 rounded-full bg-primary px-1.5 py-0.5 text-xs text-primary-foreground">
+                    {syncPlan.totalFiles}
+                  </span>
+                ) : null}
+              </TabsTrigger>
+            </TabsList>
 
-          <div className="mt-4 max-h-[50vh] overflow-auto">
-            <TabsContent value="needs-setup">
-              <NeedsSetupTab
-                pending={pending}
-                loading={loadingPending}
-                onApply={(serverId) => {
-                  void handleApplyPending(serverId)
-                }}
-              />
-            </TabsContent>
+            <div className="mt-4 flex-1 overflow-hidden">
+              <TabsContent value="needs-setup" className="h-full overflow-auto">
+                <NeedsSetupTab
+                  pending={pending}
+                  loading={loadingPending}
+                  onApply={(serverId) => {
+                    void handleApplyPending(serverId)
+                  }}
+                />
+              </TabsContent>
 
-            <TabsContent value="conflicts">
-              <ConflictsTab
-                conflicts={conflicts}
-                loading={loadingConflicts}
-                onResolve={(conflictId, resolution) => {
-                  void handleResolveConflict(conflictId, resolution)
-                }}
-              />
-            </TabsContent>
+              <TabsContent value="conflicts" className="h-full overflow-auto">
+                <ConflictsTab
+                  conflicts={conflicts}
+                  loading={loadingConflicts}
+                  onResolve={(conflictId, resolution) => {
+                    void handleResolveConflict(conflictId, resolution)
+                  }}
+                />
+              </TabsContent>
 
-            <TabsContent value="push-review">
-              <PushReviewTab
-                conflicts={pushReview}
-                loading={loadingPushReview}
-                onResolve={(conflictId, resolution) => {
-                  void handlePushResolve(conflictId, resolution)
-                }}
-              />
-            </TabsContent>
+              <TabsContent value="push-review" className="h-full overflow-auto">
+                <PushReviewTab
+                  conflicts={pushReview}
+                  loading={loadingPushReview}
+                  onResolve={(conflictId, resolution) => {
+                    void handlePushResolve(conflictId, resolution)
+                  }}
+                />
+              </TabsContent>
+
+              <TabsContent value="outgoing-writes" className="h-full overflow-auto">
+                <SyncPlanView plan={syncPlan} loading={loadingSyncPlan} />
+              </TabsContent>
+            </div>
+          </Tabs>
+        ) : (
+          <div className="flex-1 overflow-hidden">
+            <SyncPlanView plan={syncPlan} loading={loadingSyncPlan} />
           </div>
-        </Tabs>
+        )}
+
+        {mode === 'confirmation' ? (
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={confirming}
+              data-testid="sync-plan-cancel"
+            >
+              {t('common.cancel')}
+            </Button>
+            <Button
+              type="button"
+              onClick={onConfirm}
+              disabled={confirming || !syncPlan?.confirmable}
+              data-testid="sync-plan-confirm"
+            >
+              {confirming ? t('common.loading') : t('syncCenter.syncPlanConfirm')}
+            </Button>
+          </DialogFooter>
+        ) : null}
       </DialogContent>
     </Dialog>
   )
